@@ -12,6 +12,7 @@ By transforming fragmented rental silos into a connected, intelligent ecosystem,
 - [Features](#features)
 - [Getting Started](#getting-started)
 - [Installation](#installation)
+- [FinTech Integrations](#integrations)
 - [Usage](#usage)
 - [API Documentation](#api-documentation)
 - [Contributing](#contributing)
@@ -93,3 +94,54 @@ flutter pub get
 
 # Run on emulator or device
 flutter run
+```
+
+## Fintech Integrations
+
+Connecting to industry-leading fintech and verification APIs for a seamless rent-tech experience. Below are the key integrations:
+
+    1. MSG91 (OTP & SMS Notifications)
+
+    2. Razorpay (Payments)
+
+    3. DigiLocker (Digital KYC)
+
+    4. Account Aggregator (AA) Framework
+
+    5. Digio (eSign & eKYC)
+
+    6. CIBIL (Credit Bureau Integration)
+
+
+
+## API Documentation
+
+    - Request OTP (POST/request-otp)
+            {
+                "email": "user@example.com"
+            }
+    
+    - Verify OTP(POST/verify-otp)
+            {
+                "otp":"123456"
+            }
+
+    - User Onboarding(POST/user-onboarding)
+            {
+                "session_token": "string",
+                "first_name": "Aman",
+                "last_name": "Kumar",
+                "date_of_birth": "1996-08-25",
+                "aadhar_card": "xxxx-xxxx-xxxx",
+                "pan_number": "ABCDE1234F",
+                "role": "tenant"
+            }
+
+## Contributing
+
+
+
+## License
+
+Copyright (c) 2025 KirayaEase
+
