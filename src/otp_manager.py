@@ -2,13 +2,13 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import random
-import sqlite3
-import time
+import random, sqlite3, time
 from dotenv import load_dotenv
 from templates import render_otp_email_html
 load_dotenv()
 from fastapi import HTTPException
+import uuid
+from sql_queries import VERIFY_OTP, STORE_OTP, CREATE_USER, FETCH_USER, UPDATE_OTP, AUTH_SESSION
 
 class OTPManager:
     def __init__(self):
@@ -22,19 +22,30 @@ class OTPManager:
         self.db_path = os.getenv("DATABASE_PATH")
 
     def generate_otp(self):
-        range_start = 100000
-        range_end = 999999
-        return str(random.randint(range_start, range_end))
+        return str(random.randint(100000, 999999))
     
-    def store_otp(self, email, otp, validity_seconds=300):
+    def store_otp(self, user_id, otp, validity_seconds=300):
         expiry = int(time.time()) + validity_seconds
+        session_token = str(uuid.uuid4())
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO otp_codes (email, otp, expiry, used) VALUES (?, ?, ?, 0)",
-                (email, otp, expiry)
-            )
+            cursor.execute(STORE_OTP,(user_id, otp, session_token, expiry))
             conn.commit()
+        return session_token
+
+    def create_fetch_user(self, email):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(CREATE_USER, (email,))
+            conn.commit()
+
+            cursor.execute(FETCH_USER, (email,))
+            result = cursor.fetchone()
+
+            if result:
+                return result[0]
+            else:
+                raise ValueError("Failed to fetch or create user")
 
     def send_email(self, receiver_email, otp):
         try:
@@ -47,7 +58,7 @@ class OTPManager:
             msg = MIMEMultipart()
             msg["From"] = sender_email
             msg["To"] = receiver_email
-            msg["Subject"] = "Your KirayaEase OTP Code"
+            msg["Subject"] = "Your KirayaEase One-Time-Password"
             html_content = render_otp_email_html(otp,receiver_email)
             msg.attach(MIMEText(html_content, "html"))
 
@@ -59,36 +70,34 @@ class OTPManager:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error sending email: {e}")
 
-    def verify_otp(self, email, user_otp):
+    def verify_otp(self, session_token, user_otp):
         current_time = int(time.time())
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT id, otp, expiry, used 
-                FROM otp_codes 
-                WHERE email = ? AND used = 0 
-                ORDER BY expiry DESC 
-                LIMIT 1
-                """,
-                (email,)
-        )
+            cursor.execute(VERIFY_OTP, (session_token,))
             result = cursor.fetchone()
             if not result:
-                raise ValueError("No valid OTP found for this email")
+                raise ValueError("No valid OTP found for this session")
             
-            otp_id, otp, expiry, used = result
-            if current_time > expiry:
-                raise ValueError("OTP has expired")
-            if otp != user_otp:
-                raise ValueError("Invalid OTP")
-            cursor.execute("UPDATE otp_codes SET used = 1 WHERE id = ?", (otp_id,))
+            user_id, otp, expiry, = result[0], result[1], result[2]
+            if current_time > expiry or otp != user_otp:
+                raise ValueError("OTP has expired or is invalid")
+            
+            cursor.execute(UPDATE_OTP, (session_token, user_id)) 
             conn.commit()
-            return True
+            return user_id
 
+    def create_login_session(self, user_id):
+        session_id = str(uuid.uuid4())
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(AUTH_SESSION, (session_id, user_id))
+            conn.commit()
+        return session_id
 
 
 # otp_manager = OTPManager()
 # otp = otp_manager.generate_otp()
-# otp_manager.store_otp("aragarwal@wisc.edu",otp)
-# otp_manager.send_email("aragarwal@wisc.edu", otp)
+# # # otp_manager.store_otp("ansh.agarwal2712@gmail.com",otp)
+# otp_manager.send_email("ansh.agarwal2712@gmail.com", otp)
+# # otp_manager.verify_otp('ansh.agarwal2712@gmail.com', '935136')
