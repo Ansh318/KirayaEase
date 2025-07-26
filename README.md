@@ -1,6 +1,6 @@
 # KirayaEase
 
-KirayaEase is an AI-powered rent payment and management platform designed to make renting intelligent, secure, and stress-free—for both landlords and tenants.
+KirayaEase is an AI-powered rent-tech platform designed to make renting intelligent, secure, and stress-free—for both landlords and tenants.
 
 At the core of our solution is a platform that powers dynamic rent structuring, rental yield analytics, data-driven pricing recommendations, simulating virtual portfolios, and more! Leveraging blockchain, we securely record lease agreements and tamper-proof rent receipts, integrated with payment gateways for transparent rent management.
 
@@ -17,11 +17,9 @@ By transforming fragmented rental silos into a connected, intelligent ecosystem,
 - [Contributing](#contributing)
 - [License](#license)
 
-
 ## Features
 
 - **Rent Payment Collection**: 
-    
     - Tenants can pay Landlords using digital payment platforms
     - UPI-Based Apps 
     - Credit Card Payment 
@@ -29,7 +27,6 @@ By transforming fragmented rental silos into a connected, intelligent ecosystem,
     - Net Banking
 
 - **Landlord and Tenant Profiles & Onboarding**:
-
     - Tenant Endorsements
     - KYC Verification (via PAN, Aadhaar, or DigiLocker)
     - Property Document, sale deed
@@ -40,8 +37,7 @@ By transforming fragmented rental silos into a connected, intelligent ecosystem,
     - Partner NBFC/Bank to offer credit line.
 
 - **Decentralized Document Management**:
-
-    - Rent Reciepts 
+    - Rent Receipts 
     - Lease Agreements
     - Utility Bills
 
@@ -59,21 +55,41 @@ By transforming fragmented rental silos into a connected, intelligent ecosystem,
     - Queries 
     - Reminders
 
+
 ## Getting Started
 
 ### Prerequisites
 
+- **Python** (3.8+)
+- **Flutter** (3.16+)
+- **Dart SDK**
+- **Android Studio / Xcode** (for mobile emulation or real device testing)
+- Backend dependencies (FastAPI, SQLite)
 
 
-### Installation
+## Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/kiraya-ease.git
-   cd kiraya-ease
-   ```
+### 1. Backend/Frontend (Python + FastAPI + Flutter)
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/your-username/kiraya-ease.git
+cd kiraya-ease
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+### 2. Frontend (Flutter/Dart)
+
+# Navigate to the Flutter project directory (assumed to be ./kirayaease_flutter)
+cd kirayaease/frontend
+
+# Get Flutter dependencies
+flutter pub get
+
+# Run on emulator or device
+flutter run
