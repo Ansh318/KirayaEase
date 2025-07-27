@@ -6,6 +6,8 @@ import 'screens/tenant.dart';
 import 'screens/landlord.dart';
 import 'screens/property_manager.dart';
 import 'screens/splash_screen.dart';
+import 'screens/pricing.dart';
+import 'screens/mission.dart';
 
 void main() {
   runApp(const KirayaEaseApp());
@@ -24,9 +26,12 @@ class KirayaEaseApp extends StatelessWidget {
         '/': (context) => const LandingPage(), // 📣 Intro screen
         '/login': (context) => const LoginPage(), // 🔐 OTP login
         '/home': (context) => const HomePage(), // 🏡 After login
-        '/tenant': (context) => const TenantDashboard(),
-        '/landlord': (context) => const LandlordDashboard(),
+        '/tenant': (context) => const TenantDashboard(), // Tenant Features
+        '/landlord': (context) =>
+            const LandlordDashboard(), // Landlord Features
         '/property-manager': (context) => const PropertyManagerDashboard(),
+        '/pricing': (context) => const PricingPage(),
+        '/mission': (context) => const MissionSection(),
       },
     );
   }

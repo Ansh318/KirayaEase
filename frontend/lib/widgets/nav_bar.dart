@@ -79,13 +79,13 @@ class NavBar extends StatelessWidget {
                     itemBuilder: (context) {
                       return [
                         _popupItem("Home", '/'),
-                        _popupItem("Mission", '/'),
-                        _popupItem("Landlords", '/'),
-                        _popupItem("Tenants", '/'),
-                        _popupItem("Technology", '/'),
-                        _popupItem("Pricing", '/'),
-                        _popupItem("Learn", '/'),
-                        _popupItem("About", '/'),
+                        _popupItem("Mission", '/mission'),
+                        _popupItem("Landlords", '/lanlord-info'),
+                        _popupItem("Tenants", '/tenant-info'),
+                        _popupItem("Technology", '/technology'),
+                        _popupItem("Pricing", '/pricing'),
+                        _popupItem("Learn", '/learn'),
+                        _popupItem("About", '/about'),
                       ];
                     },
                   ),
@@ -100,13 +100,13 @@ class NavBar extends StatelessWidget {
   List<Widget> _navItems(BuildContext context) {
     return [
       _navItem(context, "Home", '/'),
-      _navItem(context, "Mission", '/'),
-      _navItem(context, "Landlords", '/'),
-      _navItem(context, "Tenants", '/'),
-      _navItem(context, "Technology", '/'),
-      _navItem(context, "Pricing", '/'),
-      _navItem(context, "Learn", '/'),
-      _navItem(context, "About", '/'),
+      _navItem(context, "Mission", '/mission'),
+      _navItem(context, "Landlords", '/landlords-info'),
+      _navItem(context, "Tenants", '/tenants-info'),
+      _navItem(context, "Technology", '/technology'),
+      _navItem(context, "Pricing", '/pricing'),
+      _navItem(context, "Learn", '/learn'),
+      _navItem(context, "About", '/about'),
     ];
   }
 
