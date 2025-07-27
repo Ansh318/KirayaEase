@@ -9995,3 +9995,4 @@
 .venv/lib/python3.12/site-packages/azure/cli/command_modules/vm/aaz/profile_2020_09_01_hybrid/vm/host/__pycache__/_list.cpython-312.pyc
 .venv/lib/python3.12/site-packages/azure/cli/command_modules/vm/aaz/profile_2020_09_01_hybrid/vm/host/__pycache__/_show.cpython-312.pyc
 .venv/lib/python3.12/site-packages/azure/cli/command_modules/vm/aaz/profile_2020_09_01_hybrid/vm/host/__pycache__/_wait.cpython-312.pyc
+.env
