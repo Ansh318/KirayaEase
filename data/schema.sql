@@ -36,7 +36,7 @@ CREATE TABLE user_profiles (
   aadhaar TEXT UNIQUE,
   pan TEXT UNIQUE,
   date_of_birth DATE NOT NULL,
-  role TEXT NOT NULL CHECK(role IN ('tenant','landlord','manager')),
+  role TEXT NOT NULL CHECK(role IN ('landlord','tenant','property manager')),
   FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 

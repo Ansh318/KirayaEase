@@ -31,7 +31,7 @@ class OnboardingRequest(BaseModel):
     date_of_birth: date
     aadhar_card: str
     pan_number: str
-    role: str
+    user_role: str
 
 @app.post("/request-otp")
 async def request_otp(request: EmailRequest):
@@ -62,16 +62,16 @@ async def verify_otp(request: OTPVerification):
     
     
 @app.post('/user-onboarding')
-async def onboard_user(request: OnboardingRequest, user_role: str):
+async def onboard_user(request: OnboardingRequest):
     try:
         onboard_user = handle_user_onboarding(
             session_token = request.session_token,
             first_name = request.first_name,
             last_name = request.last_name, 
             dob = request.date_of_birth,
-            aadhar_card = request.aadhar_card,
-            pan_number = request.pan_number,
-            role = user_role
+            aadhaar=  request.aadhar_card,
+            pan = request.pan_number,
+            role = request.user_role
         )
         return onboard_user
     except ValueError as e:

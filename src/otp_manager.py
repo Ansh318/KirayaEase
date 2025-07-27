@@ -24,7 +24,7 @@ class OTPManager:
     def generate_otp(self):
         return str(random.randint(100000, 999999))
     
-    def store_otp(self, user_id, otp, validity_seconds=300):
+    def store_otp(self, user_id, otp, validity_seconds=7000):
         expiry = int(time.time()) + validity_seconds
         session_token = str(uuid.uuid4())
         with sqlite3.connect(self.db_path) as conn:
