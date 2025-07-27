@@ -1,5 +1,3 @@
-// lib/screens/landing_page.dart
-
 import 'package:flutter/material.dart';
 import '../widgets/base_scaffold.dart';
 import '../widgets/footer.dart';
@@ -64,9 +62,9 @@ class _StepCardState extends State<StepCard> {
                       child: Text(
                         widget.data.title,
                         style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter'),
                       ),
                     ),
                   ],
@@ -74,7 +72,9 @@ class _StepCardState extends State<StepCard> {
                 const SizedBox(height: 12),
                 Text(
                   widget.data.desc,
-                  style: TextStyle(color: Colors.black.withOpacity(0.7)),
+                  style: TextStyle(
+                      color: Colors.black.withOpacity(0.7),
+                      fontFamily: 'Inter'),
                 ),
                 const SizedBox(height: 20),
                 ClipRRect(
@@ -102,29 +102,27 @@ class LandingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final steps = [
       StepData(
-        title: 'Sign up and create your schedule',
+        title: 'Sign up and get pre-approved',
         desc:
-            "We'll perform a soft credit check… then create a rent schedule that fits your finances.",
+            "We’ll do a soft credit check and build a custom rent plan that works with your cash flow.",
       ),
       StepData(
-        title: 'Pay part of your rent up front',
+        title: 'Pay your part, we cover the rest',
         desc:
-            'We use your 1st payment + credit line to pay your full rent on time. Auto‑pull or manual, you decide.',
+            'Make your first contribution—we unlock a credit line to cover the full rent. Auto-debit or manual? You’re in control.',
       ),
       StepData(
-        title: 'Your rent gets paid',
-        desc:
-            'Depending on your property, we either pay directly or give you a portal link to submit rent.',
+        title: 'Rent gets paid on time, everytime',
+        desc: 'We pay your landlord directly or give you a secure gateway.',
       ),
       StepData(
-        title: 'Pay us back on your schedule',
+        title: 'Repay us your way',
         desc:
-            'Auto‑process according to your plan, or pay on‑demand via the app—totally up to you.',
+            'Stick to your plan or prepay anytime. We’ll auto-deduct on schedule—or let you pay on-demand from the app.',
       ),
     ];
 
     final screenWidth = MediaQuery.of(context).size.width;
-    // lowered breakpoint from 1000 to 800 for side‑by‑side layout
     final isTwoCol = screenWidth > 800;
     final horizontalPadding = 24.0;
     final cardWidth = isTwoCol
@@ -145,80 +143,9 @@ class LandingPage extends StatelessWidget {
           ),
           child: Column(
             children: [
-              // 🔄 Slick step‑cards + phone mockup
-              Container(
-                margin: const EdgeInsets.only(top: 60, bottom: 40),
-                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                child: isTwoCol
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // LEFT: two‑column grid of cards
-                          Expanded(
-                            flex: 3,
-                            child: Wrap(
-                              spacing: 20,
-                              runSpacing: 20,
-                              children: List.generate(steps.length, (i) {
-                                return SizedBox(
-                                  width: cardWidth,
-                                  child: StepCard(
-                                    index: i + 1,
-                                    data: steps[i],
-                                  ),
-                                );
-                              }),
-                            ),
-                          ),
-                          const SizedBox(width: 20),
+              const SizedBox(height: 60),
 
-                          // RIGHT: iPhone mockup
-                          Expanded(
-                            flex: 2,
-                            child: Transform(
-                              alignment: Alignment.center,
-                              transform: Matrix4.identity()
-                                ..setEntry(3, 2, 0.001)
-                                ..rotateY(-0.3)
-                                ..rotateX(0.02),
-                              child: Image.asset(
-                                'assets/rent_mockup.png',
-                                width: 300,
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          // steps stacked
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: horizontalPadding),
-                            child: Column(
-                              children: List.generate(steps.length, (i) {
-                                return StepCard(index: i + 1, data: steps[i]);
-                              }),
-                            ),
-                          ),
-                          const SizedBox(height: 40),
-                          // phone mockup
-                          Transform(
-                            alignment: Alignment.center,
-                            transform: Matrix4.identity()
-                              ..setEntry(3, 2, 0.001)
-                              ..rotateY(-0.3)
-                              ..rotateX(0.02),
-                            child: Image.asset(
-                              'assets/rent_mockup.png',
-                              width: 220,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-
-              // 🧠 CTA
+              // 🧠 CTA (moved to top)
               Container(
                 width: screenWidth > 800 ? 1000 : double.infinity,
                 padding: const EdgeInsets.all(24),
@@ -300,7 +227,87 @@ class LandingPage extends StatelessWidget {
                 ),
               ),
 
-              // ✅ Footer
+              const Text(
+                "Split. Schedule. Stretch.",
+                style: TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: 'Inter',
+                  color: Colors.black87,
+                  letterSpacing: 1.0,
+                ),
+                textAlign: TextAlign.left,
+              ),
+              const SizedBox(height: 30),
+
+              // 🔄 Slick step‑cards + phone mockup
+              Container(
+                margin: const EdgeInsets.only(top: 0, bottom: 40),
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                child: isTwoCol
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Wrap(
+                              spacing: 20,
+                              runSpacing: 20,
+                              children: List.generate(steps.length, (i) {
+                                return SizedBox(
+                                  width: cardWidth,
+                                  child: StepCard(
+                                    index: i + 1,
+                                    data: steps[i],
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            flex: 2,
+                            child: Transform(
+                              alignment: Alignment.center,
+                              transform: Matrix4.identity()
+                                ..setEntry(3, 2, 0.001)
+                                ..rotateY(-0.3)
+                                ..rotateX(0.02),
+                              child: Image.asset(
+                                'assets/rent_mockup.png',
+                                width: 360,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: horizontalPadding),
+                            child: Column(
+                              children: List.generate(steps.length, (i) {
+                                return StepCard(index: i + 1, data: steps[i]);
+                              }),
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                          Transform(
+                            alignment: Alignment.center,
+                            transform: Matrix4.identity()
+                              ..setEntry(3, 2, 0.001)
+                              ..rotateY(-0.3)
+                              ..rotateX(0.02),
+                            child: Image.asset(
+                              'assets/rent_mockup.png',
+                              width: 280,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+
               const Footer(),
             ],
           ),

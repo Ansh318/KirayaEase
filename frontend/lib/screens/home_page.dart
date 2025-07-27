@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/base_scaffold.dart';
 import '../widgets/footer.dart';
-import '../widgets/onboarding_form.dart'; // import the extracted form widget
-import 'package:http/http.dart' as http;
+import '../widgets/onboarding_form.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -13,18 +12,20 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Bullets for each card
     final stepsLandlord = [
-      _Bullet(Icons.show_chart, 'Boost NOI and increase rental yield'),
-      _Bullet(Icons.analytics, 'ML‑powered insights and analytics'),
+      _Bullet(Icons.show_chart, 'On-time rent, steady cash flow'),
+      _Bullet(Icons.analytics, 'Smart pricing to retain tenants'),
       _Bullet(
-          Icons.trending_up, 'Minimize delinquencies & ensure sustainability'),
+          Icons.trending_up, 'Lower defaults, higher yield - no extra effort'),
     ];
     final stepsTenant = [
-      _Bullet(Icons.calendar_today, 'Convenient payment scheduling'),
-      _Bullet(Icons.currency_rupee, 'Build credit and earn rewards'),
-      _Bullet(Icons.show_chart, 'ML‑powered budgeting insights'),
+      _Bullet(Icons.calendar_today, 'Pay rent your way, on your schedule.'),
+      _Bullet(Icons.currency_rupee, 'Turn every rent payment into a reward.'),
+      _Bullet(Icons.show_chart, 'Smart budgeting that adapts to you.'),
     ];
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = screenWidth > 700;
 
     return BaseScaffold(
       child: SingleChildScrollView(
@@ -32,64 +33,50 @@ class HomePage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // === Heading ===
             const Text(
-              'Welcome to KirayaEase',
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Choose Your Path',
+              'For Renters & Landlords',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 12),
             const Text(
-              "Whether you're a property owner looking to maximize returns "
-              "or a tenant seeking financial flexibility, KirayaEase is for you.",
-              style: TextStyle(fontSize: 16, color: Colors.black54),
+              "Whether you're a property owner sick of delayed payments "
+              "or a tenant struggling to keep up with monthly rent, KirayaEase is for you.",
+              style: TextStyle(fontSize: 18, color: Colors.black54),
             ),
             const SizedBox(height: 32),
-
-            // === Two cards side‑by‑side on wide, stacked on narrow ===
-            LayoutBuilder(builder: (ctx, constraints) {
-              final isWide = constraints.maxWidth > 700;
-              return Flex(
-                direction: isWide ? Axis.horizontal : Axis.vertical,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _buildCard(
-                      title: 'For Landlords',
-                      subtitle:
-                          'Maximize your rental income and minimize vacancies '
-                          'with our intelligent property management platform.',
-                      bgColor: landlordBg,
-                      borderColor: primary,
-                      bullets: stepsLandlord,
-                    ),
+            // Responsive Card Layout
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                SizedBox(
+                  width: isWide ? (screenWidth - 64) / 2 : double.infinity,
+                  child: _buildCard(
+                    title: 'Landlords',
+                    subtitle:
+                        'Keep units full and income flowing with smart rental management.',
+                    bgColor: landlordBg,
+                    borderColor: primary,
+                    bullets: stepsLandlord,
                   ),
-                  SizedBox(width: isWide ? 24 : 0, height: isWide ? 0 : 24),
-                  Expanded(
-                    child: _buildCard(
-                      title: 'For Tenants',
-                      subtitle:
-                          'Take control of your rental payments and build your '
-                          'financial future with flexible payment options.',
-                      bgColor: tenantBg,
-                      borderColor: Color.fromARGB(255, 0, 198, 166),
-                      bullets: stepsTenant,
-                    ),
+                ),
+                SizedBox(
+                  width: isWide ? (screenWidth - 64) / 2 : double.infinity,
+                  child: _buildCard(
+                    title: 'Tenants',
+                    subtitle:
+                        'Own your rent, shape your future - with payment plans that work for you.',
+                    bgColor: tenantBg,
+                    borderColor: primary,
+                    bullets: stepsTenant,
                   ),
-                ],
-              );
-            }),
+                ),
+              ],
+            ),
 
             const SizedBox(height: 32),
-            // === Onboarding form ===
             const OnboardingForm(),
-
             const SizedBox(height: 40),
-            // === Footer ===
             const Footer(),
           ],
         ),
@@ -114,21 +101,17 @@ class HomePage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title
           Text(title,
               style:
                   const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          // Subtitle
           Text(subtitle, style: const TextStyle(fontSize: 16)),
           const SizedBox(height: 16),
-          // Bullets
           ...bullets.map((b) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: b,
               )),
           const SizedBox(height: 24),
-          // Begin KYC button
           OutlinedButton(
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: borderColor, width: 2),
