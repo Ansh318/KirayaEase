@@ -3,13 +3,15 @@ from fastapi import HTTPException
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
 from sql_queries import (
     GET_USER_FROM_SESSION,
     CHECK_ONBOARDED,
     CHECK_DUPLICATE_AADHAAR,
     CHECK_DUPLICATE_PAN,
     INSERT_USER_PROFILE,
-    MARK_USER_ONBOARDED
+    MARK_USER_ONBOARDED,
+    GET_USER_PROFILE
 )
 
 
@@ -56,3 +58,27 @@ def handle_user_onboarding(session_token, first_name, last_name, dob, aadhaar, p
         conn.commit()
 
     return {"success": True, "message": "User onboarded successfully"}
+
+
+def get_user_by_token(session_token):
+    with sqlite3.connect(os.getenv("DATABASE_PATH")) as conn:
+        cursor = conn.cursor()
+        cursor.execute(GET_USER_FROM_SESSION, (session_token,))
+        result = cursor.fetchone()
+        if not result:
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
+        user_id = result[0]
+        cursor.execute(GET_USER_PROFILE, (user_id,))
+        user_details = cursor.fetchone()
+        if not user_details:
+            raise HTTPException(status_code=404, detail="User profile not found")
+        
+        return {
+            "first_name": user_details[0],
+            "last_name": user_details[1],
+            "aadhar": user_details[2],
+            "pan": user_details[3],
+            "dob": user_details[4],
+            "role": user_details[5]
+        }
+

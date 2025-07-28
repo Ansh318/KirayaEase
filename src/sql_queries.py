@@ -60,3 +60,9 @@ MARK_USER_ONBOARDED = """
     SET onboarded = 1 
     WHERE id = ?
 """
+
+GET_USER_PROFILE = """
+        SELECT first_name, last_name, aadhaar, pan, date_of_birth,role
+        FROM user_profiles
+        WHERE user_id = ?;
+    """

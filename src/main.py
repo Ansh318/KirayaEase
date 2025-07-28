@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
 from otp_manager import OTPManager
 import os, sqlite3, uuid
 from dotenv import load_dotenv
 from datetime import date
-from onboarding import handle_user_onboarding
+from onboarding import handle_user_onboarding, get_user_by_token
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
@@ -53,6 +53,7 @@ async def verify_otp(request: OTPVerification):
         user_id = otp_manager.verify_otp(request.session_token, request.otp)
         session_id = otp_manager.create_login_session(user_id)
         onboarded_bool, role = otp_manager.check_onboarding(user_id)
+        print(user_id, session_id, role)
         print(role, onboarded_bool)
         return {
             "success": True, 
@@ -81,5 +82,15 @@ async def onboard_user(request: OnboardingRequest):
         return onboard_user
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get('/user-profile')
+def get_user_profile(authorization: str = Header(...)):
+    session_token = authorization.replace("Bearer ", "").strip()
+    user_profile = get_user_by_token(session_token)
+    if not user_profile:
+        raise HTTPException(status_code=401, detail = 'Invalid user')
+    return user_profile
+
 
 
