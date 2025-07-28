@@ -1,14 +1,29 @@
-import os 
+import os
+import time
+import uuid
+import random
+import sqlite3
 import smtplib
+
+from dotenv import load_dotenv
+from fastapi import HTTPException
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import random, sqlite3, time
-from dotenv import load_dotenv
-from templates import render_otp_email_html
+
+# Load environment variables
 load_dotenv()
-from fastapi import HTTPException
-import uuid
-from sql_queries import VERIFY_OTP, STORE_OTP, CREATE_USER, FETCH_USER, UPDATE_OTP, AUTH_SESSION
+
+# Internal modules
+from templates import render_otp_email_html
+from sql_queries import (
+    VERIFY_OTP,
+    STORE_OTP,
+    CREATE_USER,
+    FETCH_USER,
+    UPDATE_OTP,
+    AUTH_SESSION,
+    CHECK_ONBOARDED
+)
 
 class OTPManager:
     def __init__(self):
@@ -95,7 +110,16 @@ class OTPManager:
             conn.commit()
         return session_id
 
-
+    def check_onboarding(self, user_id):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(CHECK_ONBOARDED, (user_id,))
+            result = cursor.fetchone()
+            id, role = result[0], result[1]
+            if result:
+                return True, role
+            else:
+                return False, 'None'
 # otp_manager = OTPManager()
 # otp = otp_manager.generate_otp()
 # # # otp_manager.store_otp("ansh.agarwal2712@gmail.com",otp)

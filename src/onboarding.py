@@ -35,7 +35,7 @@ def handle_user_onboarding(session_token, first_name, last_name, dob, aadhaar, p
         # Step 3: Check if user already onboarded
         cursor.execute(CHECK_ONBOARDED, (user_id,))
         if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="User already onboarded")
+            return {"success": "True", "message": "User already onboarded", "user_id": user_id}
 
         # Step 4: Aadhaar/PAN duplication checks
         if aadhaar:

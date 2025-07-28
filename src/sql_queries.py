@@ -35,7 +35,7 @@ GET_USER_FROM_SESSION = """
 """
 
 CHECK_ONBOARDED = """
-    SELECT id FROM user_profiles 
+    SELECT id, role FROM user_profiles 
     WHERE user_id = ?
 """
 

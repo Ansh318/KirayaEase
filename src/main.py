@@ -52,11 +52,16 @@ async def verify_otp(request: OTPVerification):
     try:
         user_id = otp_manager.verify_otp(request.session_token, request.otp)
         session_id = otp_manager.create_login_session(user_id)
+        onboarded_bool, role = otp_manager.check_onboarding(user_id)
+        print(role, onboarded_bool)
         return {
             "success": True, 
-            "auth_token": session_id,
-            "message": "OTP verified"
+            "session_token": session_id,
+            "message": "OTP verified",
+            "onboarded": onboarded_bool,
+            "user_role": role
         }
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     

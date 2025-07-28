@@ -44,7 +44,6 @@ class HomePage extends StatelessWidget {
               style: TextStyle(fontSize: 18, color: Colors.black54),
             ),
             const SizedBox(height: 32),
-            // Responsive Card Layout
             Wrap(
               spacing: 16,
               runSpacing: 16,
@@ -73,7 +72,6 @@ class HomePage extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 32),
             const OnboardingForm(),
             const SizedBox(height: 40),
@@ -111,23 +109,6 @@ class HomePage extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: b,
               )),
-          const SizedBox(height: 24),
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: borderColor, width: 2),
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              // TODO: navigate to KYC flow
-            },
-            child: Text('Begin KYC',
-                style: TextStyle(
-                    color: borderColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
-          ),
         ],
       ),
     );
