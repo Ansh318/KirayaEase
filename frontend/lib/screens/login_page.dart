@@ -177,7 +177,8 @@ class _LoginPageState extends State<LoginPage> {
                               color: Color.fromARGB(255, 0, 0, 0)),
                           decoration: InputDecoration(
                             hintText: 'Enter OTP',
-                            hintStyle: const TextStyle(color: Colors.white70),
+                            hintStyle: const TextStyle(
+                                color: Color.fromARGB(179, 0, 0, 0)),
                             prefixIcon: const Icon(Icons.lock_outline,
                                 color: Colors.white54),
                             filled: true,

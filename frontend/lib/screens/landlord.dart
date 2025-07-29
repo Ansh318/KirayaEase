@@ -428,7 +428,14 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
             ),
             IconButton(
               icon: const Icon(Icons.logout, size: 30, color: Colors.black),
-              onPressed: () {},
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('session_token');
+
+                if (!mounted) return;
+                Navigator.of(context)
+                    .pushNamedAndRemoveUntil('/', (route) => false);
+              },
               tooltip: 'Sign Out',
             ),
           ],

@@ -115,11 +115,13 @@ class OTPManager:
             cursor = conn.cursor()
             cursor.execute(CHECK_ONBOARDED, (user_id,))
             result = cursor.fetchone()
-            id, role = result[0], result[1]
             if result:
+                id, role = result[0], result[1]
                 return True, role
             else:
                 return False, 'None'
+
+                
 # otp_manager = OTPManager()
 # otp = otp_manager.generate_otp()
 # # # otp_manager.store_otp("ansh.agarwal2712@gmail.com",otp)
