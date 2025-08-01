@@ -16,6 +16,7 @@
 //   Map<String, dynamic>? userProfile;
 //   bool isLoading = true;
 //   String? error;
+//   Offset _assistantOffset = const Offset(300, 500);
 
 //   @override
 //   void initState() {
@@ -110,7 +111,7 @@
 //                     ),
 //                     const SizedBox(height: 16),
 //                     _buildProfileRow("Name",
-//                         "${userProfile!["first_name"]} ${userProfile!["last_name"]}"),
+//                         "${userProfile!['first_name']} ${userProfile!['last_name']}"),
 //                     _buildProfileRow("Role", userProfile!["role"]),
 //                     _buildProfileRow("Aadhaar",
 //                         userProfile!["aadhar_card"]?.toString() ?? "—"),
@@ -142,7 +143,7 @@
 //     return Padding(
 //       padding: const EdgeInsets.symmetric(vertical: 4),
 //       child: Text(
-//         "$label: ${value ?? '—'}",
+//         "$label: \${value ?? '—'}",
 //         style: const TextStyle(color: Colors.black87),
 //       ),
 //     );
@@ -162,20 +163,15 @@
 //             IconButton(
 //               icon: const Icon(Icons.home_work_outlined,
 //                   size: 30, color: Colors.black),
-//               onPressed: () {
-//                 // TODO: Navigate to Properties screen
-//               },
+//               onPressed: () {},
 //               tooltip: 'Properties',
 //             ),
 //             const SizedBox(width: 16),
 //             IconButton(
 //               icon: const Icon(Icons.payments, size: 30, color: Colors.black),
-//               onPressed: () {
-//                 // TODO: Navigate to Payments screen
-//               },
+//               onPressed: () {},
 //               tooltip: 'Payments',
 //             ),
-//             const SizedBox(width: 16),
 //             IconButton(
 //               icon: const Icon(Icons.account_circle,
 //                   size: 30, color: Colors.black),
@@ -187,15 +183,18 @@
 //             IconButton(
 //               icon: const Icon(Icons.description_outlined,
 //                   size: 30, color: Colors.black),
-//               onPressed: () {
-//                 // TODO: Navigate to Documents
-//               },
+//               onPressed: () {},
 //               tooltip: 'Documents',
 //             ),
 //             IconButton(
 //               icon: const Icon(Icons.logout, size: 30, color: Colors.black),
-//               onPressed: () {
-//                 // TODO: Handle Sign Out
+//               onPressed: () async {
+//                 final prefs = await SharedPreferences.getInstance();
+//                 await prefs.remove('session_token');
+
+//                 if (!mounted) return;
+//                 Navigator.of(context)
+//                     .pushNamedAndRemoveUntil('/', (route) => false);
 //               },
 //               tooltip: 'Sign Out',
 //             ),
@@ -224,12 +223,32 @@
 //                       ),
 //                     ),
 //                     Positioned(
-//                       bottom: 20,
-//                       right: 20,
-//                       child: AIAssistantButton(
-//                         onTap: () {
-//                           // TODO: Handle assistant logic
+//                       left: _assistantOffset.dx,
+//                       top: _assistantOffset.dy,
+//                       child: GestureDetector(
+//                         onPanUpdate: (details) {
+//                           setState(() {
+//                             final Size screenSize = MediaQuery.of(context).size;
+//                             final double buttonSize = 60;
+//                             double newX =
+//                                 _assistantOffset.dx + details.delta.dx;
+//                             double newY =
+//                                 _assistantOffset.dy + details.delta.dy;
+
+//                             newX =
+//                                 newX.clamp(0.0, screenSize.width - buttonSize);
+//                             newY = newY.clamp(
+//                                 0.0,
+//                                 screenSize.height -
+//                                     buttonSize -
+//                                     kToolbarHeight);
+
+//                             _assistantOffset = Offset(newX, newY);
+//                           });
 //                         },
+//                         child: AIAssistantChatWidget(
+//                           onTap: () {},
+//                         ),
 //                       ),
 //                     ),
 //                   ],
@@ -383,7 +402,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Text(
-        "$label: \${value ?? '—'}",
+        "$label: ${value ?? '—'}",
         style: const TextStyle(color: Colors.black87),
       ),
     );
@@ -402,13 +421,13 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
           children: [
             IconButton(
               icon: const Icon(Icons.home_work_outlined,
-                  size: 30, color: Colors.black),
+                  size: 36, color: Colors.black),
               onPressed: () {},
               tooltip: 'Properties',
             ),
             const SizedBox(width: 16),
             IconButton(
-              icon: const Icon(Icons.payments, size: 30, color: Colors.black),
+              icon: const Icon(Icons.payments, size: 36, color: Colors.black),
               onPressed: () {},
               tooltip: 'Payments',
             ),
@@ -421,13 +440,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
               tooltip: 'View Profile',
             ),
             IconButton(
-              icon: const Icon(Icons.description_outlined,
-                  size: 30, color: Colors.black),
-              onPressed: () {},
-              tooltip: 'Documents',
-            ),
-            IconButton(
-              icon: const Icon(Icons.logout, size: 30, color: Colors.black),
+              icon: const Icon(Icons.logout, size: 36, color: Colors.black),
               onPressed: () async {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.remove('session_token');
@@ -486,9 +499,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                             _assistantOffset = Offset(newX, newY);
                           });
                         },
-                        child: AIAssistantButton(
-                          onTap: () {},
-                        ),
+                        child: const AIAssistantChatWidget(),
                       ),
                     ),
                   ],
