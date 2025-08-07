@@ -14,7 +14,18 @@
           "author": "Ansh Agarwal"
         }
       },
-      "User Prompt": "None"
+      "User Prompt": "None",
+
+      "Lease Prompt" : {
+        "content": "You are KirayaEase's lease document generator. Using the residential agreement format below, fill the brackets and make it bold with values provided by the user. Keep the structure, legal language, and formatting exactly the same. Do not invent or change clauses. Just substitute the placeholders in square brackets []. Template Start {lease_template} Now fill the template using the input: {human_input}. Answer:/n",
+        "variables": [
+          {
+            "name": "message_content",
+            "type": "string",
+            "description": "The content of the message from the landlord"
+          }
+        ]
+      }
     }
   }
   

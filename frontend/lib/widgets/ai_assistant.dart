@@ -1,7 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class AIAssistantChatWidget extends StatefulWidget {
-  const AIAssistantChatWidget();
+  const AIAssistantChatWidget({super.key});
 
   @override
   State<AIAssistantChatWidget> createState() => _AIAssistantChatWidgetState();
@@ -19,14 +20,18 @@ class _AIAssistantChatWidgetState extends State<AIAssistantChatWidget> {
   }
 
   void _sendMessage() {
-    if (_controller.text.trim().isEmpty) return;
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
 
     setState(() {
-      messages.add({"sender": "user", "text": _controller.text.trim()});
+      messages.add({"sender": "user", "text": text});
       _controller.clear();
+    });
 
-      // Fake AI response
-      messages.add({"sender": "ai", "text": "Let me help you with that!"});
+    Future.delayed(const Duration(milliseconds: 500), () {
+      setState(() {
+        messages.add({"sender": "ai", "text": "Let me help you with that!"});
+      });
     });
   }
 
@@ -34,96 +39,149 @@ class _AIAssistantChatWidgetState extends State<AIAssistantChatWidget> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Floating button
+        // Floating Action Button
         Positioned(
           bottom: 24,
           right: 24,
           child: FloatingActionButton(
             onPressed: _toggleChat,
-            backgroundColor: Colors.white,
-            child: const Icon(Icons.auto_awesome, color: Colors.black87),
+            backgroundColor: Colors.black87,
+            child: const Icon(Icons.auto_awesome, color: Colors.white),
           ),
         ),
 
-        // Chat widget
+        // Chat Popup
         if (isOpen)
           Positioned(
             bottom: 90,
             right: 16,
-            child: Material(
-              borderRadius: BorderRadius.circular(16),
-              elevation: 10,
-              child: Container(
-                width: 320,
-                height: 400,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          "AI Assistant",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 18),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: _toggleChat,
-                        ),
-                      ],
-                    ),
-                    const Divider(),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: messages.length,
-                        itemBuilder: (context, index) {
-                          final msg = messages[index];
-                          final isUser = msg["sender"] == "user";
-                          return Align(
-                            alignment: isUser
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              padding: const EdgeInsets.all(10),
-                              constraints: const BoxConstraints(maxWidth: 250),
-                              decoration: BoxDecoration(
-                                color: isUser
-                                    ? Colors.blue.shade100
-                                    : Colors.grey.shade200,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(msg["text"]!),
-                            ),
-                          );
-                        },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: 340,
+                  height: 460,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 12,
+                        offset: const Offset(0, 8),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _controller,
-                            decoration: const InputDecoration(
-                              hintText: "Type a message...",
-                              border: OutlineInputBorder(),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "AI Assistant",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: _toggleChat,
+                          ),
+                        ],
+                      ),
+                      const Divider(color: Colors.white24),
+
+                      // Chat Messages
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: messages.length,
+                          itemBuilder: (context, index) {
+                            final msg = messages[index];
+                            final isUser = msg["sender"] == "user";
+                            return Align(
+                              alignment: isUser
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                padding: const EdgeInsets.all(12),
+                                constraints:
+                                    const BoxConstraints(maxWidth: 260),
+                                decoration: BoxDecoration(
+                                  color: isUser
+                                      ? Colors.blueAccent.withOpacity(0.8)
+                                      : Colors.white.withOpacity(0.8),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: const Radius.circular(16),
+                                    topRight: const Radius.circular(16),
+                                    bottomLeft:
+                                        Radius.circular(isUser ? 16 : 0),
+                                    bottomRight:
+                                        Radius.circular(isUser ? 0 : 16),
+                                  ),
+                                ),
+                                child: Text(
+                                  msg["text"]!,
+                                  style: TextStyle(
+                                    color:
+                                        isUser ? Colors.white : Colors.black87,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.send),
-                          onPressed: _sendMessage,
-                        )
-                      ],
-                    )
-                  ],
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Input
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _controller,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                hintText: "Type a message...",
+                                hintStyle: TextStyle(color: Colors.white60),
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.1),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 10, horizontal: 14),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                              onSubmitted: (_) => _sendMessage(),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: _sendMessage,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withOpacity(0.2),
+                              ),
+                              child: const Icon(Icons.send,
+                                  size: 20, color: Colors.white),
+                            ),
+                          )
+                        ],
+                      )
+                    ],
+                  ),
                 ),
               ),
             ),

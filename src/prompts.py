@@ -39,19 +39,11 @@ class PromptManager:
         try:
             self.read_prompt()
             content = self.prompts[prompt_id]['content']
-            prompt = ChatPromptTemplate(
-                [
-                    SystemMessage(
-                        content = content
-                    ),
-                    MessagesPlaceholder(
-                        variable_name = 'chat_history'
-                    ),
-                    HumanMessagePromptTemplate.from_template(
-                        "{human_input}"
-                    ),
-                ]
-            )
+            prompt = ChatPromptTemplate.from_messages([
+                SystemMessage(content="You are KirayaEase's lease document generator. Using the residential agreement format below, fill the brackets and make it bold with values provided by the user. Keep the structure, legal language, and formatting exactly the same. Do not invent or change clauses. Just substitute all the placeholders in square brackets []. "),
+                HumanMessagePromptTemplate.from_template("TEMPLATE:\n{lease_template}\n\nUSER INPUT:\n{human_input}")
+            ])
+            
             return prompt
         except ValueError as ve:
             return f"Value error: {ve}"

@@ -136,6 +136,10 @@ Connecting to industry-leading fintech and verification APIs for a seamless rent
                 "pan_number": "ABCDE1234F",
                 "role": "tenant"
             }
+    - User Profile(GET/user-profile)
+            {
+                "session_token": "string"
+            }
 
 ## Contributing
 

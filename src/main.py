@@ -5,6 +5,13 @@ import os, sqlite3, uuid
 from dotenv import load_dotenv
 from datetime import date
 from onboarding import handle_user_onboarding, get_user_by_token
+import razorpay
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+
+razorpay_client = razorpay.Client(
+    auth=(os.getenv("RAZORPAY_TEST_KEY_ID"), os.getenv("RAZORPAY_KEY_SECRET"))
+)
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +39,10 @@ class OnboardingRequest(BaseModel):
     aadhar_card: str
     pan_number: str
     user_role: str
+
+class CreateOrderRequest(BaseModel):
+    amount: float
+    receipt_id: str = "receipt_auto"
 
 @app.post("/request-otp")
 async def request_otp(request: EmailRequest):
@@ -93,4 +104,14 @@ def get_user_profile(authorization: str = Header(...)):
     return user_profile
 
 
+@app.post('/create-payment-order')
+def create_payment(request: CreateOrderRequest, currency = "INR", payment_capture = True):
+    order_data = {
+        "amount": request.amount, 
+        "currency": currency,
+        "receipt": request.receipt_id,
+        "payment_capture": (payment_capture)
+    }
+    order = razorpay_client.order.create(data=order_data)
+    return order
 
