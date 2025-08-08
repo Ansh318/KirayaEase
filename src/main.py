@@ -8,6 +8,7 @@ from onboarding import handle_user_onboarding, get_user_by_token
 import razorpay
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
+from chatbot import RentWiseAssistant 
 
 razorpay_client = razorpay.Client(
     auth=(os.getenv("RAZORPAY_TEST_KEY_ID"), os.getenv("RAZORPAY_KEY_SECRET"))
@@ -113,5 +114,25 @@ def create_payment(request: CreateOrderRequest, currency = "INR", payment_captur
         "payment_capture": (payment_capture)
     }
     order = razorpay_client.order.create(data=order_data)
+    print(order)
     return order
 
+class ChatResponse(BaseModel):
+    response: str
+
+# Request model
+class ChatRequest(BaseModel):
+    message: str
+
+assistant = RentWiseAssistant("gpt-4", temperature=0.7, max_retries=2)
+
+@app.post("/chatbot", response_model=ChatResponse)
+async def chat_with_ai(request: ChatRequest):
+    try:
+        output = assistant.run_chain(
+            prompt_id="System Prompt",
+            query=request.message
+        )
+        return {"response": output.get("text", str(output))}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -21,5 +21,3 @@ class ModelConfigManager:
         )
         return llm
     
-params = ModelConfigManager("gpt-4", "0", "1")
-params.model()

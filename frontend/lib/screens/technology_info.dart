@@ -34,6 +34,19 @@ class TechnologyInfo extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFE9FCFB),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFE9FCFB),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          "Technology",
+          style: TextStyle(color: Colors.black87),
+        ),
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -41,26 +54,26 @@ class TechnologyInfo extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(24),
                 children: [
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
                   const Text(
                     "Our Technology",
                     style: TextStyle(
-                      fontSize: 36,
+                      fontSize: 32,
                       fontWeight: FontWeight.w500,
                       color: Colors.black,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   const Text(
                     "Built with cutting-edge technology to provide a seamless rental experience for everyone.",
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       color: Colors.black54,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                   ...techList.asMap().entries.map((entry) {
                     final index = entry.key;
                     final item = entry.value;
@@ -116,7 +129,7 @@ class TechnologyInfo extends StatelessWidget {
                 ],
               ),
             ),
-            const Footer(), // ✅ Added footer
+            const Footer(),
           ],
         ),
       ),
