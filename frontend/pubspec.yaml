@@ -15,6 +15,7 @@ dependencies:
   url_launcher: ^6.2.5
   shared_preferences: ^2.2.2
   video_player: ^2.7.0
+  razorpay_flutter: ^1.4.0
 
 dev_dependencies:
   flutter_test:
@@ -28,3 +29,4 @@ flutter:
     - assets/rent_mockup.png
     - assets/logo.png
     - assets/intro_video.mp4
+    - assets/razorpay.png

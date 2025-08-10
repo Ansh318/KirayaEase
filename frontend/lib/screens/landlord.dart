@@ -273,19 +273,19 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                           {
                             'name': 'Sarah Johnson',
                             'property': 'Sunrise #204',
-                            'amount': '\$1250.00',
+                            'amount': '\₹1250.00',
                             'status': 'Paid'
                           },
                           {
                             'name': 'Alex Chen',
                             'property': 'Maple #3B',
-                            'amount': '\$1150.00',
+                            'amount': '\₹1150.00',
                             'status': 'Requested'
                           },
                           {
                             'name': 'Priya Kapoor',
                             'property': 'Oak #12A',
-                            'amount': '\$980.00',
+                            'amount': '\₹980.00',
                             'status': 'Overdue'
                           },
                         ]),
