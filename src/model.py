@@ -1,6 +1,6 @@
 from prompts import PromptManager
 from langchain.chains import LLMChain
-from langchain.memory import ConversationBufferMemory
+from langchain.memory.buffer import ConversationBufferMemory
 from modelConfig import ModelConfigManager
 
 class LeaseAgreementGenerator:

@@ -14,7 +14,6 @@ import 'screens/landlord_info.dart';
 import 'screens/tenant_info.dart';
 import 'screens/technology_info.dart';
 import 'screens/learn.dart';
-import 'screens/property_manager.dart';
 
 void main() {
   runApp(const KirayaEaseApp());

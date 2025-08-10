@@ -192,7 +192,7 @@ class LandingPage extends StatelessWidget {
                             Navigator.pushNamed(context, '/login');
                           },
                           child: const Text(
-                            "Get Started",
+                            "Sign in",
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
@@ -211,7 +211,7 @@ class LandingPage extends StatelessWidget {
                             ),
                           ),
                           onPressed: () {
-                            // TODO: add Learn more logic
+                            Navigator.pushNamed(context, '/learn');
                           },
                           child: const Text(
                             "Learn more",
