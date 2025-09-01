@@ -76,7 +76,7 @@ By transforming fragmented rental silos into a connected, intelligent ecosystem,
 # Clone the repository
 git clone https://github.com/your-username/kiraya-ease.git
 cd kiraya-ease
-
+sqlite3 /Users/anshagarwal/Desktop/KirayaEase/data/KE_db.db < /Users/anshagarwal/Desktop/KirayaEase/data/schema.sql
 # Create virtual environment
 python3 -m venv venv
 source venv/bin/activate  # or venv\Scripts\activate on Windows

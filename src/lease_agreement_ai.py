@@ -48,12 +48,13 @@ class LeaseAgreementGenerator:
         return response
 
 
-# # Example usage
-# if __name__ == "__main__":
-#     model = OpenAIModel("gpt-4", "0", "1")
-#     response = model.run_chain(
-#     "Lease Prompt",
-#     "Ravi Kumar is renting a 2BHK apartment in Andheri West, Mumbai from Sept 1, 2025. Landlord is Ansh Agarwal. Rent is ₹25,000/month. Deposit is ₹50,000. Property is 950 sq ft with 2 bathrooms and 1 car park. Starting meter reading is 5421."
-# )
+# Example usage
+if __name__ == "__main__":
+    model = LeaseAgreementGenerator("gpt-4", "0", "1")
+    response = model.run_chain(
+    "Lease Prompt",
+    "Ravi Kumar is renting a 2BHK apartment in Andheri West, Mumbai from Sept 1, 2025. Landlord is Ansh Agarwal. Rent is ₹25,000/month. Deposit is ₹50,000. Property is 950 sq ft with 2 bathrooms and 1 car park. Starting meter reading is 5421."
+)
+    print(response.get("text", response))
 
 

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/ai_assistant.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart'; // ← Raz
+import '../widgets/ai_assistant.dart';
 
 class TenantDashboard extends StatefulWidget {
   const TenantDashboard({super.key});
@@ -134,6 +136,15 @@ class _TenantDashboardState extends State<TenantDashboard> {
     );
   }
 
+  void _openAddPaymentSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const AddPaymentModal(),
+    );
+  }
+
   Widget buildMetricCard(String label, String value, IconData icon) {
     return Expanded(
       child: Container(
@@ -163,6 +174,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFCBF8F3),
+      floatingActionButton: const AIAssistantChatWidget(),
       appBar: null,
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -245,7 +257,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
             case 0:
               break;
             case 1:
-              break;
+              _openAddPaymentSheet();
             case 2:
               if (!isLoading && userProfile != null) {
                 _showProfilePopup();
@@ -269,6 +281,185 @@ class _TenantDashboardState extends State<TenantDashboard> {
               icon: Icon(Icons.account_circle), label: 'Profile'),
           BottomNavigationBarItem(icon: Icon(Icons.logout), label: 'Sign Out'),
         ],
+      ),
+    );
+  }
+}
+
+class AddPaymentModal extends StatefulWidget {
+  const AddPaymentModal({Key? key}) : super(key: key);
+
+  @override
+  State<AddPaymentModal> createState() => _AddPaymentModalState();
+}
+
+class _AddPaymentModalState extends State<AddPaymentModal> {
+  final _upiController = TextEditingController();
+  final _amountController = TextEditingController();
+  late Razorpay _razorpay;
+
+  @override
+  void initState() {
+    super.initState();
+    _razorpay = Razorpay()
+      ..on(Razorpay.EVENT_PAYMENT_SUCCESS, _handleSuccess)
+      ..on(Razorpay.EVENT_PAYMENT_ERROR, _handleError)
+      ..on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternal);
+    _amountController.addListener(() => setState(() {})); // updates button text
+  }
+
+  @override
+  void dispose() {
+    _upiController.dispose();
+    _amountController.dispose();
+    _razorpay.clear();
+    super.dispose();
+  }
+
+  void _handleSuccess(PaymentSuccessResponse response) {
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Payment successful!')),
+    );
+  }
+
+  void _handleError(PaymentFailureResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Payment failed: ${response.message}')),
+    );
+  }
+
+  void _handleExternal(ExternalWalletResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('External Wallet: ${response.walletName}')),
+    );
+  }
+
+  Future<void> _submitPayment() async {
+    if (_amountController.text.isEmpty) return;
+
+    try {
+      final amount = int.parse(_amountController.text) * 100;
+
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:8000/create-payment-order'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'amount': amount,
+          'receipt_id': 'rcptid_${DateTime.now().millisecondsSinceEpoch}',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        final options = {
+          'key': 'rzp_test_v4oAPsjPGsrOQR', // Replace with actual key
+          'amount': amount,
+          'currency': 'INR',
+          'order_id': data['id'],
+          'method': {
+            'upi': true,
+            'netbanking': true,
+            'paylater': false,
+            'card': true,
+          },
+          'theme': {'color': '#3399cc'},
+        };
+
+        _razorpay.open(options);
+      } else {
+        throw Exception('Failed to create payment order');
+      }
+    } catch (e) {
+      debugPrint("Error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment failed')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.45,
+      maxChildSize: 0.6,
+      minChildSize: 0.3,
+      builder: (_, ctrl) => Container(
+        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              "Make a payment",
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Powered by Razorpay",
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 24),
+            TextFormField(
+              controller: _amountController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              decoration: InputDecoration(
+                hintText: "Enter amount",
+                prefixText: "₹ ",
+                prefixStyle: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: Image.asset(
+                  'assets/razorpay.png', // 🔁 Replace with your SVG/icon asset
+                  height: 40,
+                  fit: BoxFit.contain,
+                ),
+                onPressed: _submitPayment,
+                label: Text(
+                  '',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      const Color(0xFF00C4FF), // Razorpay brand blue
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "UPI, cards, and wallets via Razorpay Checkout.",
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.black54,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }

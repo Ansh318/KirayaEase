@@ -66,3 +66,20 @@ GET_USER_PROFILE = """
         FROM user_profiles
         WHERE user_id = ?;
     """
+
+ADD_PROPERTY = """INSERT INTO properties (name, address, city, landlord_id, status)
+                VALUES (?, ?, ?, ?, ?)
+                """
+
+DELETE_PROPERTY = "DELETE FROM properties WHERE id = ?"
+
+ADD_UTILITY = """
+INSERT INTO utilities (property_id, type, provider, account_number, status, last_bill_amt, next_due_date)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+"""
+
+DELETE_UTILITY = """
+DELETE FROM utilities WHERE id = ?;
+"""
+
+GET_PROPERTIES = "SELECT * FROM properties WHERE id = ?"

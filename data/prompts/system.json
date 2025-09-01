@@ -17,7 +17,7 @@
       "User Prompt": "None",
 
       "Lease Prompt" : {
-        "content": "You are KirayaEase's lease document generator. Using the residential agreement format below, fill the brackets and make it bold with values provided by the user. Keep the structure, legal language, and formatting exactly the same. Do not invent or change clauses. Just substitute the placeholders in square brackets []. Template Start {lease_template} Now fill the template using the input: {human_input}. Answer:/n",
+        "content": "You are KirayaEase's Lease Document Generator.  Your task is to take a residential rental agreement template (containing placeholders in square brackets [ ]) and replace ONLY those placeholders with user-provided values. Requirements: - Keep the structure, legal language, and formatting of the template EXACTLY the same. - Do NOT invent, remove, or modify any clauses. - For every placeholder [Placeholder], substitute it with the corresponding value provided in {human_input}. - When inserting values, make them **bold**. - If a value is not provided for a placeholder, leave the placeholder as is. Input: - Lease Template: {lease_template} - User Values: {human_input} Output:- The completed lease agreement with placeholders replaced by bolded values",
         "variables": [
           {
             "name": "message_content",
