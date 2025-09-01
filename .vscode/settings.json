@@ -1,0 +1,10 @@
+{
+    "python.testing.pytestArgs": [
+        "src"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "postman.settings.dotenv-detection-notification-visibility": false,
+    "git.ignoreLimitWarning": true,
+    "cmake.sourceDirectory": "/Users/anshagarwal/Desktop/KirayaEase/frontend/linux"
+}
