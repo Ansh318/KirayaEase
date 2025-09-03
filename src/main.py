@@ -11,7 +11,7 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 warnings.filterwarnings("ignore", category=UserWarning)
 from chatbot import RentWiseAssistant
-from property_manager import PropertyManager
+# from property_manager import PropertyManager
 
 razorpay_client = razorpay.Client(
     auth=(os.getenv("RAZORPAY_TEST_KEY_ID"), os.getenv("RAZORPAY_KEY_SECRET"))
@@ -147,31 +147,31 @@ class AddProperties(BaseModel):
     Rent: int 
     Status: str
 
-@app.post("/add-properties")
-async def add_properties(request: AddProperties, authorization: str = Header(...)):
-    session_token = authorization.replace("Bearer ", "").strip()
-    user_profile = get_user_by_token(session_token)
-    try:
-        output = PropertyManager.add_property(
-            request.Name,
-            request.Address,
-            request.City,
-            request.Status,
-            landlord_id=user_profile
-        )
-        return output
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @app.post("/add-properties")
+# async def add_properties(request: AddProperties, authorization: str = Header(...)):
+#     session_token = authorization.replace("Bearer ", "").strip()
+#     user_profile = get_user_by_token(session_token)
+#     try:
+#         output = PropertyManager.add_property(
+#             request.Name,
+#             request.Address,
+#             request.City,
+#             request.Status,
+#             landlord_id=user_profile
+#         )
+#         return output
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/delete-properties")
-async def delete_properties(authorization: str = Header(...)):
-    session_token = authorization.replace("Bearer ", "").strip()
-    user_profile = get_user_by_token(session_token)
-    try: 
-        output = PropertyManager.delete_property(user_profile)
-        return output
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @app.post("/delete-properties")
+# async def delete_properties(authorization: str = Header(...)):
+#     session_token = authorization.replace("Bearer ", "").strip()
+#     user_profile = get_user_by_token(session_token)
+#     try: 
+#         output = PropertyManager.delete_property(user_profile)
+#         return output
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 # @app.post("/edit-properties")
