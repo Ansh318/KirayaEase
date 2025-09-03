@@ -38,11 +38,6 @@ class HomePage extends StatelessWidget {
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 12),
-            const Text(
-              "Whether you're a property owner sick of delayed payments "
-              "or a tenant struggling to keep up with monthly rent, KirayaEase is for you.",
-              style: TextStyle(fontSize: 18, color: Colors.black54),
-            ),
             const SizedBox(height: 32),
             Wrap(
               spacing: 16,

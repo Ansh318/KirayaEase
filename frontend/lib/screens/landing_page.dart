@@ -157,19 +157,9 @@ class LandingPage extends StatelessWidget {
                 child: Column(
                   children: [
                     const Text(
-                      "Rent Simple. Live Easy.",
+                      "Rent Meets Intelligence",
                       style: TextStyle(
                         fontSize: 70,
-                        color: Colors.black87,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      "Whether you're a landlord managing a single unit or a growing portfolio—or a tenant navigating monthly rent—KirayaEase empowers you with the insight and flexibility to get the most out of every square foot.",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontFamily: 'OpenSans',
                         color: Colors.black87,
                       ),
                       textAlign: TextAlign.center,

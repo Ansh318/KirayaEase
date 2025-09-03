@@ -16,8 +16,10 @@ class TenantInfo extends StatelessWidget {
                 onPressed: () => Navigator.of(context).pop(),
               )
             : null,
-        title: const Text("For Tenants",
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+        title: const Text(
+          "Tenant Info",
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+        ),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -26,14 +28,8 @@ class TenantInfo extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 12),
-            const Text(
-              "Make renting easier with KirayaEase. Pay rent, split expenses, and manage your rental life in one place.",
-              style: TextStyle(fontSize: 16, color: Colors.black54),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
 
-            // Only the bullet points card, no dashboard preview
+            // Bullets card
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -41,64 +37,50 @@ class TenantInfo extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: const [
                   BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 10,
-                      offset: Offset(0, 4))
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
                 ],
               ),
               padding: const EdgeInsets.all(24),
-              child: Column(
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text("KirayaEase is for tenants",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                children: [
+                  Text(
+                    "KirayaEase is for tenants",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                  ),
                   SizedBox(height: 12),
+                  Bullet(text: "Flexible payments — pay on your schedule"),
+                  Bullet(
+                      text: "Budget-friendly splits — smaller, easier chunks"),
+                  Bullet(text: "Build credit — on-time payments count"),
                   Bullet(
                       text:
-                          "Schedule your rent payments at your convenience with flexible timing options"),
-                  Bullet(
-                      text:
-                          "Break down your rent into manageable payments to help you budget better"),
-                  Bullet(
-                      text:
-                          "Build your credit score with on-time rent payments"),
-                  Bullet(text: "No binding long-term commitments required"),
-                  Bullet(
-                      text:
-                          "Split expenses and manage your rental life in one place"),
-                  SizedBox(height: 16),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: null,
-                      style: ButtonStyle(
-                        backgroundColor: MaterialStatePropertyAll(Colors.teal),
-                        padding: MaterialStatePropertyAll(
-                            EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
-                      ),
-                      child: Text("View Demo"),
-                    ),
-                  )
+                          "AI rent & expense manager — track and split in one place"),
                 ],
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
+            // Tagline card
             Container(
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 10)
+                  BoxShadow(color: Colors.black12, blurRadius: 10),
                 ],
               ),
-              child: Column(
-                children: const [
-                  Text("Rent Simple. Live Easy.",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+              child: const Column(
+                children: [
+                  Text(
+                    "AI for the Everyday Tenant.",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                  ),
                   SizedBox(height: 8),
                   Text(
                     "Financial freedom starts with simple rent management",
@@ -109,34 +91,33 @@ class TenantInfo extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
+            // Benefit Cards (concise copy + consistent white)
             Wrap(
               spacing: 16,
               runSpacing: 16,
+              alignment: WrapAlignment.center,
               children: const [
                 BenefitCard(
-                  title: "Convenient payment scheduling",
-                  desc:
-                      "Schedule your rent payments at your convenience with flexible timing options that work with your budget.",
+                  title: "Convenient Scheduling",
+                  desc: "Pay rent on your own schedule.",
                 ),
                 BenefitCard(
-                  title: "Encourages better budgeting",
-                  desc:
-                      "Break down your rent into manageable payments to help you budget better and maintain financial stability.",
+                  title: "Smarter Budgeting",
+                  desc: "Split rent into smaller chunks.",
                 ),
                 BenefitCard(
-                  title: "Builds credit history",
-                  desc:
-                      "Your on-time rent payments help build your credit score, improving your financial future.",
+                  title: "Build Credit",
+                  desc: "On-time payments boost your score.",
                 ),
                 BenefitCard(
-                  title: "No long term contract",
-                  desc:
-                      "Flexibility when you need it most with no binding long-term commitments required.",
+                  title: "No Lock-Ins",
+                  desc: "Flexibility without long contracts.",
                 ),
               ],
             ),
+
             const SizedBox(height: 48),
           ],
         ),
@@ -174,18 +155,26 @@ class BenefitCard extends StatelessWidget {
     return SizedBox(
       width: 300,
       child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         elevation: 2,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(
+                title,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
-              Text(desc, style: const TextStyle(fontSize: 14)),
+              Text(
+                desc,
+                style: const TextStyle(fontSize: 14),
+              ),
             ],
           ),
         ),

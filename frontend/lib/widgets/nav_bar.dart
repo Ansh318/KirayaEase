@@ -80,7 +80,7 @@ class NavBar extends StatelessWidget {
                       return [
                         _popupItem("Home", '/'),
                         _popupItem("Mission", '/mission'),
-                        _popupItem("Landlords", '/lanlord-info'),
+                        _popupItem("Landlords", '/landlord-info'),
                         _popupItem("Tenants", '/tenant-info'),
                         _popupItem("Technology", '/technology'),
                         _popupItem("Pricing", '/pricing'),
@@ -101,7 +101,7 @@ class NavBar extends StatelessWidget {
     return [
       _navItem(context, "Home", '/'),
       _navItem(context, "Mission", '/mission'),
-      _navItem(context, "Landlords", '/landlords-info'),
+      _navItem(context, "Landlords", '/landlord-info'),
       _navItem(context, "Tenants", '/tenants-info'),
       _navItem(context, "Technology", '/technology'),
       _navItem(context, "Pricing", '/pricing'),

@@ -24,7 +24,7 @@ class PricingPage extends StatelessWidget {
       {
         'title': 'Pro',
         'subtitle': 'Ideal for growing portfolios',
-        'price': '₹299 /month',
+        'price': '₹49 /month',
         'features': [
           'Up to 25 properties',
           'Advanced rent collection',
@@ -40,7 +40,7 @@ class PricingPage extends StatelessWidget {
       {
         'title': 'Enterprise',
         'subtitle': 'For large property managers',
-        'price': '₹599 /month',
+        'price': '₹99 /month',
         'features': [
           'Unlimited properties',
           'White-label solution',

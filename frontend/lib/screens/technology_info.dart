@@ -6,29 +6,24 @@ class TechnologyInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final techList = [
+    final List<Map<String, String>> techList = [
       {
-        'title': 'Artificial Intelligence',
+        'title': 'Automation',
         'description':
-            'Automates rent agreements and support using smart assistants.',
-        'icon': '🧠',
+            'No paperwork, no chasing — agreements & payments flow on autopilot.',
       },
       {
-        'title': 'Machine Learning',
+        'title': 'Intelligence',
         'description':
-            'Learns tenant behavior to offer insights and forecasts.',
-        'icon': '📈',
+            'Spot market shifts early — from yields to tenant patterns.',
       },
       {
         'title': 'Cloud',
-        'description': 'Securely stores data and powers real-time operations.',
-        'icon': '☁️',
+        'description': 'From 1 flat to a 100 — built to grow with you.',
       },
       {
-        'title': 'Security',
-        'description':
-            'Protects sensitive information using encryption & compliance.',
-        'icon': '🔐',
+        'title': 'Trust',
+        'description': 'RBI Compliant and 256-bit Encrypted.',
       },
     ];
 
@@ -48,25 +43,17 @@ class TechnologyInfo extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 8),
-                  const Text(
-                    "Our Technology",
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
                   const SizedBox(height: 12),
                   const Text(
-                    "Built with cutting-edge technology to provide a seamless rental experience for everyone.",
+                    "Built with cutting-edge technology to provide a seamless rental experience for landlords and tenants.",
                     style: TextStyle(
                       fontSize: 15,
                       color: Colors.black54,
@@ -74,29 +61,37 @@ class TechnologyInfo extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
+
+                  // Tech cards
                   ...techList.asMap().entries.map((entry) {
                     final index = entry.key;
                     final item = entry.value;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: Card(
-                        elevation: 4,
+                        color: Colors.white, // pure white background
+                        elevation: 3,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                              vertical: 20, horizontal: 16),
+                            vertical: 20,
+                            horizontal: 16,
+                          ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               CircleAvatar(
                                 radius: 20,
-                                backgroundColor: Colors.teal,
+                                backgroundColor: const Color.fromARGB(
+                                    255, 26, 205, 187), // ✅ greenish badge
                                 child: Text(
                                   '${index + 1}',
                                   style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold),
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -105,32 +100,37 @@ class TechnologyInfo extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '${item['icon']} ${item['title']}',
+                                      item['title']!,
                                       style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black),
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
+                                      ),
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
                                       item['description']!,
                                       style: const TextStyle(
-                                          fontSize: 15, color: Colors.black87),
+                                        fontSize: 15,
+                                        color: Colors.black87,
+                                      ),
                                     ),
                                   ],
                                 ),
-                              )
+                              ),
                             ],
                           ),
                         ),
                       ),
                     );
-                  }).toList()
+                  }).toList(),
+
+                  const SizedBox(height: 16),
+                  const Footer(), // footer after content
                 ],
               ),
             ),
-            const Footer(),
-          ],
+          ),
         ),
       ),
     );

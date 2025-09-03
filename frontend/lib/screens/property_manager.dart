@@ -1,4 +1,6 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../widgets/ai_assistant.dart'; // your existing chatbot widget
 
 // =======================================================
@@ -150,6 +152,48 @@ class _PropertyPageState extends State<PropertyPage> {
     }).toList();
   }
 
+  // ==================== AI: metrics helpers ====================
+
+  double _avgRentAll() => _properties.isEmpty
+      ? 0
+      : _properties.map((e) => e.rent).reduce((a, b) => a + b) /
+          _properties.length;
+
+  double _avgRentForCity(String city) {
+    final list = _properties.where((e) => e.city == city).toList();
+    if (list.isEmpty) return _avgRentAll();
+    return list.map((e) => e.rent).reduce((a, b) => a + b) / list.length;
+  }
+
+  LeaseRow? _activeLeaseFor(String propertyName) {
+    try {
+      return _leases.firstWhere(
+        (l) => l.property == propertyName && l.status == LeaseStatus.active,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Simple demo metrics (feel free to swap with your backend):
+  // yieldPct ~ small percent; roiMultiple ~ relative to city average;
+  // vsMarketPct ~ relative to overall average.
+  ({double yieldPct, double roiMultiple, double vsMarketPct}) _metricsFor(
+      PropertyRow p) {
+    final avgAll = _avgRentAll();
+    final avgCity = _avgRentForCity(p.city);
+    final roi = avgCity == 0 ? 1.0 : (p.rent / avgCity);
+    final vsMkt = avgAll == 0 ? 0.0 : ((p.rent - avgAll) / avgAll) * 100.0;
+
+    // Keep yield reasonable visually (~0.5%–2.0%)
+    final yieldPct = p.rent / 10000.0; // e.g., 12,500 => 1.25%
+
+    return (yieldPct: yieldPct, roiMultiple: roi, vsMarketPct: vsMkt);
+  }
+
+  String _fmtPct(double v) => '${v.toStringAsFixed(2)}%';
+  String _fmtX(double v) => '${v.toStringAsFixed(1)}x';
+
   // ----- Actions -----
   Future<void> _openAddPropertySheet() async {
     final added = await showModalBottomSheet<PropertyRow>(
@@ -195,6 +239,46 @@ class _PropertyPageState extends State<PropertyPage> {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Lease added')));
     }
+  }
+
+  void _openAIReport(PropertyRow p) {
+    final m = _metricsFor(p);
+    final lease = _activeLeaseFor(p.name);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _GlassSheetScaffold(
+        title: 'AI Report',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _AiRow('Property', p.name),
+            _AiRow('City', p.city),
+            _AiRow('Monthly Rent', '₹${_formatMoney(p.rent)}'),
+            if (lease != null) _AiRow('Active Tenant', lease.tenant),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _MetricChip(label: 'Yield', value: _fmtPct(m.yieldPct)),
+                _MetricChip(label: 'ROI', value: _fmtX(m.roiMultiple)),
+                _MetricChip(label: 'Vs Market', value: _fmtPct(m.vsMarketPct)),
+              ],
+            ),
+            const SizedBox(height: 18),
+            const Text('Recommendations',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            const _AiBullet('Consider a 3–5% rent uplift on renewal.'),
+            const _AiBullet('Bundle internet with rent to improve retention.'),
+            const _AiBullet('Monitor vacancy in nearby blocks for pricing.'),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -253,9 +337,9 @@ class _PropertyPageState extends State<PropertyPage> {
                 const SizedBox(height: 16),
 
                 if (_activeTab == 0)
-                  ..._buildPropertiesTab() //
+                  ..._buildPropertiesTab()
                 else if (_activeTab == 1)
-                  ..._buildUtilitiesTab() //
+                  ..._buildUtilitiesTab()
                 else
                   ..._buildLeasesTab(),
               ],
@@ -272,6 +356,10 @@ class _PropertyPageState extends State<PropertyPage> {
   // ==================== TABS ====================
 
   List<Widget> _buildPropertiesTab() {
+    final focus = _filteredProperties.isNotEmpty
+        ? _filteredProperties.first
+        : (_properties.isNotEmpty ? _properties.first : null);
+
     return [
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -330,8 +418,15 @@ class _PropertyPageState extends State<PropertyPage> {
       ),
       const SizedBox(height: 14),
       const Center(
-          child: Text('List of your properties.',
-              style: TextStyle(color: Colors.black54))),
+        child: Text('List of your properties.',
+            style: TextStyle(color: Colors.black54)),
+      ),
+
+      // ================= AI INSIGHTS (BOTTOM) =================
+      if (focus != null) ...[
+        const SizedBox(height: 18),
+        _aiInsightsCard(focus),
+      ],
     ];
   }
 
@@ -556,6 +651,77 @@ class _PropertyPageState extends State<PropertyPage> {
     }
     return buf.toString().split('').reversed.join();
   }
+
+  // ---------- AI Insights card ----------
+  Widget _aiInsightsCard(PropertyRow property) {
+    final m = _metricsFor(property);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.auto_awesome, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'AI Insights for ${property.name}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _MetricTile(
+                  label: 'Yield',
+                  value: _fmtPct(m.yieldPct),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MetricTile(
+                  label: 'ROI',
+                  value: _fmtX(m.roiMultiple),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MetricTile(
+                  label: 'Vs Market',
+                  value: _fmtPct(m.vsMarketPct),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => _openAIReport(property),
+            icon: const Icon(Icons.auto_awesome_motion),
+            label: const Text('Generate AI Report'),
+            style: OutlinedButton.styleFrom(
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // =======================================================
@@ -606,6 +772,10 @@ class LeaseRow {
   final int deposit;
   final LeaseStatus status;
 
+  // NEW fields (optional):
+  final String? description; // user-provided notes
+  final String? pdfPath; // local path of the uploaded PDF
+
   LeaseRow({
     required this.tenant,
     required this.property,
@@ -613,6 +783,8 @@ class LeaseRow {
     required this.rent,
     required this.deposit,
     required this.status,
+    this.description,
+    this.pdfPath,
   });
 }
 
@@ -687,7 +859,6 @@ class _Tabs extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: FittedBox(
-                  // ← prevents RIGHT overflow on small widths / large text scales
                   fit: BoxFit.scaleDown,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -788,7 +959,7 @@ class _Pill extends StatelessWidget {
 }
 
 // =======================================================
-// Add Sheets
+// Add Sheets (GLASSY STYLING for Property & Utility)
 // =======================================================
 
 class _AddPropertySheet extends StatefulWidget {
@@ -805,6 +976,35 @@ class _AddPropertySheetState extends State<_AddPropertySheet> {
   final _city = TextEditingController();
   final _rent = TextEditingController();
   Occupancy _status = Occupancy.occupied;
+
+  // ---- Glass helpers (match Lease sheet) ----
+  InputDecoration _glassDecoration(String label) => InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.08),
+        labelStyle: const TextStyle(color: Colors.black87),
+        hintStyle: const TextStyle(color: Colors.black45),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.25)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide:
+              BorderSide(color: Colors.black.withOpacity(0.4), width: 1),
+        ),
+      );
+
+  ButtonStyle get _glassPrimary => ElevatedButton.styleFrom(
+        foregroundColor: Colors.black,
+        backgroundColor: Colors.white.withOpacity(0.6),
+        shadowColor: Colors.black12,
+        elevation: 0,
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      );
 
   @override
   void dispose() {
@@ -829,23 +1029,39 @@ class _AddPropertySheetState extends State<_AddPropertySheet> {
 
   @override
   Widget build(BuildContext context) {
-    return _SheetScaffold(
+    return _GlassSheetScaffold(
       title: 'Add Property',
       child: Form(
         key: _formKey,
         child: Column(
           children: [
-            _TField(
-                controller: _name, label: 'Property Name', requiredField: true),
-            _TField(controller: _address, label: 'Address'),
-            _TField(controller: _city, label: 'City'),
-            _TField(
-                controller: _rent,
-                label: 'Monthly Rent (₹)',
-                keyboard: TextInputType.number),
+            TextFormField(
+              controller: _name,
+              decoration: _glassDecoration('Property Name'),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Enter Property Name'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _address,
+              decoration: _glassDecoration('Address'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _city,
+              decoration: _glassDecoration('City'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _rent,
+              keyboardType: TextInputType.number,
+              decoration: _glassDecoration('Monthly Rent (₹)'),
+            ),
+            const SizedBox(height: 12),
             DropdownButtonFormField<Occupancy>(
               value: _status,
-              decoration: const InputDecoration(labelText: 'Status'),
+              decoration: _glassDecoration('Status'),
               items: const [
                 DropdownMenuItem(
                     value: Occupancy.occupied, child: Text('Occupied')),
@@ -855,11 +1071,16 @@ class _AddPropertySheetState extends State<_AddPropertySheet> {
               onChanged: (v) =>
                   setState(() => _status = v ?? Occupancy.occupied),
             ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.center,
+              child: ElevatedButton.icon(
                 onPressed: _submit,
+                style: _glassPrimary,
                 icon: const Icon(Icons.check),
-                label: const Text('Add Property')),
+                label: const Text('Add Property'),
+              ),
+            ),
           ],
         ),
       ),
@@ -883,6 +1104,35 @@ class _AddUtilitySheetState extends State<_AddUtilitySheet> {
   final _account = TextEditingController();
   bool _active = true;
 
+  // ---- Glass helpers (match Lease sheet) ----
+  InputDecoration _glassDecoration(String label) => InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.08),
+        labelStyle: const TextStyle(color: Colors.black87),
+        hintStyle: const TextStyle(color: Colors.black45),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.25)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide:
+              BorderSide(color: Colors.black.withOpacity(0.4), width: 1),
+        ),
+      );
+
+  ButtonStyle get _glassPrimary => ElevatedButton.styleFrom(
+        foregroundColor: Colors.black,
+        backgroundColor: Colors.white.withOpacity(0.6),
+        shadowColor: Colors.black12,
+        elevation: 0,
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      );
+
   @override
   void dispose() {
     _provider.dispose();
@@ -893,7 +1143,9 @@ class _AddUtilitySheetState extends State<_AddUtilitySheet> {
   void _submit() {
     if (!_formKey.currentState!.validate() ||
         _property == null ||
-        _type == null) return;
+        _type == null) {
+      return;
+    }
     Navigator.pop(
       context,
       UtilityRow(
@@ -908,7 +1160,7 @@ class _AddUtilitySheetState extends State<_AddUtilitySheet> {
 
   @override
   Widget build(BuildContext context) {
-    return _SheetScaffold(
+    return _GlassSheetScaffold(
       title: 'Add Utility',
       child: Form(
         key: _formKey,
@@ -916,15 +1168,17 @@ class _AddUtilitySheetState extends State<_AddUtilitySheet> {
           children: [
             DropdownButtonFormField<String>(
               value: _property,
-              decoration: const InputDecoration(labelText: 'Property'),
+              decoration: _glassDecoration('Property'),
               items: widget.propertyOptions
                   .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                   .toList(),
               onChanged: (v) => setState(() => _property = v),
+              validator: (v) => v == null ? 'Select Property' : null,
             ),
+            const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _type,
-              decoration: const InputDecoration(labelText: 'Type'),
+              decoration: _glassDecoration('Type'),
               items: const [
                 DropdownMenuItem(
                     value: 'Electricity', child: Text('Electricity')),
@@ -933,20 +1187,45 @@ class _AddUtilitySheetState extends State<_AddUtilitySheet> {
                 DropdownMenuItem(value: 'Gas', child: Text('Gas')),
               ],
               onChanged: (v) => setState(() => _type = v),
+              validator: (v) => v == null ? 'Select Type' : null,
             ),
-            _TField(controller: _provider, label: 'Provider'),
-            _TField(controller: _account, label: 'Account'),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Active'),
-              value: _active,
-              onChanged: (v) => setState(() => _active = v),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _provider,
+              decoration: _glassDecoration('Provider'),
             ),
-            const SizedBox(height: 8),
-            FilledButton.icon(
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _account,
+              decoration: _glassDecoration('Account'),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.25)),
+              ),
+              child: SwitchListTile(
+                title: const Text('Active',
+                    style: TextStyle(color: Colors.black87)),
+                value: _active,
+                onChanged: (v) => setState(() => _active = v),
+                tileColor: Colors.transparent,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.center,
+              child: ElevatedButton.icon(
                 onPressed: _submit,
+                style: _glassPrimary,
                 icon: const Icon(Icons.check),
-                label: const Text('Add Utility')),
+                label: const Text('Add Utility'),
+              ),
+            ),
           ],
         ),
       ),
@@ -969,7 +1248,50 @@ class _AddLeaseSheetState extends State<_AddLeaseSheet> {
   final _period = TextEditingController();
   final _rent = TextEditingController();
   final _deposit = TextEditingController();
+
+  // NEW fields
+  final _description = TextEditingController();
+  String? _pdfPath;
+
   LeaseStatus _status = LeaseStatus.active;
+
+  // ---- Glass helpers (for THIS sheet only) ----
+  InputDecoration _glassDecoration(String label) => InputDecoration(
+        labelText: label,
+        hintText: null,
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.08),
+        labelStyle: const TextStyle(color: Colors.black87),
+        hintStyle: const TextStyle(color: Colors.black45),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.25)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide:
+              BorderSide(color: Colors.black.withOpacity(0.4), width: 1),
+        ),
+      );
+
+  ButtonStyle get _glassOutlined => OutlinedButton.styleFrom(
+        foregroundColor: Colors.black87,
+        side: BorderSide(color: Colors.black.withOpacity(0.25)),
+        backgroundColor: Colors.white.withOpacity(0.06),
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      );
+
+  ButtonStyle get _glassPrimary => ElevatedButton.styleFrom(
+        foregroundColor: Colors.black,
+        backgroundColor: Colors.white.withOpacity(0.6),
+        shadowColor: Colors.black12,
+        elevation: 0,
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      );
 
   @override
   void dispose() {
@@ -977,11 +1299,23 @@ class _AddLeaseSheetState extends State<_AddLeaseSheet> {
     _period.dispose();
     _rent.dispose();
     _deposit.dispose();
+    _description.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickPdf() async {
+    final res = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+    if (res != null && res.files.single.path != null) {
+      setState(() => _pdfPath = res.files.single.path);
+    }
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate() || _property == null) return;
+
     Navigator.pop(
       context,
       LeaseRow(
@@ -991,41 +1325,95 @@ class _AddLeaseSheetState extends State<_AddLeaseSheet> {
         rent: int.tryParse(_rent.text.trim()) ?? 0,
         deposit: int.tryParse(_deposit.text.trim()) ?? 0,
         status: _status,
+        description:
+            _description.text.trim().isEmpty ? null : _description.text.trim(),
+        pdfPath: _pdfPath,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return _SheetScaffold(
+    return _GlassSheetScaffold(
       title: 'New Lease',
       child: Form(
         key: _formKey,
         child: Column(
           children: [
-            _TField(controller: _tenant, label: 'Tenant', requiredField: true),
+            // Inputs with glass decorations
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TextFormField(
+                controller: _tenant,
+                decoration: _glassDecoration('Tenant'),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Enter Tenant' : null,
+              ),
+            ),
             DropdownButtonFormField<String>(
               value: _property,
-              decoration: const InputDecoration(labelText: 'Property'),
+              decoration: _glassDecoration('Property'),
               items: widget.propertyOptions
                   .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                   .toList(),
               onChanged: (v) => setState(() => _property = v),
             ),
-            _TField(
-                controller: _period,
-                label: 'Period (e.g., 1/1/2025 - 12/31/2025)'),
-            _TField(
-                controller: _rent,
-                label: 'Rent (₹)',
-                keyboard: TextInputType.number),
-            _TField(
-                controller: _deposit,
-                label: 'Deposit (₹)',
-                keyboard: TextInputType.number),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _period,
+              decoration:
+                  _glassDecoration('Period (e.g., 1/1/2025 - 12/31/2025)'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _rent,
+              keyboardType: TextInputType.number,
+              decoration: _glassDecoration('Rent (₹)'),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _deposit,
+              keyboardType: TextInputType.number,
+              decoration: _glassDecoration('Deposit (₹)'),
+            ),
+            const SizedBox(height: 12),
+
+            // Lease Description
+            TextFormField(
+              controller: _description,
+              maxLines: 3,
+              decoration: _glassDecoration('Lease Description')
+                  .copyWith(hintText: 'Notes / special terms / context'),
+            ),
+            const SizedBox(height: 14),
+
+            // Upload PDF row
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _pickPdf,
+                  style: _glassOutlined,
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Upload PDF'),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _pdfPath == null
+                        ? 'No file selected'
+                        : _pdfPath!.split('/').last,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
             DropdownButtonFormField<LeaseStatus>(
               value: _status,
-              decoration: const InputDecoration(labelText: 'Status'),
+              decoration: _glassDecoration('Status'),
               items: const [
                 DropdownMenuItem(
                     value: LeaseStatus.active, child: Text('Active')),
@@ -1037,11 +1425,17 @@ class _AddLeaseSheetState extends State<_AddLeaseSheet> {
               onChanged: (v) =>
                   setState(() => _status = v ?? LeaseStatus.active),
             ),
-            const SizedBox(height: 8),
-            FilledButton.icon(
+
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.center,
+              child: ElevatedButton.icon(
                 onPressed: _submit,
+                style: _glassPrimary,
                 icon: const Icon(Icons.check),
-                label: const Text('Save Lease')),
+                label: const Text('Save Lease'),
+              ),
+            ),
           ],
         ),
       ),
@@ -1050,7 +1444,69 @@ class _AddLeaseSheetState extends State<_AddLeaseSheet> {
 }
 
 // =======================================================
-// Sheet Scaffolding + Inputs
+// Sheet Scaffolding + Inputs (Glassy)
+// =======================================================
+
+class _GlassSheetScaffold extends StatelessWidget {
+  final String title;
+  final Widget child;
+  const _GlassSheetScaffold({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.76,
+      maxChildSize: 0.92,
+      minChildSize: 0.45,
+      builder: (_, controller) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.55),
+                  Colors.white.withOpacity(0.35),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border(
+                top: BorderSide(
+                    color: Colors.white.withOpacity(0.6), width: 0.8),
+              ),
+            ),
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            ),
+            child: ListView(
+              controller: controller,
+              children: [
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                child,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =======================================================
+// Basic (non-glass) Sheet scaffolding + Inputs (kept for others)
 // =======================================================
 
 class _SheetScaffold extends StatelessWidget {
@@ -1086,6 +1542,106 @@ class _SheetScaffold extends StatelessWidget {
             child,
           ],
         ),
+      ),
+    );
+  }
+}
+
+// =======================================================
+// Tiny UI helpers for AI sheet
+// =======================================================
+
+class _AiRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _AiRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(label,
+                style: const TextStyle(
+                    color: Colors.black54, fontWeight: FontWeight.w600)),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+}
+
+class _AiBullet extends StatelessWidget {
+  final String text;
+  const _AiBullet(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('•  '),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  final String label;
+  final String value;
+  const _MetricTile({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7FB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEAEAF2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(color: Colors.black54, fontSize: 12)),
+          const SizedBox(height: 6),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricChip extends StatelessWidget {
+  final String label;
+  final String value;
+  const _MetricChip({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FF),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E9FF)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$label: ',
+              style: const TextStyle(color: Colors.black54, fontSize: 12)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+        ],
       ),
     );
   }

@@ -11,6 +11,15 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 warnings.filterwarnings("ignore", category=UserWarning)
 from chatbot import RentWiseAssistant
+import os
+from dotenv import load_dotenv
+load_dotenv()
+DIGIO_CLIENT_ID = os.getenv("DIGIO_CLIENT_ID")
+DIGIO_CLIENT_SECRET = os.getenv("DIGIO_CLIENT_SECRET")
+import requests
+import base64,  binascii
+from digio_integration import DigioClient
+
 # from property_manager import PropertyManager
 
 razorpay_client = razorpay.Client(
@@ -140,12 +149,53 @@ async def chat_with_ai(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-class AddProperties(BaseModel):
-    Name: str
-    Address: str
-    City: str
-    Rent: int 
-    Status: str
+
+# Digio Model
+class DigioSignJSON(BaseModel):
+    # Base64 of the PDF (NO "data:..." prefix)
+    agreement_base64: str = Field(..., description="Base64 PDF payload")
+    # Who will sign (email or phone Digio recognizes)
+    signer_identifier: str = Field(..., description="email")
+    signer_name: str 
+    file_name: str 
+    expire_in_days: int = 10
+    notify_signers: bool = True
+    send_sign_link: bool = False
+    display_on_page: str = "All"  # or a page number
+    
+# def _assert_is_pdf_b64(b64: str):
+#     try:
+#         raw = base64.b64decode(b64, validate=True)
+#     except binascii.Error as e:
+#         raise HTTPException(400, f"Invalid base64: {e}")
+#     if len(raw) < 100:
+#         raise HTTPException(400, "PDF too small/empty")
+#     if not raw.startswith(b"%PDF"):
+#         # (Some PDFs may not start with %PDF due to linearization, but this catches common mistakes)
+#         raise HTTPException(400, "Base64 does not decode to a PDF")
+
+@app.post('/digio-sign')
+async def initiate_digio(request: DigioSignJSON):
+    body = {
+        "signers": [
+            {
+                "identifier": request.signer_identifier,
+                "name": request.signer_name,
+                "sign_type" : "electronic",
+                "reason": "Lease Agreement",
+            },
+        ],
+        "expire_in_days": 15,
+        "display_on_page": "All",
+        "notify_signers": "true", 
+        "send_sign_link": "false",
+        "file_name": request.file_name,
+        "file_data": request.agreement_base64
+    }
+    digio = DigioClient()
+    response = digio.create_sign_request(body)
+    return response.json()
+
 
 # @app.post("/add-properties")
 # async def add_properties(request: AddProperties, authorization: str = Header(...)):

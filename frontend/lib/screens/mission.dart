@@ -31,16 +31,12 @@ class MissionSection extends StatelessWidget {
                     children: const [
                       _ValueTile(
                         label: 'Affordable',
-                        desc:
-                            'Smart, low-cost solutions for easy rental access.',
                       ),
                       _ValueTile(
                         label: 'Accessible',
-                        desc: 'Seamless experience designed for everyone.',
                       ),
                       _ValueTile(
                         label: 'Actionable',
-                        desc: 'Turn rent data into clear, immediate actions.',
                       ),
                     ],
                   ),
@@ -56,7 +52,7 @@ class MissionSection extends StatelessWidget {
                           Border.all(color: highlightColor.withOpacity(0.3)),
                     ),
                     child: const Text(
-                      "KirayaEase is on a mission to revolutionize India’s rental real estate landscape by breaking down the barriers of fragmentation and inefficiency that have long defined the sector. We envision a future where every tenant, landlord, and real estate professional can access rental intelligence that is actionable, empowering, and sustainable. Our goal is to make rental real estate an accessible, intelligently managed asset class by making it smarter, fairer, and informed.",
+                      "KirayaEase is on a mission to revolutionize India’s rental real estate landscape by breaking down the barriers of fragmentation and inefficiency that have long defined the sector. Our goal is to make rental real estate an accessible, intelligently managed asset class by making it smarter, fairer, and informed.",
                       style: TextStyle(fontSize: 15, height: 1.5),
                     ),
                   ),
@@ -74,11 +70,9 @@ class MissionSection extends StatelessWidget {
 
 class _ValueTile extends StatelessWidget {
   final String label;
-  final String desc;
 
   const _ValueTile({
     required this.label,
-    required this.desc,
   });
 
   @override
@@ -107,11 +101,6 @@ class _ValueTile extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 6),
-          Text(
-            desc,
-            style: const TextStyle(fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
         ],
       ),
     );
