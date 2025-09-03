@@ -30,7 +30,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('session_token');
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/user-profile'),
+        Uri.parse('https://kirayaease-2a527d924296.herokuapp.com/user-profile'),
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {

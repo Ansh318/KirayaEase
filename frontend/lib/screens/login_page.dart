@@ -19,7 +19,8 @@ class _LoginPageState extends State<LoginPage> {
   bool otpSent = false;
 
   Future<void> sendOtp() async {
-    final url = Uri.parse('http://127.0.0.1:8000/request-otp');
+    final url =
+        Uri.parse('https://kirayaease-2a527d924296.herokuapp.com/request-otp');
     final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
@@ -39,7 +40,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> login() async {
-    final url = Uri.parse('http://127.0.0.1:8000/verify-otp');
+    final url =
+        Uri.parse('https://kirayaease-2a527d924296.herokuapp.com/verify-otp');
     final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},

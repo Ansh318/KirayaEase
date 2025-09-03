@@ -342,7 +342,8 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
       final amount = int.parse(_amountController.text) * 100;
 
       final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/create-payment-order'),
+        Uri.parse(
+            'https://kirayaease-2a527d924296.herokuapp.com//create-payment-order'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'amount': amount,
