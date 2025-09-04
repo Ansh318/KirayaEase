@@ -71,6 +71,7 @@ class _OnboardingFormState extends State<OnboardingForm> {
       "pan_number": _panController.text.trim(),
       "user_role": _role?.toLowerCase(),
     };
+    print("Onboarding payload: ${jsonEncode(payload)}");
 
     try {
       final response = await http.post(
