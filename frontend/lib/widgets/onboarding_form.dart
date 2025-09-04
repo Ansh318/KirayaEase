@@ -75,7 +75,7 @@ class _OnboardingFormState extends State<OnboardingForm> {
     try {
       final response = await http.post(
         Uri.parse(
-            "https://kirayaease-2a527d924296.herokuapp.com/onboard_user"), // 🛠 Replace with your backend if needed
+            "https://kirayaease-2a527d924296.herokuapp.com/user-onboarding"), // 🛠 Replace with your backend if needed
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(payload),
       );
