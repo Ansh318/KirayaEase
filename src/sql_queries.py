@@ -22,7 +22,7 @@ CREATE_USER = """
               """
 
 FETCH_USER = """
-                SELECT id FROM users WHERE email = ?
+                SELECT id FROM users WHERE email = %s;
             """
 
 AUTH_SESSION = """
