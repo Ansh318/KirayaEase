@@ -1,4 +1,4 @@
-#!/Users/anshagarwal/Desktop/KirayaEase/.venv311/bin/python
+#!/Users/anshagarwal/Desktop/KirayaEase/.venv311/bin/python3.11
 # -*- coding: utf-8 -*-
 import re
 import sys
