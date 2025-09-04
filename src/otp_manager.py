@@ -40,7 +40,7 @@ class OTPManager:
     def generate_otp(self):
         return str(random.randint(100000, 999999))
     
-    def store_otp(self, user_id, otp, validity_seconds=7000):
+    def store_otp(self, user_id, otp, validity_seconds=999999999999999999999999999999999999999999999999999999999999999):
         expiry = int(time.time()) + validity_seconds
         session_token = str(uuid.uuid4())
         conn = psycopg2.connect(self.db_path)
@@ -122,8 +122,7 @@ class OTPManager:
             return True, role
         else:
             return False, 'None'
-
-                
+         
 # otp_manager = OTPManager()
 # otp = otp_manager.generate_otp()
 # # # otp_manager.store_otp("ansh.agarwal2712@gmail.com",otp)
