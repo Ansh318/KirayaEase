@@ -71,16 +71,17 @@ class _OnboardingFormState extends State<OnboardingForm> {
       "pan_number": _panController.text.trim(),
       "user_role": _role?.toLowerCase(),
     };
-    print("Onboarding payload: ${jsonEncode(payload)}");
 
     try {
       final url = Uri.parse(
           'https://kirayaease-2a527d924296.herokuapp.com/user-onboarding');
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(payload),
-      );
+      final response = await http
+          .post(
+            url,
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
         switch (_role?.toLowerCase()) {
