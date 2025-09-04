@@ -21,7 +21,7 @@ def handle_user_onboarding(session_token, first_name, last_name, dob, aadhaar, p
     if not (aadhaar or pan):
         raise HTTPException(status_code=400, detail="Aadhaar or PAN required")
 
-    if role.lower() not in ("tenant", "landlord", "manager"):
+    if role.lower() not in ("tenant", "landlord", "property manager"):
         raise HTTPException(status_code=400, detail="Invalid role")
 
     # Step 2: Get user_id from session_token

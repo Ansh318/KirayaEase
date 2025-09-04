@@ -45,7 +45,6 @@ class OTPManager:
         session_token = str(uuid.uuid4())
         conn = psycopg2.connect(self.db_path)
         cursor = conn.cursor()
-        cursor = conn.cursor()
         cursor.execute(STORE_OTP,(user_id, otp, session_token, expiry))
         conn.commit()
         return session_token
