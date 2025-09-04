@@ -7,11 +7,11 @@ VERIFY_OTP = """
 """
 
 UPDATE_OTP ="""
-               UPDATE otp_codes SET used = 1 WHERE session_token = ? AND user_id = ?
+               UPDATE otp_codes SET used = 1 WHERE session_token = %s AND user_id = %s
             """
 
 STORE_OTP = """
-              INSERT INTO otp_codes (user_id, otp, session_token, expiry) VALUES (?, ?, ?, ?)
+              INSERT INTO otp_codes (user_id, otp, session_token, expiry) VALUES (%s, %s, %s, %s)
             """
 
 
@@ -26,47 +26,47 @@ FETCH_USER = """
             """
 
 AUTH_SESSION = """
-            INSERT INTO sessions (session_id, user_id) VALUES (?, ?)
+            INSERT INTO sessions (session_id, user_id) VALUES (%s, %s)
         """
 
 GET_USER_FROM_SESSION = """
     SELECT user_id FROM otp_codes 
-    WHERE session_token = ? AND used = 1 
+    WHERE session_token = %s AND used = 1 
     ORDER BY created_at DESC 
     LIMIT 1
 """
 
 CHECK_ONBOARDED = """
     SELECT id, role FROM user_profiles 
-    WHERE user_id = ?
+    WHERE user_id = %s
 """
 
 CHECK_DUPLICATE_AADHAAR = """
     SELECT id FROM user_profiles 
-    WHERE aadhaar = ?
+    WHERE aadhaar = %s
 """
 
 CHECK_DUPLICATE_PAN = """
     SELECT id FROM user_profiles 
-    WHERE pan = ?
+    WHERE pan = %s
 """
 
 INSERT_USER_PROFILE = """
     INSERT INTO user_profiles 
     (user_id, first_name, last_name, aadhaar, pan, date_of_birth, role)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    VALUES (%s, %s, %s, %s, %s, %s, %s)
 """
 
 MARK_USER_ONBOARDED = """
     UPDATE users 
     SET onboarded = 1 
-    WHERE id = ?
+    WHERE id = %s
 """
 
 GET_USER_PROFILE = """
         SELECT first_name, last_name, aadhaar, pan, date_of_birth,role
         FROM user_profiles
-        WHERE user_id = ?;
+        WHERE user_id = %s;
     """
 
 ADD_PROPERTY = """INSERT INTO properties (name, address, city, landlord_id, status)
