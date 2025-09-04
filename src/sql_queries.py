@@ -16,7 +16,9 @@ STORE_OTP = """
 
 
 CREATE_USER = """ 
-                  INSERT OR IGNORE INTO users (email) VALUES (?);
+                  INSERT INTO users (email) VALUES (%s)
+                  ON CONFLICT (email) DO NOTHING
+                  RETURNING id;
               """
 
 FETCH_USER = """
