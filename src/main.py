@@ -228,33 +228,3 @@ async def initiate_digio(request: DigioSignJSON):
 # async def edit_properties():
 #     pass
 
-
-# @app.post("/add-utility")
-# async def add_properties(request: AddProperties):
-#     try:
-#         output = PropertyManager.add_property(request)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.post("/delete-utility")
-# async def delete_properties():
-#     pass
-
-# @app.post("/edit-utility")
-# async def edit_properties():
-#     pass
-
-# @app.post("/add-lease")
-# async def add_properties(request: AddProperties):
-#     try:
-#         output = PropertyManager.add_property(request)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.post("/delete-lease")
-# async def delete_properties():
-#     pass
-
-# @app.post("/edit-lease")
-# async def edit_properties():
-#     pass
