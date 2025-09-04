@@ -1,13 +1,13 @@
 VERIFY_OTP = """
     SELECT user_id, otp, expiry, used 
     FROM otp_codes 
-    WHERE session_token = %s AND used = 0 
+    WHERE session_token = %s AND used = FALSE 
     ORDER BY expiry DESC 
     LIMIT 1
 """
 
 UPDATE_OTP ="""
-               UPDATE otp_codes SET used = 1 WHERE session_token = %s AND user_id = %s
+               UPDATE otp_codes SET used = TRUE WHERE session_token = %s AND user_id = %s
             """
 
 STORE_OTP = """
