@@ -91,7 +91,7 @@ async def verify_otp(request: OTPVerification):
         raise HTTPException(status_code=400, detail=str(e))
     
     
-@app.post('/user-onboarding')
+@app.post('/user/onboarding')
 async def onboard_user(request: OnboardingRequest):
     try:
         onboard_user = handle_user_onboarding(
