@@ -673,7 +673,6 @@ class _PropertyPageState extends State<PropertyPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.auto_awesome, size: 18),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

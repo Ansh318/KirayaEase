@@ -27,44 +27,7 @@ class TenantInfo extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const SizedBox(height: 12),
-
-            // Bullets card
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(24),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "KirayaEase is for tenants",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                  ),
-                  SizedBox(height: 12),
-                  Bullet(text: "Flexible payments — pay on your schedule"),
-                  Bullet(
-                      text: "Budget-friendly splits — smaller, easier chunks"),
-                  Bullet(text: "Build credit — on-time payments count"),
-                  Bullet(
-                      text:
-                          "AI rent & expense manager — track and split in one place"),
-                ],
-              ),
-            ),
-
             const SizedBox(height: 24),
-
             // Tagline card
             Container(
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
@@ -83,7 +46,7 @@ class TenantInfo extends StatelessWidget {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    "Financial freedom starts with simple rent management",
+                    "Financial flexibility starts with smarter rent management",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 15, color: Colors.black54),
                   ),

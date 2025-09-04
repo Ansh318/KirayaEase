@@ -10,7 +10,7 @@ class PricingPage extends StatelessWidget {
       {
         'title': 'Basic',
         'subtitle': 'Perfect for small landlords',
-        'price': 'Free',
+        'price': '49 /month',
         'features': [
           'Up to 5 properties',
           'Basic rent collection',
@@ -24,34 +24,15 @@ class PricingPage extends StatelessWidget {
       {
         'title': 'Pro',
         'subtitle': 'Ideal for growing portfolios',
-        'price': '₹49 /month',
-        'features': [
-          'Up to 25 properties',
-          'Advanced rent collection',
-          'Comprehensive tenant screening',
-          'Real-time analytics',
-          'Expense tracking',
-          'Priority support',
-          'Mobile app access',
-        ],
-        'highlight': true,
-        'buttonColor': const Color(0xFF00C6A6),
-      },
-      {
-        'title': 'Enterprise',
-        'subtitle': 'For large property managers',
         'price': '₹99 /month',
         'features': [
-          'Unlimited properties',
-          'White-label solution',
-          'Custom integrations',
-          'Advanced reporting',
-          'Dedicated account manager',
-          '24/7 phone support',
-          'API access',
-          'Custom workflows',
+          'Up to 25 properties',
+          'Real-time analytics',
+          'Expense tracking',
+          'Automated Report Generation',
+          'Priority support',
         ],
-        'highlight': false,
+        'highlight': true,
         'buttonColor': const Color(0xFF00C6A6),
       },
     ];
@@ -110,7 +91,7 @@ class PricingPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Text(
-                          '★ Most Popular',
+                          'Most Popular',
                           style: TextStyle(color: Colors.white),
                         ),
                       ),

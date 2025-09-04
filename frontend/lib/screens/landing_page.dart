@@ -157,9 +157,9 @@ class LandingPage extends StatelessWidget {
                 child: Column(
                   children: [
                     const Text(
-                      "Rent Meets Intelligence",
+                      "Where Rent Meets AI",
                       style: TextStyle(
-                        fontSize: 70,
+                        fontSize: 60,
                         color: Colors.black87,
                       ),
                       textAlign: TextAlign.center,
@@ -220,7 +220,7 @@ class LandingPage extends StatelessWidget {
               const Text(
                 "Split. Schedule. Stretch.",
                 style: TextStyle(
-                  fontSize: 34,
+                  fontSize: 30,
                   fontWeight: FontWeight.w500,
                   fontFamily: 'Inter',
                   color: Colors.black87,
