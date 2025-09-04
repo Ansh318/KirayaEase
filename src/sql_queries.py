@@ -1,7 +1,7 @@
 VERIFY_OTP = """
     SELECT user_id, otp, expiry, used 
     FROM otp_codes 
-    WHERE session_token = ? AND used = 0 
+    WHERE session_token = %s AND used = 0 
     ORDER BY expiry DESC 
     LIMIT 1
 """
@@ -70,18 +70,18 @@ GET_USER_PROFILE = """
     """
 
 ADD_PROPERTY = """INSERT INTO properties (name, address, city, landlord_id, status)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s)
                 """
 
-DELETE_PROPERTY = "DELETE FROM properties WHERE id = ?"
+DELETE_PROPERTY = "DELETE FROM properties WHERE id = %s"
 
 ADD_UTILITY = """
 INSERT INTO utilities (property_id, type, provider, account_number, status, last_bill_amt, next_due_date)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+VALUES (%s, %s, %s, %s, %s, %s, %s);
 """
 
 DELETE_UTILITY = """
-DELETE FROM utilities WHERE id = ?;
+DELETE FROM utilities WHERE id = %s;
 """
 
-GET_PROPERTIES = "SELECT * FROM properties WHERE id = ?"
+GET_PROPERTIES = "SELECT * FROM properties WHERE id = %s"
