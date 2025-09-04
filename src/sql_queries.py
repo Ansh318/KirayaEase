@@ -68,7 +68,7 @@ RETURNING id;
 
 MARK_USER_ONBOARDED = """
     UPDATE users 
-    SET onboarded = 1 
+    SET onboarded = TRUE
     WHERE id = %s
 """
 
