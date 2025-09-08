@@ -10,7 +10,7 @@ import warnings
 from typing import Optional, List
 from pydantic import BaseModel, Field
 warnings.filterwarnings("ignore", category=UserWarning)
-from chatbot import RentWiseAssistant
+# from chatbot import RentWiseAssistant
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -136,18 +136,18 @@ class ChatResponse(BaseModel):
 class ChatRequest(BaseModel):
     message: str
 
-assistant = RentWiseAssistant("gpt-4", temperature=0.7, max_retries=2)
+# assistant = RentWiseAssistant("gpt-4", temperature=0.7, max_retries=2)
 
-@app.post("/chatbot", response_model=ChatResponse)
-async def chat_with_ai(request: ChatRequest):
-    try:
-        output = assistant.run_chain(
-            prompt_id="System Prompt",
-            query=request.message
-        )
-        return {"response": output.get("text", str(output))}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @app.post("/chatbot", response_model=ChatResponse)
+# async def chat_with_ai(request: ChatRequest):
+#     try:
+#         output = assistant.run_chain(
+#             prompt_id="System Prompt",
+#             query=request.message
+#         )
+#         return {"response": output.get("text", str(output))}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 # Digio Model
