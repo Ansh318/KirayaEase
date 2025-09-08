@@ -10,7 +10,7 @@ import warnings
 from typing import Optional, List
 from pydantic import BaseModel, Field
 warnings.filterwarnings("ignore", category=UserWarning)
-# from chatbot import RentWiseAssistant
+from chatbot import RentWiseAssistant
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -136,66 +136,41 @@ class ChatResponse(BaseModel):
 class ChatRequest(BaseModel):
     message: str
 
-# assistant = RentWiseAssistant("gpt-4", temperature=0.7, max_retries=2)
+assistant = RentWiseAssistant("gpt-4", temperature=0.7, max_retries=2)
 
-# @app.post("/chatbot", response_model=ChatResponse)
-# async def chat_with_ai(request: ChatRequest):
-#     try:
-#         output = assistant.run_chain(
-#             prompt_id="System Prompt",
-#             query=request.message
-#         )
-#         return {"response": output.get("text", str(output))}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
+@app.post("/chatbot", response_model=ChatResponse)
+async def chat_with_ai(request: ChatRequest):
+    try:
+        output = assistant.run_chain(
+            prompt_id="System Prompt",
+            query=request.message
+        )
+        return {"response": output.get("text", str(output))}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Digio Model
-class DigioSignJSON(BaseModel):
-    # Base64 of the PDF (NO "data:..." prefix)
-    agreement_base64: str = Field(..., description="Base64 PDF payload")
-    # Who will sign (email or phone Digio recognizes)
-    signer_identifier: str = Field(..., description="email")
-    signer_name: str 
-    file_name: str 
-    expire_in_days: int = 10
-    notify_signers: bool = True
-    send_sign_link: bool = False
-    display_on_page: str = "All"  # or a page number
-    
-# def _assert_is_pdf_b64(b64: str):
-#     try:
-#         raw = base64.b64decode(b64, validate=True)
-#     except binascii.Error as e:
-#         raise HTTPException(400, f"Invalid base64: {e}")
-#     if len(raw) < 100:
-#         raise HTTPException(400, "PDF too small/empty")
-#     if not raw.startswith(b"%PDF"):
-#         # (Some PDFs may not start with %PDF due to linearization, but this catches common mistakes)
-#         raise HTTPException(400, "Base64 does not decode to a PDF")
+class DigioKYC(BaseModel):
+    session_token: str
+    phone_number: str
+    first_name: str
+    last_name: str
 
-@app.post('/digio-sign')
-async def initiate_digio(request: DigioSignJSON):
+@app.post('/digio-kyc')
+async def initiate_digio(request: DigioKYC):
+    full_name = request.first_name + " " + request.last_name
     body = {
-        "signers": [
-            {
-                "identifier": request.signer_identifier,
-                "name": request.signer_name,
-                "sign_type" : "electronic",
-                "reason": "Lease Agreement",
-            },
-        ],
-        "expire_in_days": 15,
-        "display_on_page": "All",
-        "notify_signers": "true", 
-        "send_sign_link": "false",
-        "file_name": request.file_name,
-        "file_data": request.agreement_base64
+        "customer_identifier": request.phone_number,
+        "customer_name": full_name,
+        "template_name": "KE_DIGILOCKER_INTEGRATION",
+        "notify_customer": "false",
+        "generate_acces_token": "true",
+        "request_details": {}
     }
     digio = DigioClient()
-    response = digio.create_sign_request(body)
+    response = digio.initiate_kyc(body)
     return response.json()
-
 
 # @app.post("/add-properties")
 # async def add_properties(request: AddProperties, authorization: str = Header(...)):

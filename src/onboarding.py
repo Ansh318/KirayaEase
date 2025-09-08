@@ -16,7 +16,7 @@ from sql_queries import (
 )
 
 
-def handle_user_onboarding(session_token, first_name, last_name, dob, aadhaar, pan, role):
+def handle_user_onboarding(session_token, first_name, last_name, dob, aadhaar, pan):
     # Step 1: Validate required fields
     if not (aadhaar or pan):
         raise HTTPException(status_code=400, detail="Aadhaar or PAN required")
@@ -79,8 +79,6 @@ def get_user_by_token(session_token):
         "first_name": user_details[0],
         "last_name": user_details[1],
         "aadhar": user_details[2],
-        "pan": user_details[3],
-        "dob": user_details[4],
-        "role": user_details[5]
+        "dob": user_details[4]
     }
 

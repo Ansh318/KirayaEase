@@ -53,14 +53,13 @@ CHECK_DUPLICATE_PAN = """
 
 INSERT_USER_PROFILE = """
 INSERT INTO user_profiles
-  (user_id, first_name, last_name, aadhaar, pan, date_of_birth, role)
+  (user_id, first_name, last_name, aadhaar, date_of_birth, role)
 VALUES
   (%s, %s, %s, %s, %s, %s, %s)
 ON CONFLICT (user_id) DO UPDATE
 SET first_name    = EXCLUDED.first_name,
     last_name     = EXCLUDED.last_name,
     aadhaar       = EXCLUDED.aadhaar,
-    pan           = EXCLUDED.pan,
     date_of_birth = EXCLUDED.date_of_birth,
     role          = EXCLUDED.role
 RETURNING id;
@@ -73,24 +72,9 @@ MARK_USER_ONBOARDED = """
 """
 
 GET_USER_PROFILE = """
-        SELECT first_name, last_name, aadhaar, pan, date_of_birth,role
+        SELECT first_name, last_name, aadhaar, date_of_birth, role
         FROM user_profiles
         WHERE user_id = %s;
     """
-
-ADD_PROPERTY = """INSERT INTO properties (name, address, city, landlord_id, status)
-                VALUES (%s, %s, %s, %s, %s)
-                """
-
-DELETE_PROPERTY = "DELETE FROM properties WHERE id = %s"
-
-ADD_UTILITY = """
-INSERT INTO utilities (property_id, type, provider, account_number, status, last_bill_amt, next_due_date)
-VALUES (%s, %s, %s, %s, %s, %s, %s);
-"""
-
-DELETE_UTILITY = """
-DELETE FROM utilities WHERE id = %s;
-"""
 
 GET_PROPERTIES = "SELECT * FROM properties WHERE id = %s"

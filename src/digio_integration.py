@@ -3,6 +3,10 @@ import base64
 import requests
 from dotenv import load_dotenv
 
+#post {BASE_URL}/v3/client/kyc/ckyc/search
+
+# {BASE_URL}/v3/client/kyc/ckyc/get_otp
+
 load_dotenv()
 
 class DigioClient:
@@ -11,24 +15,17 @@ class DigioClient:
         self.client_secret = os.getenv("DIGIO_CLIENT_SECRET")
         # Sandbox: https://ext.digio.in:444 ; Prod: https://api.digio.in
         self.base_url = os.getenv("DIGIO_BASE_URL", "https://ext.digio.in:444")
-        self.upload_url = f"{self.base_url}/v2/client/document/uploadpdf"
+        self.upload_url = f"{self.base_url}/client/kyc/v2/request/with_template"
 
         if not self.client_id or not self.client_secret:
             raise ValueError("DIGIO_CLIENT_ID and DIGIO_CLIENT_SECRET must be set")
-
-    # --- helpers ---
-    @staticmethod
-    def pdf_to_base64(pdf_path: str) -> str:
-        """Read a PDF file and convert to Base64 string."""
-        with open(pdf_path, "rb") as f:
-            return base64.b64encode(f.read()).decode("utf-8")
 
     def _auth_header(self) -> str:
         token = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
         return f"Basic {token}"
 
     # --- core ---
-    def create_sign_request(self, body: dict) -> dict:
+    def initiate_kyc(self, body: dict) -> dict:
         headers = {
             "Authorization": self._auth_header(),
             "Content-Type": "application/json",
@@ -49,26 +46,15 @@ class DigioClient:
 if __name__ == "__main__":
     digio = DigioClient()
 
-    base64_pdf = digio.pdf_to_base64(
-        "/Users/anshagarwal/Desktop/KirayaEase/data/residential-rental-agreement-format.pdf"
-    )
-
     body = {
-        "signers": [
-            {
-                "identifier": "ansh.agarwal@kirayaease.in",
-                "name": "Ansh Agarwal",
-                "sign_type": "electronic",
-                "reason": "Lease Agreement",
-            }
-        ],
-        "expire_in_days": 10,
-        "display_on_page": "All",
-        "notify_signers": "true",
-        "send_sign_link": "false",
-        "file_name": "Residential_Rent_Agreement.pdf",
-        "file_data": base64_pdf,
+        "customer_identifier": "9820023475",
+        "customer_name": "Ravi Agarwal",
+        "template_name": "KE_DIGILOCKER_INTEGRATION",
+        "notify_customer": "false",
+        "generate_acces_token": "true",
+        "request_details": {}
     }
-
-    response = digio.create_sign_request(body)
+    
+    response = digio.initiate_kyc(body)
     print(response)
+
