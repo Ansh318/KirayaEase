@@ -18,6 +18,7 @@ dependencies:
   razorpay_flutter: ^1.4.0
   permission_handler: ^11.3.1
   file_picker: ^10.3.2
+  kyc_workflow: ^2.0.8
 
 dev_dependencies:
   flutter_test:

@@ -157,7 +157,7 @@ class LandingPage extends StatelessWidget {
                 child: Column(
                   children: [
                     const Text(
-                      "Where Rent Meets AI",
+                      "Pay Rent  Your Way",
                       style: TextStyle(
                         fontSize: 60,
                         color: Colors.black87,
@@ -201,10 +201,10 @@ class LandingPage extends StatelessWidget {
                             ),
                           ),
                           onPressed: () {
-                            Navigator.pushNamed(context, '/learn');
+                            Navigator.pushNamed(context, '/login');
                           },
                           child: const Text(
-                            "Learn more",
+                            "Create Account",
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,

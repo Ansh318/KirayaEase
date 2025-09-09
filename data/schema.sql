@@ -38,25 +38,12 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   first_name     TEXT NOT NULL,
   last_name      TEXT NOT NULL,
   aadhaar        TEXT UNIQUE,
-  pan            TEXT UNIQUE,
   date_of_birth  DATE NOT NULL,
-  role           TEXT NOT NULL CHECK (role IN ('landlord','tenant','property manager'))
 );
 
 -- =========================
 -- CORE DOMAIN
 -- =========================
-
--- properties (owned by a landlord)
-CREATE TABLE IF NOT EXISTS properties (
-  id           BIGSERIAL PRIMARY KEY,
-  name         TEXT NOT NULL,                        -- e.g. "Sunrise 204"
-  address      TEXT NOT NULL,
-  city         TEXT,
-  landlord_id  BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  status       TEXT NOT NULL,                        -- keep as free-text or add CHECK/ENUM later
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
 
 -- leases (one row per tenant agreement for a property)
 CREATE TABLE IF NOT EXISTS leases (
@@ -70,19 +57,6 @@ CREATE TABLE IF NOT EXISTS leases (
   due_day       INTEGER NOT NULL CHECK (due_day BETWEEN 1 AND 31),
   status        TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','active','expired','terminated')),
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- utilities (tracked per property)
-CREATE TABLE IF NOT EXISTS utilities (
-  id              BIGSERIAL PRIMARY KEY,
-  property_id     BIGINT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-  type            TEXT NOT NULL,                   -- 'electricity'|'water'|'gas'|'internet'
-  provider        TEXT,
-  account_number  TEXT,
-  status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive')),
-  last_bill_amt   INTEGER,
-  next_due_date   DATE,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- rent payments (tie to lease so history is clean)

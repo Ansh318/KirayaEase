@@ -170,7 +170,8 @@ async def initiate_digio(request: DigioKYC):
     }
     digio = DigioClient()
     response = digio.initiate_kyc(body)
-    return response.json()
+    print(response)
+    return response
 
 # @app.post("/add-properties")
 # async def add_properties(request: AddProperties, authorization: str = Header(...)):

@@ -47,5 +47,24 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>$(KirayaEase) would like to access your camera.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>$(KirayaEase) would like to access your location.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>$(KirayaEase) would like to access your location.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>$(KirayaEase) would like to access your microphone to capture video.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>$(KirayaEase) would like to access your photo.</string>
+	<key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>phonepe</string>
+        <string>gpay</string>
+        <string>paytmmp</string>
+        <string>bhim</string>
+        <string>upi</string>
+        <string>ppe</string>
+    </array>
 </dict>
 </plist>

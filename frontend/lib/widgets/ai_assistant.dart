@@ -35,7 +35,7 @@ class _AIAssistantChatWidgetState extends State<AIAssistantChatWidget> {
     try {
       final response = await http.post(
         Uri.parse(
-            "http://127.0.0.1:8000/chatbot"), // Replace with your IP if needed
+            "https://kirayaease-2a527d924296.herokuapp.com/chatbot"), // Replace with your IP if needed
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"message": text}),
       );
@@ -77,8 +77,8 @@ class _AIAssistantChatWidgetState extends State<AIAssistantChatWidget> {
           right: 24,
           child: FloatingActionButton(
             onPressed: _toggleChat,
-            backgroundColor: Colors.black87,
-            child: const Icon(Icons.auto_awesome, color: Colors.white),
+            backgroundColor: const Color.fromARGB(221, 116, 235, 186),
+            child: const Icon(Icons.chat_bubble, color: Colors.white),
           ),
         ),
 
@@ -102,7 +102,8 @@ class _AIAssistantChatWidgetState extends State<AIAssistantChatWidget> {
                     border: Border.all(color: Colors.white30),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color:
+                            const Color.fromARGB(255, 0, 0, 0).withOpacity(0.2),
                         blurRadius: 12,
                         offset: const Offset(0, 8),
                       ),
@@ -115,7 +116,7 @@ class _AIAssistantChatWidgetState extends State<AIAssistantChatWidget> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            "AI Assistant",
+                            "RentWise AI",
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,

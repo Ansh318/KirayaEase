@@ -52,7 +52,7 @@ class MissionSection extends StatelessWidget {
                           Border.all(color: highlightColor.withOpacity(0.3)),
                     ),
                     child: const Text(
-                      "KirayaEase is on a mission to revolutionize India’s rental real estate landscape by breaking down the barriers of fragmentation and inefficiency that have long defined the sector. Our goal is to make rental real estate an accessible, intelligently managed asset class by making it smarter, fairer, and informed.",
+                      "Our mission is to make renting work for tenants not against tenants. With flexible payment plans, transparent terms, and credit-building, rent becomes a lever for your financial growth. We belive in making rent an opportunity — for flexibility today and credit tomorrow.",
                       style: TextStyle(fontSize: 15, height: 1.5),
                     ),
                   ),

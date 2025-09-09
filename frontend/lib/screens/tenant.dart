@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/ai_assistant.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart'; // ← Raz
-import '../widgets/ai_assistant.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class TenantDashboard extends StatefulWidget {
   const TenantDashboard({super.key});
@@ -16,44 +15,44 @@ class TenantDashboard extends StatefulWidget {
 
 class _TenantDashboardState extends State<TenantDashboard> {
   Map<String, dynamic>? userProfile;
-  bool isLoading = true;
+  bool isLoading = false;
   String? error;
   Offset _assistantOffset = const Offset(20, 600);
 
-  @override
-  void initState() {
-    super.initState();
-    fetchProfile();
-  }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   fetchProfile();
+  // }
 
-  Future<void> fetchProfile() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('session_token');
+  // Future<void> fetchProfile() async {
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final token = prefs.getString('session_token');
 
-      final response = await http.get(
-        Uri.parse('https://kirayaease-2a527d924296.herokuapp.com/user-profile'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
+  //     final response = await http.get(
+  //       Uri.parse('https://kirayaease-2a527d924296.herokuapp.com/user-profile'),
+  //       headers: {'Authorization': 'Bearer $token'},
+  //     );
 
-      if (response.statusCode == 200) {
-        setState(() {
-          userProfile = jsonDecode(response.body);
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          error = 'Failed to fetch profile';
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        error = 'Error: $e';
-        isLoading = false;
-      });
-    }
-  }
+  //     if (response.statusCode == 200) {
+  //       setState(() {
+  //         userProfile = jsonDecode(response.body);
+  //         isLoading = false;
+  //       });
+  //     } else {
+  //       setState(() {
+  //         error = 'Failed to fetch profile';
+  //         isLoading = false;
+  //       });
+  //     }
+  //   } catch (e) {
+  //     setState(() {
+  //       error = 'Error: $e';
+  //       isLoading = false;
+  //     });
+  //   }
+  // }
 
   String getGreetingMessage() {
     final hour = DateTime.now().hour;
@@ -187,7 +186,8 @@ class _TenantDashboardState extends State<TenantDashboard> {
                         padding: const EdgeInsets.only(top: 80, bottom: 100),
                         children: [
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            padding: const EdgeInsets.fromLTRB(
+                                20, 40, 20, 0), // ⬅ add more top space
                             child: Text(
                               getGreetingMessage(),
                               style: const TextStyle(
@@ -198,19 +198,54 @@ class _TenantDashboardState extends State<TenantDashboard> {
                             ),
                           ),
                           const SizedBox(height: 20),
+
+                          // === Benefits / Metrics Row
                           Row(
                             children: [
                               buildMetricCard("Active Lease", "1",
                                   Icons.assignment_turned_in_outlined),
                               buildMetricCard("Next Payment", "₹12,500",
                                   Icons.payments_outlined),
-                              buildMetricCard("Split Status", "Enabled",
+                              buildMetricCard("Split Rent", "Enabled",
                                   Icons.swap_calls_outlined),
                             ],
                           ),
+                          const SizedBox(height: 16),
+
+                          // === Scheduled Payments (NEW)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20),
+                            child: ScheduledPaymentsCard(
+                              items: [
+                                PaymentItem(
+                                  title: "Paid to Property",
+                                  subtitle: "Thursday, Dec 1st",
+                                  amount: "₹50,000",
+                                ),
+                                PaymentItem(
+                                  title: "Paid",
+                                  subtitle: "Monday, Dec 5th",
+                                  amount: "₹20,000",
+                                ),
+                                PaymentItem(
+                                  title: "Scheduled",
+                                  subtitle: "Saturday, Dec 10th",
+                                  amount: "₹10,000",
+                                ),
+                                PaymentItem(
+                                  title: "Scheduled",
+                                  subtitle: "Tuesday, Dec 20th",
+                                  amount: "₹20,000",
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
+
+                    // Logo
                     Positioned(
                       top: 40,
                       left: 20,
@@ -220,6 +255,8 @@ class _TenantDashboardState extends State<TenantDashboard> {
                         width: 48,
                       ),
                     ),
+
+                    // Draggable AI Assistant
                     Positioned(
                       left: _assistantOffset.dx,
                       top: _assistantOffset.dy,
@@ -258,10 +295,9 @@ class _TenantDashboardState extends State<TenantDashboard> {
               break;
             case 1:
               _openAddPaymentSheet();
+              break; // prevent fall-through
             case 2:
-              if (!isLoading && userProfile != null) {
-                _showProfilePopup();
-              }
+              Navigator.pushNamed(context, '/settings');
               break;
             case 3:
               final prefs = await SharedPreferences.getInstance();
@@ -274,11 +310,11 @@ class _TenantDashboardState extends State<TenantDashboard> {
         },
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.home_work_outlined), label: 'Properties'),
+              icon: Icon(Icons.home_work_outlined), label: 'Home'),
           BottomNavigationBarItem(
               icon: Icon(Icons.payments), label: 'Payments'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.account_circle), label: 'Profile'),
+              icon: Icon(Icons.settings_applications_sharp), label: 'Settings'),
           BottomNavigationBarItem(icon: Icon(Icons.logout), label: 'Sign Out'),
         ],
       ),
@@ -286,6 +322,9 @@ class _TenantDashboardState extends State<TenantDashboard> {
   }
 }
 
+// ==========================
+// Add Payment Bottom Sheet
+// ==========================
 class AddPaymentModal extends StatefulWidget {
   const AddPaymentModal({Key? key}) : super(key: key);
 
@@ -305,7 +344,7 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
       ..on(Razorpay.EVENT_PAYMENT_SUCCESS, _handleSuccess)
       ..on(Razorpay.EVENT_PAYMENT_ERROR, _handleError)
       ..on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternal);
-    _amountController.addListener(() => setState(() {})); // updates button text
+    _amountController.addListener(() => setState(() {}));
   }
 
   @override
@@ -343,7 +382,8 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
 
       final response = await http.post(
         Uri.parse(
-            'https://kirayaease-2a527d924296.herokuapp.com//create-payment-order'),
+          'https://kirayaease-2a527d924296.herokuapp.com/create-payment-order',
+        ),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'amount': amount,
@@ -355,7 +395,7 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
         final data = jsonDecode(response.body);
 
         final options = {
-          'key': 'rzp_test_v4oAPsjPGsrOQR', // Replace with actual key
+          'key': 'rzp_test_v4oAPsjPGsrOQR', // TODO: replace with live key
           'amount': amount,
           'currency': 'INR',
           'order_id': data['id'],
@@ -382,12 +422,16 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
 
   @override
   Widget build(BuildContext context) {
+    final buttonText = _amountController.text.isEmpty
+        ? 'Pay securely'
+        : 'Pay ₹${_amountController.text}';
+
     return DraggableScrollableSheet(
       initialChildSize: 0.45,
       maxChildSize: 0.6,
       minChildSize: 0.3,
       builder: (_, ctrl) => Container(
-        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -436,17 +480,14 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 icon: Image.asset(
-                  'assets/razorpay.png', // 🔁 Replace with your SVG/icon asset
+                  'assets/razorpay.png',
                   height: 40,
                   fit: BoxFit.contain,
                 ),
                 onPressed: _submitPayment,
-                label: Text(
-                  '',
-                ),
+                label: Text(buttonText),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      const Color(0xFF00C4FF), // Razorpay brand blue
+                  backgroundColor: const Color(0xFF00C4FF),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
@@ -461,6 +502,92 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ==========================
+// Scheduled Payments Card
+// ==========================
+class PaymentItem {
+  final String title; // e.g., "Paid to KirayaEase"
+  final String subtitle; // e.g., "Monday, Dec 5th"
+  final String amount; // e.g., "₹20,000"
+
+  const PaymentItem({
+    required this.title,
+    required this.subtitle,
+    required this.amount,
+  });
+}
+
+class ScheduledPaymentsCard extends StatelessWidget {
+  final List<PaymentItem> items;
+  const ScheduledPaymentsCard({super.key, required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.event_note, color: Colors.black87),
+              SizedBox(width: 8),
+              Text(
+                'Scheduled Payments',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...items.map((p) => _PaymentRow(item: p)).toList(),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentRow extends StatelessWidget {
+  final PaymentItem item;
+  const _PaymentRow({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7F7),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.title,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(item.subtitle,
+                    style:
+                        const TextStyle(fontSize: 12, color: Colors.black54)),
+              ],
+            ),
+          ),
+          Text(item.amount,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

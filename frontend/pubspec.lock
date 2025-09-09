@@ -184,6 +184,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  kyc_workflow:
+    dependency: "direct main"
+    description:
+      name: kyc_workflow
+      sha256: "1fc62e809704b92596717c5aff8a5086d298d979f3b25b51ba7ee6f4f0ee7ecf"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.8"
   leak_tracker:
     dependency: transitive
     description:

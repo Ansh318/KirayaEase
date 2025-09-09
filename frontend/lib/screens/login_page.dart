@@ -34,8 +34,20 @@ class _LoginPageState extends State<LoginPage> {
       otpSent = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("OTP sent")),
+    // ✅ Minimal dialog instead of SnackBar
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content:
+            const Text("Please check your email for the verification code."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -61,8 +73,6 @@ class _LoginPageState extends State<LoginPage> {
       if (isOnboarded) {
         if (role == 'tenant') {
           Navigator.pushReplacementNamed(context, '/tenant');
-        } else if (role == 'landlord') {
-          Navigator.pushReplacementNamed(context, '/landlord');
         }
       } else {
         Navigator.pushReplacementNamed(context, '/home');
@@ -135,8 +145,7 @@ class _LoginPageState extends State<LoginPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.auto_awesome,
-                          size: 40, color: Colors.white),
+                      Image.asset('assets/logo.png', height: 40, width: 40),
                       const SizedBox(height: 20),
                       const Text(
                         "Sign In",
@@ -148,7 +157,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        "Enter your email to receive a verification code",
+                        "Enter email to log in",
                         style: TextStyle(color: Color.fromARGB(179, 0, 0, 0)),
                         textAlign: TextAlign.center,
                       ),
