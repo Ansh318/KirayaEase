@@ -143,9 +143,9 @@ Connecting to industry-leading fintech and verification APIs for a seamless rent
 
 ## Contributing
 
-
+Ansh Agarwal
 
 ## License
 
-Copyright (c) 2025 KirayaEase
+Copyright (c) 2025 KirayaEase LLP
 
