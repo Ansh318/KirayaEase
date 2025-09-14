@@ -21,7 +21,7 @@ import base64,  binascii
 from digio_integration import DigioClient
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
-from lease_extractor import LeaseExtractor
+from lease_extractor import extract_from_pdf
 # from property_manager import PropertyManager
 
 razorpay_client = razorpay.Client(
@@ -172,14 +172,46 @@ async def initiate_digio(request: DigioKYC):
     response = digio.initiate_kyc(body)
     return response
 
+import json
+import tempfile, os
 
-@app.post("/extract-lease/")
-async def extract_lease(file: UploadFile = File(...)):
-    pdf_bytes = await file.read()
-    extractor = LeaseExtractor(pdf_bytes)
-    details = extractor.extract_details()
-    return JSONResponse(content=details)
+MAX_FILE_MB = 20
 
+@app.post("/extract-lease-content")
+async def extract_lease_content(file: UploadFile = File(...)):
+    # 1) basic validation
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only .pdf files are supported.")
+
+    # 2) stream upload to a temp file (works well with pypdf)
+    total = 0
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            while True:
+                chunk = await file.read(1024 * 1024)  # 1MB
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_FILE_MB * 1024 * 1024:
+                    raise HTTPException(status_code=413, detail=f"File too large (>{MAX_FILE_MB}MB).")
+                tmp.write(chunk)
+            tmp_path = tmp.name
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to buffer uploaded file.")
+
+    # 3) run LLM extractor on the saved path
+    try:
+        fields = extract_from_pdf(tmp_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {e}")
+    finally:
+        try: os.remove(tmp_path)
+        except Exception: pass
+    print(fields)
+    # 4) return fields to the frontend
+    return JSONResponse({"fields": fields})
 
 # @app.post("/add-properties")
 # async def add_properties(request: AddProperties, authorization: str = Header(...)):
