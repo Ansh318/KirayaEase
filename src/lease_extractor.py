@@ -1,67 +1,148 @@
-# lease_extractor.py
 
-from io import BytesIO
-from typing import Dict, Optional
+# lease_extractor.py
 import re
-from pypdf import PdfReader
+import unicodedata
+from io import BytesIO
+from typing import Dict, List, Optional
+
+try:
+    from pypdf import PdfReader
+except Exception:
+    from PyPDF2 import PdfReader  # fallback
+
+
+def _normalize_text(s: str) -> str:
+    """Normalize Unicode, strip control chars, unify separators, collapse whitespace."""
+    s = unicodedata.normalize("NFKC", s)
+    s = (
+        s.replace("’", "'")
+        .replace("‘", "'")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("–", "-")
+        .replace("—", "-")
+    )
+    s = re.sub(r"[\x00-\x1F\u200B-\u200D\uFEFF]", "", s)
+    s = re.sub(r"\s*[:：]\s*", ": ", s)
+    s = re.sub(r"[ \t]+", " ", s)
+    s = re.sub(r"\n{2,}", "\n", s)
+    return s.strip()
 
 
 class LeaseExtractor:
-    FIELD_PATTERNS = {
-        "landlord_name": r"(?:Landlord Name|Lessor)\s*:\s*([A-Za-z .]+)",
-        "tenant_name":   r"(?:Tenant Name|Lessee)\s*:\s*([A-Za-z .]+)",
-        "tenant_address":r"(?:Tenant Address|Address)\s*:\s*([^\n]+)",
-        "rent_amount":   r"(?:Monthly Rent|Rent)\s*:\s*₹?\s*([\d,]+)",
-        "start_date":    r"(?:Start Date|Commencement)\s*:\s*([0-9]{1,2}[-/][0-9A-Za-z]{2,9}[-/][0-9]{2,4})",
-        "end_date":      r"(?:End Date|Expiry)\s*:\s*([0-9]{1,2}[-/][0-9A-Za-z]{2,9}[-/][0-9]{2,4})",
-        "aadhar":        r"(?:Aadhaar|Aadhar)\D*([\d ]{12,14})",
-        "pan":           r"(?:PAN)\D*([A-Z]{5}\d{4}[A-Z])",
-    }
+    FIELD_PATTERNS: Dict[str, List[str]] = {
+    "landlord_name": [
+        r"Owner Name[^\n:]*:\s*([^\n]+?)(?=\s*(?:Owner Mobile|Owner Email|Owner Address|$))"
+    ],
+    "landlord_phone": [
+        r"Owner Mobile[^\n:]*:\s*([0-9]{10})"
+    ],
+    "landlord_email": [
+        r"Owner Email[^\n:]*:\s*([^\s]+@[^\s]+)(?=\s*(?:Owner Address|Owner City|$))"
+    ],
+    "landlord_address": [
+        r"Owner Address[^\n:]*:\s*([^\n]+?)(?=\s*(?:Owner City|Owner State|Rented Property|$))"
+    ],
+    "property_address": [
+        r"Address of Rented Property[^\n:]*:\s*([^\n]+?)(?=\s*(?:Rented Property Pin|Agreement Start|Agreement End|Tenant|$))"
+    ],
+    "property_pincode": [
+        r"Rented Property Pin code[^\n:]*:\s*([0-9]{6})"
+    ],
+    "start_date": [
+        r"Agreement Start Date[^\n:]*:\s*([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})"
+    ],
+    "end_date": [
+        r"Agreement End Date[^\n:]*:\s*([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})"
+    ],
+    "tenant_name": [
+        r"Tenant['`′’]s? Name[^\n:]*:\s*([^\n]+?)(?=\s*(?:Tenant Permanent Address|Tenant City|Tenant State|Pin code|$))"
+    ],
+    "tenant_address": [
+        r"Tenant Permanent Address[^\n:]*:\s*([^\n]+?)(?=\s*(?:Tenant City|Tenant State|Pin code|$))"
+    ],
+    "tenant_city": [
+        r"Tenant City/District[^\n:]*:\s*([^\n]+?)(?=\s*(?:Tenant State|Pin code|$))"
+    ],
+    "tenant_state": [
+        r"Tenant State[^\n:]*:\s*([^\n]+?)(?=\s*(?:Pin code|Tenant|$))"
+    ],
+    "tenant_pincode": [
+        r"Pin code[^\n:]*:\s*([0-9]{6})"
+    ],
+    "tenant_phone": [
+        r"Tenant.*?Mobile Number[^\n:]*:\s*([0-9]{10})"
+    ],
+    "aadhar": [
+        r"(?:Aadhaar|Aadhar)[^\n:]*:\s*([\d ]{12,14})"
+    ],
+    "pan": [
+        r"\bPAN[^\n:]*:\s*([A-Z]{5}\d{4}[A-Z])"
+    ],
+    "rent_amount": [
+        r"(?:Monthly Rent|Rent)[^\n:]*:\s*₹?\s*([\d,]+)"
+    ],
+}
 
     def __init__(self, pdf_bytes: bytes):
-        self.pdf_bytes = pdf_bytes
-        self.text = self._extract_text_from_pdf()
+        self.text = self._extract_text_from_pdf(pdf_bytes)
 
-    def _extract_text_from_pdf(self) -> str:
-        """Extract text from the PDF text layer (fast, no OCR)."""
-        reader = PdfReader(BytesIO(self.pdf_bytes))
+    def _extract_text_from_pdf(self, pdf_bytes: bytes) -> str:
+        reader = PdfReader(BytesIO(pdf_bytes))
         parts = []
         for p in reader.pages:
             t = p.extract_text() or ""
             parts.append(t)
-        return "\n".join(parts)
+        return ( _normalize_text("\n".join(parts)))
 
-    def _find(self, pattern: str) -> Optional[str]:
-        m = re.search(pattern, self.text, flags=re.IGNORECASE)
-        return m.group(1).strip() if m else None
+    def _find_first(self, patterns: List[str]) -> Optional[str]:
+        for pat in patterns:
+            m = re.search(pat, self.text, flags=re.IGNORECASE)
+            if m:
+                return re.sub(r"\s{2,}", " ", m.group(1).strip())
+        return None
 
     def extract_details(self) -> Dict[str, Optional[str]]:
-        """Return extracted fields from the lease PDF."""
-        data = {k: self._find(pat) for k, pat in self.FIELD_PATTERNS.items()}
+        found: Dict[str, Optional[str]] = {}
+        for key, pats in self.FIELD_PATTERNS.items():
+            found[key] = self._find_first(pats)
 
-        # Normalize
-        if data.get("rent_amount"):
-            data["rent_amount"] = data["rent_amount"].replace(",", "")
-        if data.get("aadhar"):
-            data["aadhar"] = data["aadhar"].replace(" ", "")
+        if found.get("aadhar"):
+            found["aadhar"] = found["aadhar"].replace(" ", "")
+        if found.get("rent_amount"):
+            found["rent_amount"] = found["rent_amount"].replace(",", "")
 
         return {
-            "landlord_name": data.get("landlord_name"),
-            "tenant_name": data.get("tenant_name"),
-            "tenant_address": data.get("tenant_address"),
-            "rent_amount_inr": data.get("rent_amount"),
-            "start_date": data.get("start_date"),
-            "end_date": data.get("end_date"),
-            "aadhar": data.get("aadhar"),
-            "pan": data.get("pan"),
-            "raw_preview": self.text[:1000],
+            "landlord_name": found.get("landlord_name"),
+            "landlord_phone": found.get("landlord_phone"),
+            "landlord_email": found.get("landlord_email"),
+            "landlord_address": found.get("landlord_address"),
+            "property_address": found.get("property_address"),
+            "property_pincode": found.get("property_pincode"),
+            "start_date": found.get("start_date"),
+            "end_date": found.get("end_date"),
+            "tenant_name": found.get("tenant_name"),
+            "tenant_address": found.get("tenant_address"),
+            "tenant_city": found.get("tenant_city"),
+            "tenant_state": found.get("tenant_state"),
+            "tenant_pincode": found.get("tenant_pincode"),
+            "tenant_phone": found.get("tenant_phone"),
+            "aadhar": found.get("aadhar"),
+            "pan": found.get("pan"),
+            "rent_amount_inr": found.get("rent_amount")
         }
 
 
-# --- Example usage ---
-if __name__ == "__main__":
-    with open("/Users/anshagarwal/Desktop/KirayaEase/data/demo_lease.pdf", "rb") as f:
+# ---------------- MAIN -----------------
+def main():
+    pdf_path = "/Users/anshagarwal/Desktop/KirayaEase/data/Lease_Agreement_Sample.pdf"
+    with open(pdf_path, "rb") as f:
         pdf_bytes = f.read()
+
     extractor = LeaseExtractor(pdf_bytes)
     details = extractor.extract_details()
     print(details)
+
+
+if __name__ == "__main__":
+    main()

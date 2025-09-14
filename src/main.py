@@ -19,7 +19,9 @@ DIGIO_CLIENT_SECRET = os.getenv("DIGIO_CLIENT_SECRET")
 import requests
 import base64,  binascii
 from digio_integration import DigioClient
-
+from fastapi import FastAPI, File, UploadFile
+from fastapi.responses import JSONResponse
+from lease_extractor import LeaseExtractor
 # from property_manager import PropertyManager
 
 razorpay_client = razorpay.Client(
@@ -170,8 +172,16 @@ async def initiate_digio(request: DigioKYC):
     }
     digio = DigioClient()
     response = digio.initiate_kyc(body)
-    print(response)
     return response
+
+
+@app.post("/extract-lease/")
+async def extract_lease(file: UploadFile = File(...)):
+    pdf_bytes = await file.read()
+    extractor = LeaseExtractor(pdf_bytes)
+    details = extractor.extract_details()
+    return JSONResponse(content=details)
+
 
 # @app.post("/add-properties")
 # async def add_properties(request: AddProperties, authorization: str = Header(...)):
