@@ -104,42 +104,24 @@ Connecting to industry-leading fintech and verification APIs for a seamless rent
 
     2. Razorpay (Payments)
 
-    3. DigiLocker (Digital KYC)
+    3. Account Aggregator (AA) Framework
 
-    4. Account Aggregator (AA) Framework
+    4. Digio (DigiLocker & eKYC)
 
-    5. Digio (eSign & eKYC)
-
-    6. CIBIL (Credit Bureau Integration)
+    5. TransUnion CIBIL (Credit Bureau Integration)
 
 
 
 ## API Documentation
 
-    - Request OTP (POST/request-otp)
-            {
-                "email": "user@example.com"
-            }
-    
+    - Request OTP (POST/request-otp)    
     - Verify OTP(POST/verify-otp)
-            {
-                "otp":"123456"
-            }
-
     - User Onboarding(POST/user-onboarding)
-            {
-                "session_token": "string",
-                "first_name": "Aman",
-                "last_name": "Kumar",
-                "date_of_birth": "1996-08-25",
-                "aadhar_card": "xxxx-xxxx-xxxx",
-                "pan_number": "ABCDE1234F",
-                "role": "tenant"
-            }
     - User Profile(GET/user-profile)
-            {
-                "session_token": "string"
-            }
+    - Create Payment Order(POST/create-payment-order)
+    - DigioKYC (POST/digio-kyc)
+    - Extract Lease Details(POST/extract-lease)
+    - AI Assistant(POST/chatbot)
 
 ## Contributing
 

@@ -210,7 +210,5 @@ async def extract_lease(file: UploadFile = File(...)):
 #         raise HTTPException(status_code=500, detail=str(e))
 
 
-# @app.post("/edit-properties")
-# async def edit_properties():
-#     pass
+
 
