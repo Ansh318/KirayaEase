@@ -35,7 +35,7 @@ class _AIAssistantChatWidgetState extends State<AIAssistantChatWidget> {
     try {
       final response = await http.post(
         Uri.parse(
-            "https://kirayaease-2a527d924296.herokuapp.com/chatbot"), // Replace with your IP if needed
+            "https://kiraya-ease-50d651c2ed49.herokuapp.com/chatbot"), // Replace with your IP if needed
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"message": text}),
       );
