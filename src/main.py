@@ -78,15 +78,14 @@ async def verify_otp(request: OTPVerification):
     try:
         user_id = otp_manager.verify_otp(request.session_token, request.otp)
         session_id = otp_manager.create_login_session(user_id)
-        onboarded_bool, role = otp_manager.check_onboarding(user_id)
-        print(user_id, session_id, role)
-        print(role, onboarded_bool)
+        onboarded_bool = otp_manager.check_onboarding(user_id)
+        print(user_id, session_id,)
+        print(onboarded_bool)
         return {
             "success": True, 
             "session_token": session_id,
             "message": "OTP verified",
             "onboarded": onboarded_bool,
-            "user_role": role
         }
 
     except ValueError as e:
@@ -101,9 +100,8 @@ async def onboard_user(request: OnboardingRequest):
             first_name = request.first_name,
             last_name = request.last_name, 
             dob = request.date_of_birth,
-            aadhaar=  request.aadhar_card,
-            pan = request.pan_number,
-            role = request.user_role
+            aadhaar =  request.aadhar_card,
+            pan = request.pan_number
         )
         return onboard_user
     except ValueError as e:

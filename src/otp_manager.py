@@ -117,10 +117,9 @@ class OTPManager:
         cursor.execute(CHECK_ONBOARDED, (user_id,))
         result = cursor.fetchone()
         if result:
-            id, role = result[0], result[1]
-            return True, role
+            return True
         else:
-            return False, 'None'
+            return False
          
 # otp_manager = OTPManager()
 # otp = otp_manager.generate_otp()
