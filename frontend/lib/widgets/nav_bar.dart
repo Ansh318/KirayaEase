@@ -83,7 +83,7 @@ class NavBar extends StatelessWidget {
                         _popupItem("Tenants", '/tenant-info'),
                         _popupItem("Technology", '/technology'),
                         _popupItem("Learn", '/learn'),
-                        _popupItem("About", '/about'),
+                        _popupItem("About Us", '/about-us'),
                       ];
                     },
                   ),
@@ -102,7 +102,7 @@ class NavBar extends StatelessWidget {
       _navItem(context, "Tenants", '/tenants-info'),
       _navItem(context, "Technology", '/technology'),
       _navItem(context, "Learn", '/learn'),
-      _navItem(context, "About Me", '/about'),
+      _navItem(context, "About Us", '/about-us'),
     ];
   }
 

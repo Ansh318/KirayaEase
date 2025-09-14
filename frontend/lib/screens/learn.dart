@@ -32,7 +32,7 @@ class LearnPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Text(
-                    "Everything you need to know about renting,\nproperty management, and making the most of KirayaEase.",
+                    "Everything you need to know about paying rent, and making the most of KirayaEase.",
                     style: TextStyle(fontSize: 15, color: Colors.black54),
                     textAlign: TextAlign.center,
                   ),

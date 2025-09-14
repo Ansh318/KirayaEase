@@ -77,7 +77,7 @@ class _AIAssistantChatWidgetState extends State<AIAssistantChatWidget> {
           right: 24,
           child: FloatingActionButton(
             onPressed: _toggleChat,
-            backgroundColor: const Color.fromARGB(221, 116, 235, 186),
+            backgroundColor: const Color.fromARGB(221, 255, 255, 255),
             child: const Icon(Icons.chat_bubble, color: Colors.white),
           ),
         ),

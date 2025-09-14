@@ -13,17 +13,16 @@ class TechnologyInfo extends StatelessWidget {
             'No paperwork, no chasing — agreements & payments flow on autopilot.',
       },
       {
-        'title': 'Intelligence',
-        'description':
-            'Spot market shifts early — from yields to tenant patterns.',
+        'title': 'Flexible Credit Line',
+        'description': 'Freedom to manage rent your way.',
       },
       {
-        'title': 'Cloud',
-        'description': 'From 1 flat to a 100 — built to grow with you.',
+        'title': 'Smart Scheduling',
+        'description': 'Split and schedule payments to match your cash flow.',
       },
       {
-        'title': 'Trust',
-        'description': 'RBI Compliant and 256-bit Encrypted.',
+        'title': 'Security & Compliance',
+        'description': ' Payments protected with 256-bit encryption.',
       },
     ];
 

@@ -7,6 +7,10 @@ class SettingsPage extends StatelessWidget {
   static const _sub = Color(0xFF6F6F73);
   static const _divider = Color(0xFFE8E8EB);
 
+  // Change if your backend base URL differs
+  static const String _apiBase =
+      'https://kirayaease-2a527d924296.herokuapp.com';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,54 +52,29 @@ class SettingsPage extends StatelessWidget {
               onTap: () {},
             ),
             const _Divider(),
-            _Row.icon(
-              icon: Icons.credit_card_outlined,
-              title: 'Payment methods',
-              onTap: () {},
-            ),
-            const _Divider(),
             const SizedBox(height: 28),
 
             // ===== Rent =====
             const _SectionHeader('Rent'),
             const _Divider(),
-            const _Row.disabled(
-              icon: Icons.vpn_key_outlined,
-              title: 'Property',
-            ),
+            _Row.icon(
+                icon: Icons.vpn_key_outlined,
+                title: 'Properties',
+                onTap: () => Navigator.pushNamed(context, '/lease-manager')),
             const _Divider(),
             _Row.icon(
               icon: Icons.bar_chart_rounded,
               title: 'Rent reporting',
-              onTap: () {},
+              onTap: () => Navigator.pushNamed(context, '/rent-reporting'),
             ),
-
             const SizedBox(height: 28),
 
             // ===== Other =====
-            const _SectionHeader('Other'),
+            const _SectionHeader('Support & App Info'),
             const _Divider(),
             _Row.icon(
               icon: Icons.help_outline_rounded,
               title: 'Help center',
-              onTap: () {},
-            ),
-            const _Divider(),
-            _Row.icon(
-              icon: Icons.lock_outline_rounded,
-              title: 'Privacy',
-              onTap: () {},
-            ),
-            const _Divider(),
-            _Row.icon(
-              icon: Icons.scale_outlined,
-              title: 'Legal agreements',
-              onTap: () {},
-            ),
-            const _Divider(),
-            _Row.icon(
-              icon: Icons.info_outline_rounded,
-              title: 'App info',
               onTap: () {},
             ),
             const _Divider(),
@@ -209,30 +188,6 @@ class _Row extends StatelessWidget {
       enabled: !disabled,
       dense: true,
       visualDensity: const VisualDensity(vertical: -1),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  final String text;
-  const _Pill(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2F2F7),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w600,
-          color: SettingsPage._ink,
-        ),
-      ),
     );
   }
 }
