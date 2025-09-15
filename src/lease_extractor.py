@@ -30,7 +30,7 @@ OVERLAP = 400
 
 # Use your ModelConfigManager here
 config = ModelConfigManager(
-    model_name=os.getenv("LEASE_OPENAI_MODEL", "gpt-4o-mini"),
+    model_name=os.getenv("gpt-4o"),
     temperature=0,
     max_retries=2,
 )

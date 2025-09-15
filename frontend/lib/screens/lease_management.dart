@@ -459,7 +459,7 @@ class _LeasePageState extends State<LeasePage> {
     try {
       final base = widget.baseUrl.replaceAll(RegExp(r'/+$'), '');
       final uri =
-          Uri.parse('$base/extract-lease-content/'); // <-- backend endpoint
+          Uri.parse('$base/extract-lease-content'); // <-- backend endpoint
 
       final req = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath(
