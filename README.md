@@ -1,10 +1,10 @@
 # KirayaEase
 
-KirayaEase is an AI-powered rent-tech platform designed to make renting intelligent, secure, and stress-free—for both landlords and tenants.
+KirayaEase is an AI-powered rent payment platform designed to make renting intelligent, secure, and stress-free—for tenants.
 
-At the core of our solution is a platform that powers dynamic rent structuring, rental yield analytics, data-driven pricing recommendations, simulating virtual portfolios, and more! Leveraging blockchain, we securely record lease agreements and tamper-proof rent receipts, integrated with payment gateways for transparent rent management.
+At the core of our solution is a platform that powers flexible rent splitting and structured payment plans, backed by an integrated credit line that smooths out cash flow. Tenants can spread rent across the month, while landlords receive payments on time, every time.
 
-By transforming fragmented rental silos into a connected, intelligent ecosystem, we’re building a smarter, simpler, and more sustainable future for renting.
+By turning rent into a predictable, financeable expense, we’re simplifying the rental experience and building a future where paying rent is as seamless and empowering as using a digital payments app.
 
 ## Table of Contents
 
