@@ -30,7 +30,7 @@ OVERLAP = 400
 
 # Use your ModelConfigManager here
 config = ModelConfigManager(
-    model_name=os.getenv("gpt-4o"),
+    model_name="gpt-4o",
     temperature=0,
     max_retries=2,
 )
