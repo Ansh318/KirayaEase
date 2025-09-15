@@ -402,8 +402,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 class LeasePage extends StatefulWidget {
-  /// e.g. 'https://kirayaease-2a527d924296.herokuapp.com'
-  final String baseUrl = 'https://kirayaease-2a527d924296.herokuapp.com';
+  final String baseUrl = 'https://kiraya-ease-50d651c2ed49.herokuapp.com';
 
   const LeasePage({super.key});
 

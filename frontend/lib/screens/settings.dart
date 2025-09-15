@@ -9,7 +9,7 @@ class SettingsPage extends StatelessWidget {
 
   // Change if your backend base URL differs
   static const String _apiBase =
-      'https://kirayaease-2a527d924296.herokuapp.com';
+      'https://kiraya-ease-50d651c2ed49.herokuapp.com';
 
   @override
   Widget build(BuildContext context) {
