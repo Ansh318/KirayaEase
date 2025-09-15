@@ -2,16 +2,12 @@
 from io import BytesIO
 import os, json, re
 from typing import Dict, List, Optional
-
 from dotenv import load_dotenv
 load_dotenv()
-
 # ---- your reusable manager ----
 from modelConfig import ModelConfigManager
-
 # ---- LangChain messages ----
 from langchain_core.messages import SystemMessage, HumanMessage
-
 # ---- PDF ----
 try:
     from pypdf import PdfReader
@@ -30,7 +26,7 @@ OVERLAP = 400
 
 # Use your ModelConfigManager here
 config = ModelConfigManager(
-    model_name="gpt-4o",
+    model_name="gpt-4o-mini",
     temperature=0,
     max_retries=2,
 )
@@ -181,8 +177,8 @@ def extract_from_pdf(pdf_path: str) -> Dict[str, Optional[str]]:
 
     return merged
 
-# if __name__ == "__main__":
-#     # change path as needed
-#     pdf_path = "/Users/anshagarwal/Desktop/KirayaEase/data/Lease_Agreement_Sample.pdf"
-#     result = extract_from_pdf(pdf_path)
-#     print(json.dumps(result, ensure_ascii=False, indent=2))
+if __name__ == "__main__":
+    # change path as needed
+    pdf_path = "/Users/anshagarwal/Desktop/KirayaEase/data/Lease_Agreement_Sample.pdf"
+    result = extract_from_pdf(pdf_path)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
