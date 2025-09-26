@@ -177,10 +177,24 @@ async def initiate_digio(request: DigioKYC):
 
 @app.post("/webhooks/digio")
 async def digio_webhook(request: Request):
-    raw = await request.body()
-    payload = json.loads(raw.decode("utf-8"))
-    print(payload)
-    return payload
+    try:
+        raw = await request.body()
+        payload = json.loads(raw.decode("utf-8"))
+    except Exception:
+        # ack quickly; log parse error
+        print("⚠️ Digio webhook: JSON parse error")
+        return {"ok": True}
+    
+    customer_name = payload['payload']['customer_name']
+    customer_identifier = payload['payload']['customer_identifier']
+    kid = payload['payload']['kyc_request_id']
+    documents = DigioClient().fetch_user_data(kid)
+    state = payload['payload']['state']
+    print(documents, state)
+
+    # if state == 'COMPLETED':
+    #     pass
+    # return {"success": "True"}
 
 @app.post("/extract-lease-content")
 async def extract_lease_content(file: UploadFile = File(...)):
