@@ -167,8 +167,8 @@ async def initiate_digio(request: DigioKYC):
         "customer_identifier": request.phone_number,
         "customer_name": full_name,
         "template_name": "KE_DIGILOCKER_INTEGRATION",
-        "notify_customer": "false",
-        "generate_acces_token": "true",
+        "notify_customer": False,
+        "generate_acces_token": True,
         "request_details": {}
     }
     digio = DigioClient()
