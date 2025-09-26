@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Request
 from pydantic import BaseModel
 from otp_manager import OTPManager
 import os, sqlite3, uuid
@@ -22,7 +22,10 @@ from digio_integration import DigioClient
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 from lease_extractor import extract_from_pdf
-# from property_manager import PropertyManager
+import json
+import tempfile, os
+
+MAX_FILE_MB = 20
 
 razorpay_client = razorpay.Client(
     auth=(os.getenv("RAZORPAY_TEST_KEY_ID"), os.getenv("RAZORPAY_KEY_SECRET"))
@@ -172,10 +175,12 @@ async def initiate_digio(request: DigioKYC):
     response = digio.initiate_kyc(body)
     return response
 
-import json
-import tempfile, os
-
-MAX_FILE_MB = 20
+@app.post("/webhooks/digio")
+async def digio_webhook(request: Request):
+    raw = await request.body()
+    payload = json.loads(raw.decode("utf-8"))
+    print(payload)
+    return payload
 
 @app.post("/extract-lease-content")
 async def extract_lease_content(file: UploadFile = File(...)):
@@ -212,33 +217,3 @@ async def extract_lease_content(file: UploadFile = File(...)):
     print(fields)
     # 4) return fields to the frontend
     return JSONResponse({"fields": fields})
-
-# @app.post("/add-properties")
-# async def add_properties(request: AddProperties, authorization: str = Header(...)):
-#     session_token = authorization.replace("Bearer ", "").strip()
-#     user_profile = get_user_by_token(session_token)
-#     try:
-#         output = PropertyManager.add_property(
-#             request.Name,
-#             request.Address,
-#             request.City,
-#             request.Status,
-#             landlord_id=user_profile
-#         )
-#         return output
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.post("/delete-properties")
-# async def delete_properties(authorization: str = Header(...)):
-#     session_token = authorization.replace("Bearer ", "").strip()
-#     user_profile = get_user_by_token(session_token)
-#     try: 
-#         output = PropertyManager.delete_property(user_profile)
-#         return output
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-
-
-
