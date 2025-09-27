@@ -47,10 +47,9 @@ class SettingsPage extends StatelessWidget {
             const _SectionHeader('General'),
             const _Divider(),
             _Row.icon(
-              icon: Icons.person_outline_rounded,
-              title: 'Account',
-              onTap: () {},
-            ),
+                icon: Icons.person_outline_rounded,
+                title: 'Account',
+                onTap: () => Navigator.pushNamed(context, '/account')),
             const _Divider(),
             const SizedBox(height: 28),
 

@@ -159,9 +159,9 @@ class LandingPage extends StatelessWidget {
                 child: Column(
                   children: [
                     const Text(
-                      "Your Rent. Your Rules.",
+                      "Pay Rent On Your Schedule.",
                       style: TextStyle(
-                        fontSize: 60,
+                        fontSize: 55,
                         color: Colors.black87,
                       ),
                       textAlign: TextAlign.center,
@@ -249,7 +249,7 @@ class LandingPage extends StatelessWidget {
                             flex: 3,
                             child: Wrap(
                               spacing: 20,
-                              runSpacing: 20,
+                              runSpacing: 32, // increased vertical spacing
                               children: List.generate(steps.length, (i) {
                                 return SizedBox(
                                   width: cardWidth,
@@ -272,7 +272,7 @@ class LandingPage extends StatelessWidget {
                                 ..rotateX(0.02),
                               child: Image.asset(
                                 'assets/rent_mockup.png',
-                                width: 360,
+                                width: 400,
                               ),
                             ),
                           ),
@@ -285,7 +285,11 @@ class LandingPage extends StatelessWidget {
                                 horizontal: horizontalPadding),
                             child: Column(
                               children: List.generate(steps.length, (i) {
-                                return StepCard(index: i + 1, data: steps[i]);
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                      bottom: 28.0), // more spacing
+                                  child: StepCard(index: i + 1, data: steps[i]),
+                                );
                               }),
                             ),
                           ),

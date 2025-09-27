@@ -61,9 +61,8 @@ class Footer extends StatelessWidget {
 
   List<Widget> _exploreLinks() {
     return [
-      _linkText("About us", "https://kirayaease.com/about"),
+      _linkText("About us", "/about-us"),
       _linkText("Contact", "https://kirayaease.com/contact"),
-      _linkText("Services", "https://kirayaease.com/services"),
     ];
   }
 

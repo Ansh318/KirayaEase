@@ -12,7 +12,7 @@ import 'screens/learn.dart';
 import 'screens/settings.dart';
 import 'screens/about.dart';
 import 'screens/rent_reporting.dart';
-import 'screens/lease_management.dart';
+import 'screens/account.dart';
 
 void main() {
   runApp(const KirayaEaseApp());
@@ -38,7 +38,8 @@ class KirayaEaseApp extends StatelessWidget {
         '/settings': (context) => const SettingsPage(), // 📚 Learn Hub
         '/about-us': (context) => const AboutUsPage(),
         '/rent-reporting': (context) => const RentReportingPage(),
-        '/lease-manager': (context) => const LeasePage()
+        '/lease-manager': (context) => const LeasePage(),
+        '/account': (context) => const AccountPage()
       },
     );
   }

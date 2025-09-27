@@ -124,6 +124,8 @@ class _RentReportingPageState extends State<RentReportingPage> {
                   _TickRow(text: 'Establish on-time payment history'),
                   SizedBox(height: 8),
                   _TickRow(text: 'Build your credit profile'),
+                  SizedBox(height: 8),
+                  _TickRow(text: 'Unlock future home loans and credit'),
                 ],
               ),
             ),
