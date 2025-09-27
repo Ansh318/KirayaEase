@@ -167,8 +167,8 @@ async def initiate_digio(request: DigioKYC):
         "customer_identifier": request.phone_number,
         "customer_name": full_name,
         "template_name": "KE_DIGILOCKER_INTEGRATION",
-        "notify_customer": False,
-        "generate_acces_token": True,
+        "notify_customer": "false",
+        "generate_access_token": "true",
         "request_details": {}
     }
     digio = DigioClient()
@@ -184,9 +184,10 @@ async def digio_webhook(request: Request):
         # ack quickly; log parse error
         print("⚠️ Digio webhook: JSON parse error")
         return {"ok": True}
-    
-    customer_name = payload['payload']['customer_name']
-    customer_identifier = payload['payload']['customer_identifier']
+
+    print(payload)
+    # customer_name = payload['payload']['customer_name']
+    # customer_identifier = payload['payload']['customer_identifier']
     kid = payload['payload']['kyc_request_id']
     documents = DigioClient().fetch_user_data(kid)
     state = payload['payload']['state']
