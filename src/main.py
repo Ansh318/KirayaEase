@@ -188,9 +188,14 @@ async def digio_webhook(request: Request):
     print(payload)
     # customer_name = payload['payload']['customer_name']
     # customer_identifier = payload['payload']['customer_identifier']
-    kid = payload['payload']['kyc_request_id']
-    documents = DigioClient().fetch_user_data(kid)
-    state = payload['payload']['state']
+    digilocker_data = payload["payload"]["digilocker_request"]
+
+    kyc_request_id = digilocker_data["kyc_request_id"]
+    customer_name = digilocker_data["customer_name"]
+    customer_identifier = digilocker_data["customer_identifier"]
+
+    documents = DigioClient().fetch_user_data(kyc_request_id)
+    state = digilocker_data['state']
     print(documents, state)
 
     # if state == 'COMPLETED':
