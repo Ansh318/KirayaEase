@@ -49,15 +49,6 @@ class OTPVerification(BaseModel):
     session_token: str
     otp: str
 
-class OnboardingRequest(BaseModel):
-    session_token: str
-    first_name: str
-    last_name: str
-    date_of_birth: date
-    aadhar_card: str
-    pan_number: str
-    user_role: str
-
 class CreateOrderRequest(BaseModel):
     amount: float
     receipt_id: str = "receipt_auto"
@@ -93,23 +84,6 @@ async def verify_otp(request: OTPVerification):
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
-    
-@app.post('/user-onboarding')
-async def onboard_user(request: OnboardingRequest):
-    try:
-        onboard_user = handle_user_onboarding(
-            session_token = request.session_token,
-            first_name = request.first_name,
-            last_name = request.last_name, 
-            dob = request.date_of_birth,
-            aadhaar =  request.aadhar_card,
-            pan = request.pan_number
-        )
-        return onboard_user
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
 
 @app.get('/user-profile')
 def get_user_profile(authorization: str = Header(...)):
@@ -131,26 +105,6 @@ def create_payment(request: CreateOrderRequest, currency = "INR", payment_captur
     order = razorpay_client.order.create(data=order_data)
     print(order)
     return order
-
-class ChatResponse(BaseModel):
-    response: str
-
-# Request model
-class ChatRequest(BaseModel):
-    message: str
-
-# assistant = RentWiseAssistant("gpt-4", temperature=0.7, max_retries=2)
-
-# @app.post("/chatbot", response_model=ChatResponse)
-# async def chat_with_ai(request: ChatRequest):
-#     try:
-#         output = assistant.run_chain(
-#             prompt_id="System Prompt",
-#             query=request.message
-#         )
-#         return {"response": output.get("text", str(output))}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
 
 
 # Digio Model
@@ -186,17 +140,27 @@ async def digio_webhook(request: Request):
         return {"ok": True}
 
     print(payload)
-    # customer_name = payload['payload']['customer_name']
-    # customer_identifier = payload['payload']['customer_identifier']
+    
     digilocker_data = payload["payload"]["digilocker_request"]
-
     kyc_request_id = digilocker_data["kyc_request_id"]
-    customer_name = digilocker_data["customer_name"]
-    customer_identifier = digilocker_data["customer_identifier"]
-
-    documents = DigioClient().fetch_user_data(kyc_request_id)
     state = digilocker_data['state']
-    print(documents, state)
+
+    aadhaar_pan_data = DigioClient().fetch_user_data(kyc_request_id)
+    pan_number = aadhaar_pan_data["aadhaar"]['id_number']
+    aadhar_number = aadhaar_pan_data["pan"]['id_number']
+    full_name = aadhaar_pan_data["aadhaar"]['name']
+    first_name, last_name = full_name.split(" ", 1)
+    dob = aadhaar_pan_data["pan"]['dob']
+
+    onboard_user = handle_user_onboarding(
+            session_token = request.session_token,
+            first_name = first_name,
+            last_name = last_name, 
+            dob = dob,
+            aadhaar =  aadhar_number,
+            pan = pan_number
+        )
+    return onboard_user
 
     # if state == 'COMPLETED':
     #     pass
@@ -237,3 +201,24 @@ async def extract_lease_content(file: UploadFile = File(...)):
     print(fields)
     # 4) return fields to the frontend
     return JSONResponse({"fields": fields})
+
+
+class ChatResponse(BaseModel):
+    response: str
+
+# Request model
+class ChatRequest(BaseModel):
+    message: str
+
+# assistant = RentWiseAssistant("gpt-4", temperature=0.7, max_retries=2)
+
+# @app.post("/chatbot", response_model=ChatResponse)
+# async def chat_with_ai(request: ChatRequest):
+#     try:
+#         output = assistant.run_chain(
+#             prompt_id="System Prompt",
+#             query=request.message
+#         )
+#         return {"response": output.get("text", str(output))}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))

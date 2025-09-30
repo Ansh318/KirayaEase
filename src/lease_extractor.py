@@ -177,8 +177,8 @@ def extract_from_pdf(pdf_path: str) -> Dict[str, Optional[str]]:
 
     return merged
 
-if __name__ == "__main__":
-    # change path as needed
-    pdf_path = "/Users/anshagarwal/Desktop/KirayaEase/data/Lease_Agreement_Sample.pdf"
-    result = extract_from_pdf(pdf_path)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+# if __name__ == "__main__":
+#     # change path as needed
+#     pdf_path = "/Users/anshagarwal/Desktop/KirayaEase/data/Lease_Agreement_Sample.pdf"
+#     result = extract_from_pdf(pdf_path)
+#     print(json.dumps(result, ensure_ascii=False, indent=2))
