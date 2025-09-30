@@ -95,19 +95,19 @@ class DigioClient:
             print(f"Error parsing payload: {e}")
             return None
 
-# --- Example usage ---
-if __name__ == "__main__":
-    digio = DigioClient()
+# # --- Example usage ---
+# if __name__ == "__main__":
+#     digio = DigioClient()
 
-    body = {
-        "customer_identifier": "9820023475",
-        "customer_name": "Ravi Agarwal",
-        "template_name": "KE_DIGILOCKER_INTEGRATION",
-        "notify_customer": "false",
-        "generate_access_token": "true",
-        "request_details": {}
-    }
+#     body = {
+#         "customer_identifier": "9820023475",
+#         "customer_name": "Ravi Agarwal",
+#         "template_name": "KE_DIGILOCKER_INTEGRATION",
+#         "notify_customer": "false",
+#         "generate_access_token": "true",
+#         "request_details": {}
+#     }
     
-    response = digio.initiate_kyc(body)
-    print(response)
+#     response = digio.initiate_kyc(body)
+#     print(response)
 
