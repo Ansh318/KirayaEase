@@ -140,12 +140,13 @@ async def digio_webhook(request: Request):
         return {"ok": True}
 
     print(payload)
-    
+
     digilocker_data = payload["payload"]["digilocker_request"]
     kyc_request_id = digilocker_data["kyc_request_id"]
     state = digilocker_data['state']
 
-    aadhaar_pan_data = DigioClient().fetch_user_data(kyc_request_id)
+    documents = DigioClient().fetch_user_data(kyc_request_id)
+    aadhaar_pan_data = DigioClient().extract_aadhaar_pan(documents)
     pan_number = aadhaar_pan_data["aadhaar"]['id_number']
     aadhar_number = aadhaar_pan_data["pan"]['id_number']
     full_name = aadhaar_pan_data["aadhaar"]['name']
