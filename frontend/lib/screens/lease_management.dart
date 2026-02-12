@@ -56,6 +56,7 @@ class _LeasePageState extends State<LeasePage> {
           tenantPhone: leaseData.tenantPhone,
           propertyAddress: leaseData.propertyAddress,
           rawData: leaseData.rawData,
+          pdfSource: _extractPdfSource(leaseData.rawData),
         )),
       );
     });
@@ -113,6 +114,170 @@ class _LeaseCardState extends State<_LeaseCard> {
     return !widget.lease.end!.isBefore(DateTime(now.year, now.month, now.day));
   }
 
+  Future<void> _openLeaseSidePanel(_Lease lease) async {
+    await showGeneralDialog<void>(
+      context: context,
+      barrierLabel: 'Lease Preview',
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.35),
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, _, __) {
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.88,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDFEFF),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0x2248D1CC)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 18,
+                    offset: Offset(-6, 0),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 10, 12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.description_outlined,
+                            color: Color(0xFF1AAE9F)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            lease.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF1A1A1A),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon:
+                              const Icon(Icons.close, color: Color(0xFF6E7786)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F8FB),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Rent ${lease.rentDisplay} • ${_fmtDate(lease.start)} - ${_fmtDate(lease.end)}',
+                      style: const TextStyle(
+                        color: Color(0xFF435365),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFFFFFFFF), Color(0xFFF5FAFF)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0x2248D1CC)),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Lease PDF Preview',
+                              style: TextStyle(
+                                color: Color(0xFF1A1A1A),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (lease.pdfSource != null &&
+                                lease.pdfSource!.trim().isNotEmpty) ...[
+                              const Text(
+                                'Source',
+                                style: TextStyle(
+                                  color: Color(0xFF1AAE9F),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                lease.pdfSource!,
+                                style: const TextStyle(
+                                  color: Color(0xFF4D5F73),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ] else ...[
+                              const Text(
+                                'No direct PDF URL stored yet.',
+                                style: TextStyle(
+                                  color: Color(0xFF4D5F73),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                            const Spacer(),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF2F7FC),
+                                borderRadius: BorderRadius.circular(8),
+                                border:
+                                    Border.all(color: const Color(0x3348D1CC)),
+                              ),
+                              child: const Text(
+                                'Tip: Save `pdf_url` in extracted lease data to render a full PDF viewer here.',
+                                style: TextStyle(
+                                  color: Color(0xFF5B6F85),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, _, child) {
+        final slide = Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+        return SlideTransition(position: slide, child: child);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final lease = widget.lease;
@@ -124,14 +289,18 @@ class _LeaseCardState extends State<_LeaseCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE6E6E9)),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFFFFF), Color(0xFFF8FCFF)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0x2A48D1CC)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 14,
-            offset: Offset(0, 6),
+            color: Color(0x10000000),
+            blurRadius: 20,
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -174,9 +343,14 @@ class _LeaseCardState extends State<_LeaseCard> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const _VerifiedBadge(),
+                  const _VerifiedChip(),
                   const SizedBox(height: 8),
-                  _StatusLine(active: isActive),
+                  _ActiveChip(active: isActive),
+                  const SizedBox(height: 8),
+                  _SleekActionButton(
+                    icon: Icons.insert_drive_file_rounded,
+                    onTap: () => _openLeaseSidePanel(lease),
+                  ),
                 ],
               ),
             ],
@@ -250,88 +424,118 @@ class _LeaseCardState extends State<_LeaseCard> {
   }
 }
 
-/// EXACT status line per screenshot:
-/// - If active: small green dot + "Active" in black.
-/// - If expired: just "Expired" in black (no dot).
-class _StatusLine extends StatelessWidget {
-  final bool active;
-  const _StatusLine({required this.active});
-
-  @override
-  Widget build(BuildContext context) {
-    if (active) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: Color(0xFF19C37D), // green dot
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          const Text(
-            'Active',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              letterSpacing: -0.1,
-            ),
-          ),
-        ],
-      );
-    }
-    return const Text(
-      'Expired',
-      style: TextStyle(
-        color: Colors.black,
-        fontWeight: FontWeight.w700,
-        fontSize: 13,
-        letterSpacing: -0.1,
-      ),
-    );
-  }
-}
-
 /// Meta-style blue tick
-class _VerifiedBadge extends StatelessWidget {
-  const _VerifiedBadge();
+class _VerifiedChip extends StatelessWidget {
+  const _VerifiedChip();
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      constraints: const BoxConstraints(minHeight: 28),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F1FF),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE8F6FF), Color(0xFFF4FBFF)],
+        ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF1877F2)),
+        border: Border.all(color: const Color(0xFF5AA8FF)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 15,
-            height: 15,
+            width: 10,
+            height: 10,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: Color(0xFF1877F2), // Meta blue
             ),
-            child: const Icon(Icons.check, size: 14, color: Colors.white),
+            child: const Icon(Icons.check, size: 7, color: Colors.white),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 5),
           const Text(
             'Verified',
             style: TextStyle(
-              color: Color(0xFF1877F2),
+              color: Color(0xFF1465D1),
               fontWeight: FontWeight.w700,
-              fontSize: 10,
+              fontSize: 10.5,
               letterSpacing: -0.1,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ActiveChip extends StatelessWidget {
+  final bool active;
+  const _ActiveChip({required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = active ? const Color(0xFFEAFBF4) : const Color(0xFFF4F5F8);
+    final fg = active ? const Color(0xFF0A8F60) : const Color(0xFF6D7480);
+    final label = active ? 'Active' : 'Expired';
+    return Container(
+      constraints: const BoxConstraints(minHeight: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: fg.withOpacity(0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            active ? Icons.brightness_1 : Icons.schedule_rounded,
+            size: active ? 8 : 12,
+            color: fg,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontWeight: FontWeight.w700,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SleekActionButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _SleekActionButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Ink(
+        width: 28,
+        height: 28,
+        padding: const EdgeInsets.all(0),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF2F6FB),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0x3348D1CC)),
+        ),
+        child: Icon(
+          icon,
+          size: 14,
+          color: const Color(0xFF1A6FD4),
+        ),
       ),
     );
   }
@@ -393,6 +597,7 @@ class _Lease {
   final String? tenantPhone;
   final String? propertyAddress;
   final Map<String, dynamic>? rawData;
+  final String? pdfSource;
 
   _Lease({
     required this.id,
@@ -408,6 +613,7 @@ class _Lease {
     this.tenantPhone,
     this.propertyAddress,
     this.rawData,
+    this.pdfSource,
   });
 
 }
@@ -459,3 +665,22 @@ String _formatINR(dynamic amount) {
   }
 }
 
+String? _extractPdfSource(Map<String, dynamic>? rawData) {
+  if (rawData == null) return null;
+  const candidates = [
+    'pdf_url',
+    'lease_pdf_url',
+    'pdf_link',
+    'file_url',
+    'source_file',
+    'document_url',
+    'lease_document_url',
+  ];
+  for (final key in candidates) {
+    final value = rawData[key];
+    if (value != null && value.toString().trim().isNotEmpty) {
+      return value.toString();
+    }
+  }
+  return null;
+}

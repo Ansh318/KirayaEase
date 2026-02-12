@@ -182,6 +182,86 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
     return 'Tenant: ${selected.first.label}';
   }
 
+  String? _inferLocalityFromText(String? text) {
+    if (text == null || text.trim().isEmpty) return null;
+    final lower = text.toLowerCase();
+    if (lower.contains('juhu')) return 'juhu';
+    if (lower.contains('bandra')) return 'bandra';
+    if (lower.contains('mahim')) return 'mahim';
+    return null;
+  }
+
+  int? _extractBhkFromText(String? text) {
+    if (text == null) return null;
+    final match = RegExp(r'([2-4])\s*bhk', caseSensitive: false).firstMatch(text);
+    if (match == null) return null;
+    return int.tryParse(match.group(1)!);
+  }
+
+  Future<Map<String, dynamic>> _buildPropertyContextForChat() async {
+    try {
+      final store = LeaseStore();
+      await store.initialize();
+      final leases = store.leases;
+      if (leases.isEmpty) return {};
+
+      LeaseData? selectedLease;
+
+      if (_userRole == 'landlord' &&
+          _activeScope == 'tenant' &&
+          _activeTenantId != null) {
+        final match = leases.where((l) {
+          final tenantName = (l.tenantName ?? '').trim().toLowerCase();
+          final tenantId = tenantName.isEmpty ? 'lease_${l.id}' : tenantName;
+          return tenantId == _activeTenantId;
+        });
+        if (match.isNotEmpty) {
+          selectedLease = match.first;
+        }
+      }
+
+      selectedLease ??= leases.first;
+      final raw = selectedLease.rawData;
+
+      final locality = (raw['locality']?.toString().trim().toLowerCase().isNotEmpty ?? false)
+          ? raw['locality'].toString().trim().toLowerCase()
+          : _inferLocalityFromText(selectedLease.propertyAddress);
+
+      int? bhk;
+      if (raw['bhk'] != null) {
+        bhk = int.tryParse(raw['bhk'].toString());
+      }
+      bhk ??= _extractBhkFromText(selectedLease.propertyAddress);
+      bhk ??= _extractBhkFromText(raw['property_type']?.toString());
+
+      double? currentRent;
+      if (selectedLease.rentAmount != null) {
+        currentRent = double.tryParse(
+          selectedLease.rentAmount!.replaceAll(',', '').trim(),
+        );
+      }
+
+      int? builtupSqft;
+      if (raw['builtup_sqft'] != null) {
+        builtupSqft = int.tryParse(raw['builtup_sqft'].toString());
+      }
+      builtupSqft ??= int.tryParse(raw['area_sqft']?.toString() ?? '');
+
+      return {
+        "lease_id": selectedLease.id,
+        "property_address": selectedLease.propertyAddress,
+        "locality": locality,
+        "bhk": bhk,
+        "property_type": (raw['property_type']?.toString() ?? 'apartment').toLowerCase(),
+        "builtup_sqft": builtupSqft,
+        "current_rent": currentRent,
+        "tenant_name": selectedLease.tenantName,
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
   _TenantContextOption _selectedContextOrFallback() {
     if (_activeScope == 'tenant' && _activeTenantId != null) {
       for (final option in _tenantContexts) {
@@ -372,6 +452,8 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
     _scrollToBottom();
 
     try {
+      final propertyContext = await _buildPropertyContextForChat();
+
       // Build conversation history from messages (exclude the current message we're about to send)
       final conversationHistory = messages.map((msg) {
         return {
@@ -391,6 +473,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
           "active_scope": _activeScope,
           "active_tenant_id":
               _activeScope == "tenant" ? _activeTenantId : null,
+          "property_context": propertyContext,
         }),
       );
 
@@ -509,7 +592,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
       setState(() {
         messages.add({
           "sender": "user",
-          "text": "📄 Selected: ${picked.name}",
+          "text": picked.name,
           "timestamp": DateTime.now()
         });
       });
@@ -1154,12 +1237,6 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(
-                                        Icons.attach_file,
-                                        size: 16,
-                                        color: Colors.grey[600],
-                                      ),
-                                      const SizedBox(width: 4),
                                       Flexible(
                                         child: Text(
                                           _selectedFileName!,

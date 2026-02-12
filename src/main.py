@@ -7,7 +7,7 @@ from datetime import date
 from onboarding import handle_user_onboarding, get_user_by_token
 import razorpay
 import warnings
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 warnings.filterwarnings("ignore", category=UserWarning)
 from chatbot import RentWiseAssistant
@@ -592,6 +592,7 @@ class ChatRequest(BaseModel):
     user_role: str = "tenant"
     active_scope: str = "self"
     active_tenant_id: Optional[str] = None
+    property_context: Optional[Dict[str, Any]] = None
 
 # Initialize the agentic chatbot assistant
 # Using gpt-4o-mini for cost efficiency, can be changed to gpt-4 for better performance
@@ -633,6 +634,7 @@ async def chat_with_ai(request: ChatRequest):
             user_role=request.user_role,
             active_scope=request.active_scope,
             active_tenant_id=request.active_tenant_id,
+            property_context=request.property_context,
         )
         
         # Normalize Unicode characters to prevent encoding issues

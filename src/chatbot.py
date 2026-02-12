@@ -31,11 +31,13 @@ except ImportError:
         return _CompatAgentWrapper(llm, tools)
 
 from langgraph.graph import START, END, StateGraph
-from typing import TypedDict, Literal, Annotated
+from typing import TypedDict, Literal, Annotated, Optional, Any
 import os
 import json
 import uuid
 import re
+import csv
+import statistics
 from modelConfig import ModelConfigManager
 from langchain_core.tools import tool 
 from langchain_core.messages import HumanMessage
@@ -87,6 +89,145 @@ def web_search(query: str) -> str:
             return "\n".join(formatted_results)
     except Exception as e:
         return f"Error performing web search: {str(e)}"
+
+@tool
+def get_synthetic_price_insights(
+    locality: str,
+    bhk: int,
+    mode: str = "rent",
+    property_type: str = "apartment",
+    min_area_sqft: int = 0,
+    max_area_sqft: int = 0,
+) -> str:
+    """
+    Fetches comparable properties from synthetic Mumbai real estate dataset and returns summary statistics.
+    Use this for Juhu, Bandra, Mahim recommendations for 2/3/4 BHK.
+    """
+    dataset_path = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "data",
+        "synthetic_mumbai_real_estate_prices.csv",
+    )
+    try:
+        if not os.path.exists(dataset_path):
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message": "Synthetic dataset file not found.",
+                    "dataset_path": dataset_path,
+                }
+            )
+
+        normalized_locality = (locality or "").strip().lower()
+        normalized_property_type = (property_type or "").strip().lower()
+        target_col = "sale_price" if mode == "sale" else "monthly_rent"
+
+        rows: list[dict[str, Any]] = []
+        with open(dataset_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    row_locality = (row.get("locality") or "").strip().lower()
+                    row_bhk = int(row.get("bhk", 0))
+                    row_type = (row.get("property_type") or "").strip().lower()
+                    row_area = int(float(row.get("builtup_sqft", 0)))
+                    if row_locality != normalized_locality:
+                        continue
+                    if bhk and row_bhk != int(bhk):
+                        continue
+                    if normalized_property_type and row_type and row_type != normalized_property_type:
+                        continue
+                    if min_area_sqft and row_area < min_area_sqft:
+                        continue
+                    if max_area_sqft and row_area > max_area_sqft:
+                        continue
+                    rows.append(row)
+                except Exception:
+                    continue
+
+        # Fallback: relax property_type and area if strict filter gives no rows.
+        if not rows:
+            with open(dataset_path, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    try:
+                        if (row.get("locality") or "").strip().lower() != normalized_locality:
+                            continue
+                        if bhk and int(row.get("bhk", 0)) != int(bhk):
+                            continue
+                        rows.append(row)
+                    except Exception:
+                        continue
+
+        if not rows:
+            return json.dumps(
+                {
+                    "status": "no_data",
+                    "message": "No comparables found for requested filters.",
+                    "filters": {
+                        "locality": normalized_locality,
+                        "bhk": bhk,
+                        "mode": mode,
+                        "property_type": normalized_property_type,
+                        "min_area_sqft": min_area_sqft,
+                        "max_area_sqft": max_area_sqft,
+                    },
+                }
+            )
+
+        values = []
+        ppsf_values = []
+        areas = []
+        for row in rows:
+            try:
+                values.append(float(row.get(target_col, 0)))
+                ppsf_values.append(float(row.get("price_per_sqft", 0)))
+                areas.append(float(row.get("builtup_sqft", 0)))
+            except Exception:
+                pass
+
+        if not values:
+            return json.dumps(
+                {
+                    "status": "no_data",
+                    "message": "Comparables exist but target values are missing.",
+                    "target_col": target_col,
+                }
+            )
+
+        sorted_values = sorted(values)
+        n = len(sorted_values)
+        p25 = sorted_values[max(int(n * 0.25) - 1, 0)]
+        p75 = sorted_values[min(int(n * 0.75), n - 1)]
+        median_val = statistics.median(sorted_values)
+        mean_val = statistics.mean(sorted_values)
+        min_val = min(sorted_values)
+        max_val = max(sorted_values)
+
+        result = {
+            "status": "success",
+            "mode": mode,
+            "metric": target_col,
+            "locality": normalized_locality,
+            "bhk": int(bhk),
+            "property_type": normalized_property_type or "any",
+            "sample_size": n,
+            "stats": {
+                "mean": round(mean_val, 2),
+                "median": round(median_val, 2),
+                "p25": round(p25, 2),
+                "p75": round(p75, 2),
+                "min": round(min_val, 2),
+                "max": round(max_val, 2),
+                "avg_price_per_sqft": round(statistics.mean(ppsf_values), 2) if ppsf_values else None,
+                "avg_area_sqft": round(statistics.mean(areas), 2) if areas else None,
+            },
+            "comparables_preview": rows[:5],
+        }
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
 
 @tool
 def process_payments(amount_in_rupees: float, receipt_id: str = "", currency: str = "INR", payment_capture: bool = True) -> str:
@@ -146,6 +287,7 @@ class AgentState(TypedDict):
     user_role: Annotated[str, "Current user role (tenant or landlord)"]
     active_scope: Annotated[str, "Current context scope (self, portfolio, tenant)"]
     active_tenant_id: Annotated[str | None, "Selected tenant identifier when in tenant scope"]
+    property_context: Annotated[dict[str, Any] | None, "Property details from frontend context (lease, location, bhk, rent, etc.)"]
     # Shared state fields for agent collaboration
     lease_id: Annotated[str | None, "Lease identifier for tracking"]
     tenant: Annotated[str | None, "Tenant name or identifier"]
@@ -242,6 +384,94 @@ class RentWiseAssistant:
             return "User role is landlord."
 
         return "User role is tenant. Respond for self-service tenant workflows."
+
+    def _normalize_locality(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+        t = text.lower()
+        if "juhu" in t:
+            return "juhu"
+        if "bandra" in t:
+            return "bandra"
+        if "mahim" in t:
+            return "mahim"
+        return None
+
+    def _extract_bhk_from_text(self, text: str) -> Optional[int]:
+        if not text:
+            return None
+        match = re.search(r'([2-4])\s*bhk', text.lower())
+        if match:
+            return int(match.group(1))
+        return None
+
+    def _extract_mode_from_text(self, text: str) -> str:
+        query = (text or "").lower()
+        sale_keywords = ["sale", "sell", "selling", "buy", "buying", "purchase", "worth", "capital value"]
+        if any(k in query for k in sale_keywords):
+            return "sale"
+        return "rent"
+
+    def _parse_target_price_from_text(self, text: str) -> Optional[float]:
+        if not text:
+            return None
+        patterns = [
+            r'₹\s*([\d,]+(?:\.\d+)?)',
+            r'([\d,]+(?:\.\d+)?)\s*(?:rupees|rs\.?)',
+            r'(?:rent|price|quote|quoted|asking)\s*(?:is|at|of)?\s*([\d,]+(?:\.\d+)?)',
+        ]
+        q = text.lower()
+        for pattern in patterns:
+            m = re.search(pattern, q)
+            if m:
+                try:
+                    return float(m.group(1).replace(",", ""))
+                except Exception:
+                    continue
+        return None
+
+    def _get_context_property_snapshot(self, state: AgentState) -> dict[str, Any]:
+        context = state.get("property_context") or {}
+        query = state.get("user_query", "")
+
+        locality = self._normalize_locality(query)
+        if locality is None:
+            locality = self._normalize_locality(str(context.get("locality", "")))
+        if locality is None:
+            locality = self._normalize_locality(str(context.get("property_address", "")))
+
+        bhk = self._extract_bhk_from_text(query)
+        if bhk is None:
+            try:
+                if context.get("bhk") is not None:
+                    bhk = int(context.get("bhk"))
+            except Exception:
+                bhk = None
+
+        mode = self._extract_mode_from_text(query)
+        property_type = str(context.get("property_type", "apartment")).strip().lower() or "apartment"
+        area_sqft = None
+        try:
+            if context.get("builtup_sqft") is not None:
+                area_sqft = int(float(context.get("builtup_sqft")))
+        except Exception:
+            area_sqft = None
+
+        current_rent = None
+        try:
+            if context.get("current_rent") is not None:
+                current_rent = float(str(context.get("current_rent")).replace(",", ""))
+        except Exception:
+            current_rent = None
+
+        return {
+            "locality": locality,
+            "bhk": bhk,
+            "mode": mode,
+            "property_type": property_type,
+            "builtup_sqft": area_sqft,
+            "current_rent": current_rent,
+        }
     
     def _orchestrator_logic(self, state: AgentState) -> Literal["lease_agent", "reminder_agent", "insights_agent", "payments_agent", "onboarding_agent", END]:
         """
@@ -500,30 +730,122 @@ class RentWiseAssistant:
     
     def _insights_agent(self, state: AgentState) -> AgentState:
         """
-        Provides quantitative insights about the property and pricing recommendations.
-        Uses web search to get current market data and trends.
-        Can access shared state (rent, lease_id) for context.
+        Provides quantitative, actionable pricing recommendations using synthetic Mumbai dataset.
+        Uses property context (locality, BHK, current rent/size) from landlord/tenant scope.
         """
         # Initialize agent history if not present
         if 'agent_history' not in state:
             state['agent_history'] = []
         state['agent_history'].append('insights_agent')
-        
-        # Build context from shared state
-        context = f"\nContext hint: {self._context_hint(state)}"
-        if state.get('rent'):
-            context += f"\nCurrent Rent: ₹{state['rent']:,.0f}"
-        if state.get('lease_id'):
-            context += f"\nLease ID: {state['lease_id']}"
-        
-        query_with_context = state["user_query"] + context
-        
-        # Use create_agent with web_search tool for ReAct-style reasoning
-        agent = create_agent(self.llm, [web_search])
-        result = agent.invoke({"messages": [HumanMessage(content=query_with_context)]})
-        state['answer'] = result["messages"][-1].content
-        
-        # Insights agent typically doesn't call other agents, but can if needed
+
+        snapshot = self._get_context_property_snapshot(state)
+        locality = snapshot.get("locality")
+        bhk = snapshot.get("bhk")
+        mode = snapshot.get("mode", "rent")
+        property_type = snapshot.get("property_type", "apartment")
+        area_sqft = snapshot.get("builtup_sqft")
+        current_rent = snapshot.get("current_rent")
+
+        if locality is None:
+            state["answer"] = (
+                "I can give a data-backed recommendation from my synthetic market dataset, "
+                "but I need the locality first (Juhu, Bandra, or Mahim)."
+            )
+            return state
+
+        if bhk is None:
+            state["answer"] = (
+                f"Got the locality as {locality.title()}. Please share the configuration "
+                "(2BHK, 3BHK, or 4BHK) so I can fetch comparable homes and recommend a price range."
+            )
+            return state
+
+        min_area = int(area_sqft * 0.8) if area_sqft else 0
+        max_area = int(area_sqft * 1.2) if area_sqft else 0
+
+        tool_response = get_synthetic_price_insights.invoke(
+            {
+                "locality": locality,
+                "bhk": int(bhk),
+                "mode": mode,
+                "property_type": property_type,
+                "min_area_sqft": min_area,
+                "max_area_sqft": max_area,
+            }
+        )
+        insights = json.loads(tool_response)
+
+        if insights.get("status") != "success":
+            state["answer"] = (
+                f"I could not find enough synthetic comparables for {bhk}BHK in {locality.title()} "
+                "with current filters. Try a nearby BHK variant or remove area constraints."
+            )
+            return state
+
+        stats = insights.get("stats", {})
+        sample_size = int(insights.get("sample_size", 0))
+        metric = insights.get("metric", "monthly_rent")
+        p25 = float(stats.get("p25", 0))
+        p75 = float(stats.get("p75", 0))
+        median_val = float(stats.get("median", 0))
+        mean_val = float(stats.get("mean", 0))
+        avg_ppsf = stats.get("avg_price_per_sqft")
+
+        if metric == "monthly_rent":
+            low_reco = int(round(p25 * 1.02))
+            high_reco = int(round(p75 * 0.98))
+        else:
+            low_reco = int(round(p25 * 1.01))
+            high_reco = int(round(p75 * 0.99))
+
+        target_price = self._parse_target_price_from_text(state.get("user_query", ""))
+        if target_price is None and metric == "monthly_rent" and current_rent:
+            target_price = current_rent
+
+        positioning = "No explicit asking price provided."
+        if target_price:
+            if target_price > p75:
+                positioning = "Current ask appears premium versus most comps (above p75)."
+            elif target_price < p25:
+                positioning = "Current ask appears conservative (below p25), may leave upside on table."
+            else:
+                positioning = "Current ask is broadly market-aligned (within interquartile band)."
+
+        confidence = "high" if sample_size >= 12 else ("medium" if sample_size >= 6 else "low")
+        mode_label = "monthly rent" if metric == "monthly_rent" else "sale price"
+        currency = "₹"
+
+        recommendation_prompt = f"""
+You are an insights assistant for a rental platform.
+Create a concise, actionable recommendation using ONLY provided stats.
+
+Context:
+- Role/scope hint: {self._context_hint(state)}
+- Property context: {json.dumps(snapshot)}
+- Query: {state.get('user_query')}
+
+Comparable stats:
+- Locality: {locality}
+- BHK: {bhk}
+- Metric: {mode_label}
+- Sample size: {sample_size}
+- Mean: {currency}{mean_val:,.0f}
+- Median: {currency}{median_val:,.0f}
+- p25: {currency}{p25:,.0f}
+- p75: {currency}{p75:,.0f}
+- Suggested range: {currency}{low_reco:,.0f} to {currency}{high_reco:,.0f}
+- Avg price/sqft: {avg_ppsf}
+- Positioning check: {positioning}
+- Confidence: {confidence}
+
+Output format:
+1) One-line recommendation.
+2) 3 bullets with actions landlord can take now.
+3) One short risk/caveat sentence.
+"""
+
+        llm_response = self.llm.invoke(recommendation_prompt)
+        state["answer"] = llm_response.content.strip()
         return state
     
     def _payments_agent(self, state: AgentState) -> AgentState:
@@ -842,6 +1164,7 @@ Only provide step-by-step details if explicitly requested."""
         user_role: str = "tenant",
         active_scope: str = "self",
         active_tenant_id: str | None = None,
+        property_context: dict[str, Any] | None = None,
     ) -> dict:
         """
         Process a user query through the agentic framework with conversation memory.
@@ -876,6 +1199,7 @@ Only provide step-by-step details if explicitly requested."""
             "user_role": user_role,
             "active_scope": active_scope,
             "active_tenant_id": active_tenant_id,
+            "property_context": property_context or {},
         })
         
         answer = result.get("answer", "I'm sorry, I couldn't process your query.")
