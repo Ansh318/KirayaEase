@@ -1,4 +1,35 @@
-from langchain.agents import create_agent
+try:
+    # Newer LangChain API
+    from langchain.agents import create_agent
+except ImportError:
+    # Backward-compatible fallback for deployments with older LangChain.
+    from langchain.agents import initialize_agent, AgentType
+    from langchain_core.messages import AIMessage
+
+    class _CompatAgentWrapper:
+        def __init__(self, llm, tools):
+            self._agent = initialize_agent(
+                tools=tools,
+                llm=llm,
+                agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+                verbose=False,
+                handle_parsing_errors=True,
+            )
+
+        def invoke(self, payload):
+            query = ""
+            messages = payload.get("messages", [])
+            if messages:
+                query = getattr(messages[-1], "content", "") or ""
+
+            # initialize_agent returns {'output': ...} for invoke()
+            result = self._agent.invoke({"input": query})
+            output = result.get("output", "")
+            return {"messages": [HumanMessage(content=query), AIMessage(content=output)]}
+
+    def create_agent(llm, tools):
+        return _CompatAgentWrapper(llm, tools)
+
 from langgraph.graph import START, END, StateGraph
 from typing import TypedDict, Literal, Annotated
 import os
