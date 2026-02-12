@@ -22,6 +22,8 @@ class NavBar extends StatelessWidget {
                     Image.asset(
                       'assets/logo.png',
                       width: 48,
+                      cacheWidth: 144,
+                      cacheHeight: 144,
                     ),
                     const SizedBox(width: 8),
                     const Text(

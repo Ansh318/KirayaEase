@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS users (
   id            BIGSERIAL PRIMARY KEY,
   email         TEXT UNIQUE NOT NULL,
+  role          TEXT NOT NULL DEFAULT 'tenant' CHECK (role IN ('tenant','landlord')),
   onboarded     BOOLEAN NOT NULL DEFAULT FALSE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -31,7 +32,41 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   first_name     TEXT NOT NULL,
   last_name      TEXT NOT NULL,
   aadhaar        TEXT UNIQUE,
+  pan            TEXT UNIQUE,
   date_of_birth  DATE NOT NULL
+);
+
+-- Session context + message history for agentic conversations
+CREATE TABLE IF NOT EXISTS chat_sessions (
+  session_id         TEXT PRIMARY KEY,
+  user_id            BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  user_role          TEXT NOT NULL DEFAULT 'tenant' CHECK (user_role IN ('tenant','landlord')),
+  active_scope       TEXT NOT NULL DEFAULT 'self' CHECK (active_scope IN ('self','portfolio','tenant')),
+  active_tenant_id   TEXT,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id             BIGSERIAL PRIMARY KEY,
+  session_id     TEXT NOT NULL REFERENCES chat_sessions(session_id) ON DELETE CASCADE,
+  role           TEXT NOT NULL CHECK (role IN ('user','assistant','system')),
+  content        TEXT NOT NULL,
+  metadata       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Generic audit table for create/update/delete operations
+CREATE TABLE IF NOT EXISTS operation_logs (
+  id             BIGSERIAL PRIMARY KEY,
+  user_id        BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  session_id     TEXT REFERENCES chat_sessions(session_id) ON DELETE SET NULL,
+  entity_type    TEXT NOT NULL,
+  entity_id      TEXT,
+  operation      TEXT NOT NULL CHECK (operation IN ('create','update','delete')),
+  old_data       JSONB,
+  new_data       JSONB,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 

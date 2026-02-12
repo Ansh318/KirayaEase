@@ -8,21 +8,21 @@ class TechnologyInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<Map<String, String>> techList = [
       {
-        'title': 'Automation',
+        'title': 'Agentic Rent Management',
         'description':
-            'No paperwork, no chasing — agreements & payments flow on autopilot.',
+            'Multi-agent framework that manages leases, due dates, reminders, and workflows end-to-end.',
       },
       {
-        'title': 'Flexible Credit Line',
-        'description': 'Freedom to manage rent your way.',
+        'title': 'AI-Powered Rent Intelligence',
+        'description': 'RentOS predicts delays, flags risks, and surfaces real-time insights.',
       },
       {
-        'title': 'Smart Scheduling',
-        'description': 'Split and schedule payments to match your cash flow.',
+        'title': 'Timely Rent Collection',
+        'description': 'Payments are monitored, nudged, and followed up automatically until completion.',
       },
       {
-        'title': 'Security & Compliance',
-        'description': ' Payments protected with 256-bit encryption.',
+        'title': 'Built-In Compliance & Security',
+        'description': 'All payments and lease records are encrypted, logged, and compliant.',
       },
     ];
 

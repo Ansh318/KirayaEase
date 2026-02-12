@@ -5,7 +5,7 @@ load_dotenv()
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-razorpay_client = razorpay.Client(auth=(os.getenv("RAZORPAY_TEST_KEY_ID"), os.getenv("RAZORPAY_KEY_SECRET")))
+razorpay_client = razorpay.Client(auth=("rzp_test_v4oAPsjPGsrOQR", "wnbpXVnrlLqyhDruEbsgBCja"))
 
 def create_razorpay_order(razorpay_client, amount_in_rupees, currency="INR", receipt_id="receipt#1", payment_capture=True):
     """

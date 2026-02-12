@@ -104,23 +104,23 @@ class LandingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final steps = [
       StepData(
-        title: 'Sign up and get pre-approved',
+        title: 'Connect your lease.',
         desc:
-            "We’ll do a soft credit check and build a custom rent plan that works with your cash flow.",
+            'AI reads your lease details, rent cycle, and tenant info to create a live rent system.',
       ),
       StepData(
-        title: 'Pay your part, we cover the rest',
+        title: 'Tenant Onboarding',
         desc:
-            'Make your first contribution—we unlock a credit line to cover the full rent. Auto-debit or manual? You’re in control.',
+            'Complete KYC verification and onboarding to your apartment.',
+      ),
+      StepData(
+        title: 'AI runs the rent cycle',
+        desc:
+            'Our AI tracks due dates, nudges tenants, flags issues & provide insights to increase rental income.',
       ),
       StepData(
         title: 'Rent gets paid on time, everytime',
         desc: 'We pay your landlord directly or give you a secure gateway.',
-      ),
-      StepData(
-        title: 'Repay us your way',
-        desc:
-            'Stick to your plan or prepay anytime. We’ll auto-deduct on schedule—or let you pay on-demand from the app.',
       ),
     ];
 
@@ -159,7 +159,7 @@ class LandingPage extends StatelessWidget {
                 child: Column(
                   children: [
                     const Text(
-                      "Pay Rent On Your Schedule.",
+                      "Your AI Rental Assistant",
                       style: TextStyle(
                         fontSize: 55,
                         color: Colors.black87,
@@ -167,64 +167,107 @@ class LandingPage extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 40),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/login');
-                            },
-                            child: const Text(
-                              "Sign in",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isCompact = constraints.maxWidth < 430;
+                        final buttonStyle = ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 14),
+                          minimumSize: const Size(0, 52),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                        );
+
+                        if (isCompact) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ElevatedButton(
+                                style: buttonStyle,
+                                onPressed: () {
+                                  Navigator.pushNamed(context, '/login');
+                                },
+                                child: const Text(
+                                  "Sign in",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ElevatedButton(
+                                style: buttonStyle,
+                                onPressed: () {
+                                  Navigator.pushNamed(context, '/login');
+                                },
+                                child: const Text(
+                                  "Create Account",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                style: buttonStyle,
+                                onPressed: () {
+                                  Navigator.pushNamed(context, '/login');
+                                },
+                                child: const Text(
+                                  "Sign in",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
                             ),
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/login');
-                            },
-                            child: const Text(
-                              "Create Account",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                style: buttonStyle,
+                                onPressed: () {
+                                  Navigator.pushNamed(context, '/login');
+                                },
+                                child: const Text(
+                                  "Create Account",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
 
               const Text(
-                "Split. Schedule. Stretch.",
+                "How does it work?",
                 style: TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.w500,

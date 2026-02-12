@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
 class AIAssistantChatWidget extends StatefulWidget {
   const AIAssistantChatWidget({super.key});
@@ -34,8 +35,7 @@ class _AIAssistantChatWidgetState extends State<AIAssistantChatWidget> {
 
     try {
       final response = await http.post(
-        Uri.parse(
-            "https://kiraya-ease-50d651c2ed49.herokuapp.com/chatbot"), // Replace with your IP if needed
+        Uri.parse(ApiConfig.chatbotEndpoint),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"message": text}),
       );

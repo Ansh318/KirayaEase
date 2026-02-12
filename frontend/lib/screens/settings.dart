@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/api_config.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -6,10 +7,6 @@ class SettingsPage extends StatelessWidget {
   static const _ink = Color(0xFF1C1C1E);
   static const _sub = Color(0xFF6F6F73);
   static const _divider = Color(0xFFE8E8EB);
-
-  // Change if your backend base URL differs
-  static const String _apiBase =
-      'https://kiraya-ease-50d651c2ed49.herokuapp.com';
 
   @override
   Widget build(BuildContext context) {

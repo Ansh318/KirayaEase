@@ -145,6 +145,7 @@ def merge_results(partials: List[Dict[str, Optional[str]]]) -> Dict[str, Optiona
                 merged[k] = v
     return merged
 
+#@tool 
 # ========= PUBLIC API =========
 def extract_from_pdf(pdf_path: str) -> Dict[str, Optional[str]]:
     text = read_pdf_text(pdf_path)

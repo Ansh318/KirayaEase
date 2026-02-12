@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'landing_page.dart'; // 🔁 only if you're using the fade transition
+import '../config/api_config.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,74 +13,54 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final emailController = TextEditingController();
-  final otpController = TextEditingController();
-  String? sessionToken;
-  bool otpSent = false;
+  bool _isLoading = false;
 
-  Future<void> sendOtp() async {
-    final url =
-        Uri.parse('https://kiraya-ease-50d651c2ed49.herokuapp.com/request-otp');
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"email": emailController.text.trim()}),
-    );
-
-    final data = jsonDecode(response.body);
-    sessionToken = data["session_token"];
-
-    setState(() {
-      otpSent = true;
-    });
-
-    // ✅ Minimal dialog instead of SnackBar
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        content:
-            const Text("Please check your email for the verification code."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text("OK"),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // Google auth is temporarily disabled. We still route based on DB user status.
   Future<void> login() async {
-    final url =
-        Uri.parse('https://kiraya-ease-50d651c2ed49.herokuapp.com/verify-otp');
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "session_token": sessionToken,
-        "otp": otpController.text.trim(),
-      }),
-    );
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
 
-    final data = jsonDecode(response.body);
-    if (data["message"] == "OTP verified") {
+    try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString("session_token", sessionToken!);
+      final email = (prefs.getString('user_email') ?? '').trim();
 
-      final isOnboarded = data['onboarded'] == true;
-      final role = data['user_role'];
-      if (isOnboarded) {
-        if (role == 'tenant') {
+      // Without an authenticated email, treat as new user -> onboarding.
+      if (email.isEmpty) {
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/home');
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse(ApiConfig.userStatusEndpoint),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": email}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final exists = data['exists'] == true;
+        final onboarded = data['onboarded'] == true;
+        final role = (data['role'] ?? 'tenant').toString().toLowerCase();
+
+        await prefs.setString(
+            'user_role', role == 'landlord' ? 'landlord' : 'tenant');
+
+        if (!mounted) return;
+        if (exists && onboarded) {
           Navigator.pushReplacementNamed(context, '/tenant');
+        } else {
+          Navigator.pushReplacementNamed(context, '/home');
         }
       } else {
+        if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/home');
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data["error"] ?? "Something went wrong")),
-      );
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/home');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -145,7 +125,13 @@ class _LoginPageState extends State<LoginPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Image.asset('assets/logo.png', height: 60, width: 60),
+                      Image.asset(
+                        'assets/logo.png',
+                        height: 60,
+                        width: 60,
+                        cacheWidth: 180,
+                        cacheHeight: 180,
+                      ),
                       const SizedBox(height: 20),
                       const Text(
                         "Sign In",
@@ -155,57 +141,53 @@ class _LoginPageState extends State<LoginPage> {
                           color: Color.fromARGB(255, 0, 0, 0),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Enter email to log in",
-                        style: TextStyle(color: Color.fromARGB(179, 0, 0, 0)),
-                        textAlign: TextAlign.center,
-                      ),
                       const SizedBox(height: 24),
-                      TextField(
-                        controller: emailController,
-                        style: const TextStyle(
-                            color: Color.fromARGB(255, 0, 0, 0)),
-                        decoration: InputDecoration(
-                          hintText: 'Email Address',
-                          hintStyle: const TextStyle(
-                              color: Color.fromARGB(179, 0, 0, 0)),
-                          prefixIcon:
-                              const Icon(Icons.email, color: Colors.white54),
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.15),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      if (otpSent)
-                        TextField(
-                          controller: otpController,
-                          style: const TextStyle(
-                              color: Color.fromARGB(255, 0, 0, 0)),
-                          decoration: InputDecoration(
-                            hintText: 'Enter OTP',
-                            hintStyle: const TextStyle(
-                                color: Color.fromARGB(179, 0, 0, 0)),
-                            prefixIcon: const Icon(Icons.lock_outline,
-                                color: Colors.white54),
-                            filled: true,
-                            fillColor: Colors.white.withOpacity(0.15),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
+                      // COMMENTED OUT: Email field - keeping for future use
+                      // TextField(
+                      //   controller: emailController,
+                      //   style: const TextStyle(
+                      //       color: Color.fromARGB(255, 0, 0, 0)),
+                      //   decoration: InputDecoration(
+                      //     hintText: 'Email Address',
+                      //     hintStyle: const TextStyle(
+                      //         color: Color.fromARGB(179, 0, 0, 0)),
+                      //     prefixIcon:
+                      //         const Icon(Icons.email, color: Colors.white54),
+                      //     filled: true,
+                      //     fillColor: Colors.white.withOpacity(0.15),
+                      //     border: OutlineInputBorder(
+                      //       borderRadius: BorderRadius.circular(12),
+                      //       borderSide: BorderSide.none,
+                      //     ),
+                      //   ),
+                      // ),
+                      // const SizedBox(height: 16),
+                      // COMMENTED OUT: OTP field - bypassed for now
+                      // if (otpSent)
+                      //   TextField(
+                      //     controller: otpController,
+                      //     style: const TextStyle(
+                      //         color: Color.fromARGB(255, 0, 0, 0)),
+                      //     decoration: InputDecoration(
+                      //       hintText: 'Enter OTP',
+                      //       hintStyle: const TextStyle(
+                      //           color: Color.fromARGB(179, 0, 0, 0)),
+                      //       prefixIcon: const Icon(Icons.lock_outline,
+                      //           color: Colors.white54),
+                      //       filled: true,
+                      //       fillColor: Colors.white.withOpacity(0.15),
+                      //       border: OutlineInputBorder(
+                      //         borderRadius: BorderRadius.circular(12),
+                      //         borderSide: BorderSide.none,
+                      //       ),
+                      //     ),
+                      //     keyboardType: TextInputType.number,
+                      //   ),
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: sendOtp,
+                          onPressed: _isLoading ? null : login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.black,
@@ -214,26 +196,57 @@ class _LoginPageState extends State<LoginPage> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: const Text("Send OTP"),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (otpSent)
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: login,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (!_isLoading)
+                                Image.asset(
+                                  'assets/google.png',
+                                  height: 20,
+                                  width: 20,
+                                ),
+                              if (_isLoading)
+                                const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.black),
+                                  ),
+                                ),
+                              const SizedBox(width: 12),
+                              Text(
+                                _isLoading
+                                    ? "Checking account..."
+                                    : "Login with Google",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                            ),
-                            child: const Text("Login"),
+                            ],
                           ),
                         ),
+                      ),
+                      // COMMENTED OUT: OTP send button - bypassed for now
+                      // const SizedBox(height: 12),
+                      // if (otpSent)
+                      //   SizedBox(
+                      //     width: double.infinity,
+                      //     child: ElevatedButton(
+                      //       onPressed: login,
+                      //       style: ElevatedButton.styleFrom(
+                      //         backgroundColor: Colors.white,
+                      //         foregroundColor: Colors.black,
+                      //         padding: const EdgeInsets.symmetric(vertical: 14),
+                      //         shape: RoundedRectangleBorder(
+                      //           borderRadius: BorderRadius.circular(12),
+                      //         ),
+                      //       ),
+                      //       child: const Text("Login"),
+                      //     ),
+                      //   ),
                     ],
                   ),
                 ),

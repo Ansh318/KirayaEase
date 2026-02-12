@@ -30,9 +30,9 @@ AUTH_SESSION = """
         """
 
 GET_USER_FROM_SESSION = """
-    SELECT user_id FROM otp_codes 
-    WHERE session_token = %s AND used = TRUE
-    ORDER BY created_at DESC 
+    SELECT user_id FROM sessions
+    WHERE session_id = %s
+    ORDER BY created_at DESC
     LIMIT 1
 """
 
@@ -53,14 +53,15 @@ CHECK_DUPLICATE_PAN = """
 
 INSERT_USER_PROFILE = """
 INSERT INTO user_profiles
-  (user_id, first_name, last_name, aadhaar, date_of_birth)
+  (user_id, first_name, last_name, aadhaar, pan, date_of_birth)
 VALUES
-  (%s, %s, %s, %s, %s, %s, %s)
+  (%s, %s, %s, %s, %s, %s)
 ON CONFLICT (user_id) DO UPDATE
 SET first_name    = EXCLUDED.first_name,
     last_name     = EXCLUDED.last_name,
     aadhaar       = EXCLUDED.aadhaar,
-    date_of_birth = EXCLUDED.date_of_birth,
+    pan           = EXCLUDED.pan,
+    date_of_birth = EXCLUDED.date_of_birth
 RETURNING id;
 """
 
@@ -71,7 +72,7 @@ MARK_USER_ONBOARDED = """
 """
 
 GET_USER_PROFILE = """
-        SELECT first_name, last_name, aadhaar, date_of_birth
+        SELECT first_name, last_name, aadhaar, pan, date_of_birth
         FROM user_profiles
         WHERE user_id = %s;
     """

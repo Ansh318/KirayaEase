@@ -298,16 +298,6 @@ class AboutUsPage extends StatelessWidget {
                 'Business Administration - University of London'
               ],
             ),
-            const SizedBox(height: 8),
-            TeamRow(
-              name: 'Manu Siddharth',
-              role: 'Founding Engineer',
-              highlights: const [
-                'Engineering Manager - Kotak Trade Finance',
-                'BTech Electrical Engineering - University of Mumbai',
-              ],
-            ),
-
             const SizedBox(height: 28),
 
             // --- Footer placeholder ---

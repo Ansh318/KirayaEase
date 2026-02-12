@@ -6,5 +6,5 @@
     "python.testing.pytestEnabled": true,
     "postman.settings.dotenv-detection-notification-visibility": false,
     "git.ignoreLimitWarning": true,
-    "cmake.sourceDirectory": "/Users/anshagarwal/Desktop/KirayaEase/frontend/linux"
+    "cmake.sourceDirectory": "/Users/anshagarwal/Developer/KirayaEase/frontend/windows/flutter"
 }

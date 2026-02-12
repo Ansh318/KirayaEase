@@ -1,13 +1,14 @@
 // lib/onboarding_form.dart
-import 'dart:convert';
+// COMMENTED OUT: No longer needed since we skip Digio backend call
+// import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
+// import 'package:http/http.dart' as http;
 
-import '../services/digio_kyc_service.dart'; // startKycWorkflow(referenceId, customerIdentifier, {emailOrPhone, ...})
+// import '../services/digio_kyc_service.dart'; // startKycWorkflow(referenceId, customerIdentifier, {emailOrPhone, ...}) // COMMENTED OUT: Skipping Digio KYC
 
 class OnboardingForm extends StatefulWidget {
   const OnboardingForm({super.key});
@@ -16,8 +17,9 @@ class OnboardingForm extends StatefulWidget {
 }
 
 class _OnboardingFormState extends State<OnboardingForm> {
-  static const String _baseUrl =
-      'https://kiraya-ease-50d651c2ed49.herokuapp.com';
+  // COMMENTED OUT: No longer needed since we skip Digio backend call
+  // static const String _baseUrl =
+  //     'https://kiraya-ease-50d651c2ed49.herokuapp.com';
 
   final _formKey = GlobalKey<FormState>();
 
@@ -30,10 +32,12 @@ class _OnboardingFormState extends State<OnboardingForm> {
   final _phoneFocus = FocusNode();
 
   // Session / state
-  String? _sessionToken;
+  // COMMENTED OUT: No longer needed since we skip Digio backend call
+  // String? _sessionToken;
   bool _verifying = false;
   bool _submitting = false;
   bool _verified = false;
+  String _selectedRole = 'tenant';
 
   // Utils
   String _digits(String s) => s.replaceAll(RegExp(r'\D'), '');
@@ -49,33 +53,38 @@ class _OnboardingFormState extends State<OnboardingForm> {
     return null;
   }
 
-  Future<Map<String, dynamic>> _postJson(
-      Uri url, Map<String, dynamic> body) async {
-    final res = await http
-        .post(url,
-            headers: {"Content-Type": "application/json"},
-            body: jsonEncode(body))
-        .timeout(const Duration(seconds: 20));
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception("${res.statusCode}: ${res.body}");
-    }
-    return res.body.isEmpty
-        ? <String, dynamic>{}
-        : (jsonDecode(res.body) as Map<String, dynamic>);
-  }
+  // COMMENTED OUT: No longer needed since we skip Digio backend call
+  // Future<Map<String, dynamic>> _postJson(
+  //     Uri url, Map<String, dynamic> body) async {
+  //   final res = await http
+  //       .post(url,
+  //           headers: {"Content-Type": "application/json"},
+  //           body: jsonEncode(body))
+  //       .timeout(const Duration(seconds: 20));
+  //   if (res.statusCode < 200 || res.statusCode >= 300) {
+  //     throw Exception("${res.statusCode}: ${res.body}");
+  //   }
+  //   return res.body.isEmpty
+  //       ? <String, dynamic>{}
+  //       : (jsonDecode(res.body) as Map<String, dynamic>);
+  // }
 
   @override
   void initState() {
     super.initState();
-    _loadSessionToken();
+    // COMMENTED OUT: No longer needed since we skip Digio backend call
+    // _loadSessionToken();
   }
 
-  Future<void> _loadSessionToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() => _sessionToken = prefs.getString("session_token"));
-  }
+  // COMMENTED OUT: No longer needed since we skip Digio backend call
+  // Future<void> _loadSessionToken() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   if (!mounted) return;
+  //   setState(() => _sessionToken = prefs.getString("session_token"));
+  // }
 
+  /// COMMENTED OUT: Digio KYC flow
+  /// Original flow:
   /// 1) Validate inputs
   /// 2) POST /digio-kyc  -> { reference_id, customer_identifier }
   /// 3) Launch Digio SDK via startKycWorkflow(...)
@@ -90,56 +99,66 @@ class _OnboardingFormState extends State<OnboardingForm> {
       return;
     }
 
-    _sessionToken ??=
-        (await SharedPreferences.getInstance()).getString("session_token");
-    if (_sessionToken == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Session expired. Please log in again.")),
-      );
-      return;
-    }
+    // COMMENTED OUT: Digio backend call and SDK
+    // _sessionToken ??=
+    //     (await SharedPreferences.getInstance()).getString("session_token");
+    // if (_sessionToken == null) {
+    //   if (!mounted) return;
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     const SnackBar(content: Text("Session expired. Please log in again.")),
+    //   );
+    //   return;
+    // }
 
-    setState(() => _verifying = true);
-    try {
-      // 1) backend: create Digio session
-      final startUrl = Uri.parse('$_baseUrl/digio-kyc');
-      final startData = await _postJson(startUrl, {
-        "session_token": _sessionToken,
-        "phone_number": "+91${_digits(_phoneController.text)}",
-        "first_name": _firstNameController.text.trim(),
-        "last_name": _lastNameController.text.trim(), // ← FIXED
-      });
+    // setState(() => _verifying = true);
+    // try {
+    //   // 1) backend: create Digio session
+    //   final startUrl = Uri.parse('$_baseUrl/digio-kyc');
+    //   final startData = await _postJson(startUrl, {
+    //     "session_token": _sessionToken,
+    //     "phone_number": "+91${_digits(_phoneController.text)}",
+    //     "first_name": _firstNameController.text.trim(),
+    //     "last_name": _lastNameController.text.trim(), // ← FIXED
+    //   });
 
-      // 2) extract required fields
-      final referenceId = startData['access_token']['entity_id']?.toString();
-      final customerIdentifier = startData['access_token']['id']?.toString();
-      if (referenceId == null || customerIdentifier == null) {
-        throw Exception("Backend missing reference_id / customer_identifier");
-      }
+    //   // 2) extract required fields
+    //   final referenceId = startData['access_token']['entity_id']?.toString();
+    //   final customerIdentifier = startData['access_token']['id']?.toString();
+    //   if (referenceId == null || customerIdentifier == null) {
+    //     throw Exception("Backend missing reference_id / customer_identifier");
+    //   }
 
-      // 3) launch Digio SDK
-      await startKycWorkflow(
-        customerId: referenceId,
-        nameOrOtherId: customerIdentifier,
-        emailOrPhone:
-            "+91${_digits(_phoneController.text)}", // pass phone to SDK helper
-      );
+    //   // 3) launch Digio SDK
+    //   await startKycWorkflow(
+    //     customerId: referenceId,
+    //     nameOrOtherId: customerIdentifier,
+    //     emailOrPhone:
+    //         "+91${_digits(_phoneController.text)}", // pass phone to SDK helper
+    //   );
 
-      if (!mounted) return;
-      setState(() => _verified = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("KYC flow started ✅")),
-      );
-      FocusScope.of(context).unfocus();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("KYC failed: $e")),
-      );
-    } finally {
-      if (mounted) setState(() => _verifying = false);
-    }
+    //   if (!mounted) return;
+    //   setState(() => _verified = true);
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     const SnackBar(content: Text("KYC flow started ✅")),
+    //   );
+    //   FocusScope.of(context).unfocus();
+    // } catch (e) {
+    //   if (!mounted) return;
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     SnackBar(content: Text("KYC failed: $e")),
+    //   );
+    // } finally {
+    //   if (mounted) setState(() => _verifying = false);
+    // }
+
+    if (!mounted) return;
+    setState(() {
+      _verified = true;
+      _verifying = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Mobile verification completed.")),
+    );
   }
 
   Future<void> _submit() async {
@@ -154,6 +173,20 @@ class _OnboardingFormState extends State<OnboardingForm> {
     if (!mounted) return;
     setState(() => _submitting = true);
     try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'onboarding_first_name',
+        _firstNameController.text.trim(),
+      );
+      await prefs.setString(
+        'onboarding_last_name',
+        _lastNameController.text.trim(),
+      );
+      await prefs.setString(
+        'onboarding_phone',
+        _digits(_phoneController.text),
+      );
+      await prefs.setString('user_role', _selectedRole);
       Navigator.pushReplacementNamed(context, '/tenant');
     } catch (e) {
       if (!mounted) return;
@@ -273,6 +306,76 @@ class _OnboardingFormState extends State<OnboardingForm> {
                   ),
                   validator: _phoneValidator,
                   onFieldSubmitted: (_) => _startKyc(),
+                ),
+                const SizedBox(height: 16),
+
+                DropdownButtonFormField<String>(
+                  value: _selectedRole,
+                  isExpanded: true,
+                  menuMaxHeight: 220,
+                  borderRadius: BorderRadius.circular(16),
+                  dropdownColor: const Color(0xFFF7FBFB),
+                  icon: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Color(0xFF167D60),
+                  ),
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: inputDecoration.copyWith(
+                    labelText: 'Onboard As',
+                    hintText: 'Choose role',
+                    prefixIcon: const Icon(
+                      Icons.groups_rounded,
+                      color: Color(0xFF167D60),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF4FAF9),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(
+                        color: Color(0x3300C6A6),
+                        width: 1.2,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF00BFA5),
+                        width: 1.6,
+                      ),
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'tenant',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person_outline_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text('Tenant'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'landlord',
+                      child: Row(
+                        children: [
+                          Icon(Icons.home_work_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('Landlord'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _selectedRole = value;
+                    });
+                  },
                 ),
                 const SizedBox(height: 16),
 
