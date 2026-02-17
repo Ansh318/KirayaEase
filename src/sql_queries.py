@@ -1,20 +1,3 @@
-VERIFY_OTP = """
-    SELECT user_id, otp, expiry, used 
-    FROM otp_codes 
-    WHERE session_token = %s AND used = FALSE 
-    ORDER BY expiry DESC 
-    LIMIT 1
-"""
-
-UPDATE_OTP ="""
-               UPDATE otp_codes SET used = TRUE WHERE session_token = %s AND user_id = %s
-            """
-
-STORE_OTP = """
-              INSERT INTO otp_codes (user_id, otp, session_token, expiry) VALUES (%s, %s, %s, %s)
-            """
-
-
 CREATE_USER = """ 
                   INSERT INTO users (email) VALUES (%s)
                   ON CONFLICT (email) DO NOTHING
@@ -26,8 +9,9 @@ FETCH_USER = """
             """
 
 AUTH_SESSION = """
-            INSERT INTO sessions (session_id, user_id) VALUES (%s, %s)
-        """
+INSERT INTO sessions (session_id, user_id, expires_at)
+VALUES (%s, %s, %s)
+"""
 
 GET_USER_FROM_SESSION = """
     SELECT user_id FROM sessions
@@ -37,8 +21,7 @@ GET_USER_FROM_SESSION = """
 """
 
 CHECK_ONBOARDED = """
-    SELECT id FROM user_profiles 
-    WHERE user_id = %s
+    SELECT onboarded FROM users WHERE id = %s;
 """
 
 CHECK_DUPLICATE_AADHAAR = """
