@@ -269,6 +269,14 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 class GoogleToken(BaseModel):
     id_token: str
 
+class OnboardingRequest(BaseModel):
+    first_name: str
+    last_name: str
+    dob: Optional[date] = None
+    aadhaar: Optional[str] = None
+    pan: Optional[str] = None
+    role: str
+
 # class CreateOrderRequest(BaseModel):
 #     amount: float
 #     receipt_id: str = "receipt_auto"
@@ -276,6 +284,12 @@ class GoogleToken(BaseModel):
 @app.post("/auth-google")
 def google_auth(data: GoogleToken):
     return AuthManager().google_login(data.id_token)
+
+@app.post("/onboarding")
+def onboarding(data: OnboardingRequest, authorization: str = Header(...)):
+    session_token = authorization.replace("Bearer ", "").strip()
+    return handle_user_onboarding(session_token, data.first_name, data.last_name, data.dob, data.aadhaar, data.pan, data.role)
+
 
 # @app.get('/user-profile')
 # def get_user_profile(authorization: str = Header(...)):

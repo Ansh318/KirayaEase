@@ -14,10 +14,12 @@ from sql_queries import (
     GET_USER_PROFILE
 )
 
-def handle_user_onboarding(session_token, first_name, last_name, dob, aadhaar, pan):
+def handle_user_onboarding(session_token, first_name, last_name, dob, aadhaar, pan, role):
     # Step 1: Validate required fields
-    if not (aadhaar or pan):
-        raise HTTPException(status_code=400, detail="Aadhaar or PAN required")
+    if not first_name or not first_name.strip():
+        raise HTTPException(status_code=400, detail="First name is required")
+    if not last_name or not last_name.strip():
+        raise HTTPException(status_code=400, detail="Last name is required")
 
     with psycopg2.connect(os.getenv("DATABASE_URL")) as conn:
         with conn.cursor() as cursor:
@@ -45,11 +47,22 @@ def handle_user_onboarding(session_token, first_name, last_name, dob, aadhaar, p
                 if cursor.fetchone():
                     raise HTTPException(status_code=409, detail="PAN already in use")
 
+            normalized_role = (role or "").strip().lower()
+            if normalized_role not in ("tenant", "landlord"):
+                raise HTTPException(status_code=400, detail="Role must be either 'tenant' or 'landlord'")
+
             # Step 5: Insert new user_profile + mark onboarded
-            cursor.execute(INSERT_USER_PROFILE, (user_id, first_name, last_name, aadhaar, pan, dob))
+            cursor.execute(
+                INSERT_USER_PROFILE,
+                (user_id, normalized_role, first_name, last_name, aadhaar, pan, dob),
+            )
             cursor.execute(MARK_USER_ONBOARDED, (user_id,))
 
-    return {"success": True, "message": "User onboarded successfully"}
+    return {
+        "success": True,
+        "message": "User onboarded successfully",
+        "role": normalized_role,
+    }
 
 
 def get_user_by_token(session_token):
@@ -66,7 +79,7 @@ def get_user_by_token(session_token):
             if not user_details:
                 raise HTTPException(status_code=404, detail="User profile not found")
 
-            first_name, last_name, aadhaar, pan, dob = user_details
+            first_name, last_name, aadhaar, pan, dob, role = user_details
             return {
                 "first_name": first_name,
                 "last_name": last_name,
@@ -74,5 +87,6 @@ def get_user_by_token(session_token):
                 "aadhaar": aadhaar,
                 "pan": pan,
                 "dob": str(dob),
+                "role": role,
             }
 

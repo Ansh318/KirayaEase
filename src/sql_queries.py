@@ -36,11 +36,12 @@ CHECK_DUPLICATE_PAN = """
 
 INSERT_USER_PROFILE = """
 INSERT INTO user_profiles
-  (user_id, first_name, last_name, aadhaar, pan, date_of_birth)
+  (user_id, role, first_name, last_name, aadhaar, pan, date_of_birth)
 VALUES
-  (%s, %s, %s, %s, %s, %s)
+  (%s, %s, %s, %s, %s, %s, %s)
 ON CONFLICT (user_id) DO UPDATE
-SET first_name    = EXCLUDED.first_name,
+SET role          = EXCLUDED.role,
+    first_name    = EXCLUDED.first_name,
     last_name     = EXCLUDED.last_name,
     aadhaar       = EXCLUDED.aadhaar,
     pan           = EXCLUDED.pan,

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS user_profiles (
   user_id        BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  role          TEXT NOT NULL DEFAULT 'tenant' CHECK (role IN ('tenant','landlord')),
+  role          TEXT NOT NULL CHECK (role IN ('tenant','landlord')),
   first_name     TEXT NOT NULL,
   last_name      TEXT NOT NULL,
   aadhaar        TEXT UNIQUE,
