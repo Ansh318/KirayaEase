@@ -273,7 +273,7 @@ class GoogleToken(BaseModel):
 #     amount: float
 #     receipt_id: str = "receipt_auto"
 
-@app.post("auth/google")
+@app.post("/auth-google")
 def google_auth(data: GoogleToken):
     return AuthManager().google_login(data.id_token)
 
