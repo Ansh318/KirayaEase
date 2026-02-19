@@ -82,7 +82,7 @@ class AuthManager:
         cursor.close()
         conn.close()
 
-        return bool(result)
+        return bool(result[0]) if result is not None else False
 
     def google_login(self, id_token_from_client: str):
         try:
