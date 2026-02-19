@@ -283,7 +283,9 @@ class OnboardingRequest(BaseModel):
 
 @app.post("/auth-google")
 def google_auth(data: GoogleToken):
-    return AuthManager().google_login(data.id_token)
+    a = AuthManager().google_login(data.id_token)
+    print(a)
+    return a
 
 @app.post("/onboarding")
 def onboarding(data: OnboardingRequest, authorization: str = Header(...)):
