@@ -290,7 +290,9 @@ def google_auth(data: GoogleToken):
 @app.post("/onboarding")
 def onboarding(data: OnboardingRequest, authorization: str = Header(...)):
     session_token = authorization.replace("Bearer ", "").strip()
-    return handle_user_onboarding(session_token, data.first_name, data.last_name, data.dob, data.aadhaar, data.pan, data.role)
+    b = handle_user_onboarding(session_token, data.first_name, data.last_name, data.dob, data.aadhaar, data.pan, data.role)
+    print(b)
+    return (b)
 
 
 # @app.get('/user-profile')
@@ -300,6 +302,7 @@ def onboarding(data: OnboardingRequest, authorization: str = Header(...)):
 #     if not user_profile:
 #         raise HTTPException(status_code=401, detail = 'Invalid user')
 #     return user_profile
+
 
 # @app.post('/user-status')
 # def user_status(request: UserStatusRequest):
