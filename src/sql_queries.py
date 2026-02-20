@@ -43,9 +43,9 @@ ON CONFLICT (user_id) DO UPDATE
 SET role          = EXCLUDED.role,
     first_name    = EXCLUDED.first_name,
     last_name     = EXCLUDED.last_name,
-    aadhaar       = EXCLUDED.aadhaar,
-    pan           = EXCLUDED.pan,
-    date_of_birth = EXCLUDED.date_of_birth;
+    aadhaar       = COALESCE(EXCLUDED.aadhaar, user_profiles.aadhaar),
+    pan           = COALESCE(EXCLUDED.pan, user_profiles.pan),
+    date_of_birth = COALESCE(EXCLUDED.date_of_birth, user_profiles.date_of_birth);
 """
 
 MARK_USER_ONBOARDED = """
