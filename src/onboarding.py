@@ -87,7 +87,7 @@ def get_user_by_token(session_token):
                 "name": f"{first_name} {last_name}".strip(),
                 "aadhaar": aadhaar,
                 "pan": pan,
-                "dob": str(dob),
+                "dob": dob.isoformat() if dob else None,
                 "role": role,
             }
 
