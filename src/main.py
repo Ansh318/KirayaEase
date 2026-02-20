@@ -295,13 +295,13 @@ def onboarding(data: OnboardingRequest, authorization: str = Header(...)):
     return (b)
 
 
-# @app.get('/user-profile')
-# def get_user_profile(authorization: str = Header(...)):
-#     session_token = authorization.replace("Bearer ", "").strip()
-#     user_profile = get_user_by_token(session_token)
-#     if not user_profile:
-#         raise HTTPException(status_code=401, detail = 'Invalid user')
-#     return user_profile
+@app.get('/user-profile')
+def get_user_profile(authorization: str = Header(...)):
+    session_token = authorization.replace("Bearer ", "").strip()
+    user_profile = get_user_by_token(session_token)
+    if not user_profile:
+        raise HTTPException(status_code=401, detail = 'Invalid user')
+    return user_profile
 
 
 # @app.post('/user-status')
