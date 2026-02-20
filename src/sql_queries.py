@@ -45,8 +45,7 @@ SET role          = EXCLUDED.role,
     last_name     = EXCLUDED.last_name,
     aadhaar       = EXCLUDED.aadhaar,
     pan           = EXCLUDED.pan,
-    date_of_birth = EXCLUDED.date_of_birth
-RETURNING id;
+    date_of_birth = EXCLUDED.date_of_birth;
 """
 
 MARK_USER_ONBOARDED = """
