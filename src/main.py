@@ -5,10 +5,10 @@ import os, sqlite3, uuid
 from dotenv import load_dotenv
 from datetime import date
 from onboarding import handle_user_onboarding, get_user_by_token
-import razorpay
 import warnings
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
+from razorpay_payment import RazorpayPaymentService
 warnings.filterwarnings("ignore", category=UserWarning)
 from chatbot import RentWiseAssistant
 import os
@@ -26,15 +26,6 @@ import json
 import tempfile, os
 
 # MAX_FILE_MB = 20
-
-
-# DIGIO_CLIENT_ID = os.getenv("DIGIO_CLIENT_ID")
-# DIGIO_CLIENT_SECRET = os.getenv("DIGIO_CLIENT_SECRET")
-
-# # Initialize Razorpay client with fallback to hardcoded test credentials if env vars not set
-# razorpay_key_id = os.getenv("RAZORPAY_TEST_KEY_ID") or "rzp_test_v4oAPsjPGsrOQR"
-# razorpay_key_secret = os.getenv("RAZORPAY_KEY_SECRET") or "wnbpXVnrlLqyhDruEbsgBCja"
-
 
 
 # def normalize_text(text: str) -> str:
@@ -58,10 +49,6 @@ import tempfile, os
 #     return result
 
 
-# razorpay_client = razorpay.Client(
-#     auth=(razorpay_key_id, razorpay_key_secret)
-# )
-
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -72,6 +59,7 @@ app.add_middleware(
     allow_methods=["*"],
 )
 DATABASE_URL = os.getenv("DATABASE_URL")
+razorpay_service = RazorpayPaymentService()
 
 # @app.on_event("startup")
 # def startup_db_checks():
@@ -277,9 +265,15 @@ class OnboardingRequest(BaseModel):
     pan: Optional[str] = None
     role: str
 
-# class CreateOrderRequest(BaseModel):
-#     amount: float
-#     receipt_id: str = "receipt_auto"
+class CreateOrderRequest(BaseModel):
+     amount: float
+     receipt_id: str = "receipt_auto"
+
+
+class VerifyPaymentRequest(BaseModel):
+    order_id: str
+    payment_id: str
+    signature: str
 
 @app.post("/auth-google")
 def google_auth(data: GoogleToken):
@@ -344,59 +338,56 @@ def get_user_profile(authorization: str = Header(...)):
 #         conn.close()
 
 
-# @app.post('/create-payment-order')
-# def create_payment(request: CreateOrderRequest, currency: str = "INR", payment_capture: bool = True):
-#     """
-#     Create a Razorpay payment order.
-#     Amount should be in paise (smallest currency unit).
-#     """
-#     try:
-#         # Ensure amount is in paise (if sent in rupees, convert)
-#         # Frontend sends amount in paise already, but handle both cases
-#         amount = request.amount
-#         if amount < 100:  # If amount is less than 100, assume it's in rupees
-#             amount = int(amount * 100)  # Convert to paise
-#         else:
-#             amount = int(amount)  # Already in paise
+@app.post('/create-payment-order')
+def create_payment(request: CreateOrderRequest, currency: str = "INR", payment_capture: bool = True):
+    """
+    Create a Razorpay payment order.
+    Amount should be in paise (smallest currency unit).
+    """
+    try:
+        # Ensure amount is in paise (if sent in rupees, convert)
+        # Frontend sends amount in paise already, but handle both cases
+        amount = request.amount
+        if amount < 100:  # If amount is less than 100, assume it's in rupees
+            amount = int(amount * 100)  # Convert to paise
+        else:
+            amount = int(amount)  # Already in paise
         
-#         # Generate receipt_id if not provided
-#         receipt_id = request.receipt_id
-#         if not receipt_id or receipt_id == "receipt_auto":
-#             import uuid
-#             receipt_id = f"rcpt_{uuid.uuid4().hex[:8]}"
+        # Generate receipt_id if not provided
+        receipt_id = request.receipt_id
+        if not receipt_id or receipt_id == "receipt_auto":
+            import uuid
+            receipt_id = f"rcpt_{uuid.uuid4().hex[:8]}"
         
-#         order_data = {
-#             "amount": amount,  # Amount in paise
-#             "currency": currency,
-#             "receipt": receipt_id,
-#             "payment_capture": 1 if payment_capture else 0
-#         }
-        
-#         order = razorpay_client.order.create(data=order_data)
-#         print(f"✅ Payment order created: {order.get('id')}")
-#         conn = _get_db_connection()
-#         if conn is not None:
-#             try:
-#                 with conn:
-#                     with conn.cursor() as cursor:
-#                         _insert_operation_log(
-#                             cursor,
-#                             operation="create",
-#                             entity_type="payment_order",
-#                             entity_id=order.get("id"),
-#                             new_data=order,
-#                         )
-#             except Exception as log_error:
-#                 print(f"⚠️ Failed to audit payment order create: {log_error}")
-#             finally:
-#                 conn.close()
-#         return order
-#     except Exception as e:
-#         print(f"❌ Error creating payment order: {str(e)}")
-#         raise HTTPException(
-#             status_code=500,
-#             detail=f"Failed to create payment order: {str(e)}"
-#         )
+        order = razorpay_service.create_order(
+            amount_in_rupees=amount / 100,
+            currency=currency,
+            receipt_id=receipt_id,
+            payment_capture=payment_capture,
+        )
+        if "error" in order:
+            raise HTTPException(status_code=500, detail=f"Failed to create payment order: {order['error']}")
+
+        print(f"✅ Payment order created: {order.get('id')}")
+        return order
+    except Exception as e:
+        print(f"❌ Error creating payment order: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create payment order: {str(e)}"
+        )
+
+
+@app.post("/verify-payment")
+def verify_payment(request: VerifyPaymentRequest):
+    is_valid = razorpay_service.verify_payment_signature(
+        order_id=request.order_id,
+        payment_id=request.payment_id,
+        signature=request.signature,
+    )
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+    return {"success": True}
 
 
 # # Digio Model
