@@ -69,216 +69,216 @@ def extract_lease_details(pdf_path: str) -> str:
             "message": f"Failed to extract lease details: {str(e)}"
         }, indent=2)
 
-@tool
-def web_search(query: str) -> str:
-    """Searches the web for current information about property prices, market trends, rental rates, and real estate insights. Use this to get up-to-date information about property values, rental trends, and market data."""
-    try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=5))
-            if not results:
-                return "No search results found."
+# @tool
+# def web_search(query: str) -> str:
+#     """Searches the web for current information about property prices, market trends, rental rates, and real estate insights. Use this to get up-to-date information about property values, rental trends, and market data."""
+#     try:
+#         with DDGS() as ddgs:
+#             results = list(ddgs.text(query, max_results=5))
+#             if not results:
+#                 return "No search results found."
             
-            # Format results as a readable string
-            formatted_results = []
-            for i, result in enumerate(results, 1):
-                formatted_results.append(
-                    f"{i}. {result.get('title', 'No title')}\n"
-                    f"   URL: {result.get('href', 'No URL')}\n"
-                    f"   {result.get('body', 'No description')}\n"
-                )
-            return "\n".join(formatted_results)
-    except Exception as e:
-        return f"Error performing web search: {str(e)}"
+#             # Format results as a readable string
+#             formatted_results = []
+#             for i, result in enumerate(results, 1):
+#                 formatted_results.append(
+#                     f"{i}. {result.get('title', 'No title')}\n"
+#                     f"   URL: {result.get('href', 'No URL')}\n"
+#                     f"   {result.get('body', 'No description')}\n"
+#                 )
+#             return "\n".join(formatted_results)
+#     except Exception as e:
+#         return f"Error performing web search: {str(e)}"
 
-@tool
-def get_synthetic_price_insights(
-    locality: str,
-    bhk: int,
-    mode: str = "rent",
-    property_type: str = "apartment",
-    min_area_sqft: int = 0,
-    max_area_sqft: int = 0,
-) -> str:
-    """
-    Fetches comparable properties from synthetic Mumbai real estate dataset and returns summary statistics.
-    Use this for Juhu, Bandra, Mahim recommendations for 2/3/4 BHK.
-    """
-    dataset_path = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "data",
-        "synthetic_mumbai_real_estate_prices.csv",
-    )
-    try:
-        if not os.path.exists(dataset_path):
-            return json.dumps(
-                {
-                    "status": "error",
-                    "message": "Synthetic dataset file not found.",
-                    "dataset_path": dataset_path,
-                }
-            )
+# @tool
+# def get_synthetic_price_insights(
+#     locality: str,
+#     bhk: int,
+#     mode: str = "rent",
+#     property_type: str = "apartment",
+#     min_area_sqft: int = 0,
+#     max_area_sqft: int = 0,
+# ) -> str:
+#     """
+#     Fetches comparable properties from synthetic Mumbai real estate dataset and returns summary statistics.
+#     Use this for Juhu, Bandra, Mahim recommendations for 2/3/4 BHK.
+#     """
+#     dataset_path = os.path.join(
+#         os.path.dirname(__file__),
+#         "..",
+#         "data",
+#         "synthetic_mumbai_real_estate_prices.csv",
+#     )
+#     try:
+#         if not os.path.exists(dataset_path):
+#             return json.dumps(
+#                 {
+#                     "status": "error",
+#                     "message": "Synthetic dataset file not found.",
+#                     "dataset_path": dataset_path,
+#                 }
+#             )
 
-        normalized_locality = (locality or "").strip().lower()
-        normalized_property_type = (property_type or "").strip().lower()
-        target_col = "sale_price" if mode == "sale" else "monthly_rent"
+#         normalized_locality = (locality or "").strip().lower()
+#         normalized_property_type = (property_type or "").strip().lower()
+#         target_col = "sale_price" if mode == "sale" else "monthly_rent"
 
-        rows: list[dict[str, Any]] = []
-        with open(dataset_path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                try:
-                    row_locality = (row.get("locality") or "").strip().lower()
-                    row_bhk = int(row.get("bhk", 0))
-                    row_type = (row.get("property_type") or "").strip().lower()
-                    row_area = int(float(row.get("builtup_sqft", 0)))
-                    if row_locality != normalized_locality:
-                        continue
-                    if bhk and row_bhk != int(bhk):
-                        continue
-                    if normalized_property_type and row_type and row_type != normalized_property_type:
-                        continue
-                    if min_area_sqft and row_area < min_area_sqft:
-                        continue
-                    if max_area_sqft and row_area > max_area_sqft:
-                        continue
-                    rows.append(row)
-                except Exception:
-                    continue
+#         rows: list[dict[str, Any]] = []
+#         with open(dataset_path, "r", encoding="utf-8") as f:
+#             reader = csv.DictReader(f)
+#             for row in reader:
+#                 try:
+#                     row_locality = (row.get("locality") or "").strip().lower()
+#                     row_bhk = int(row.get("bhk", 0))
+#                     row_type = (row.get("property_type") or "").strip().lower()
+#                     row_area = int(float(row.get("builtup_sqft", 0)))
+#                     if row_locality != normalized_locality:
+#                         continue
+#                     if bhk and row_bhk != int(bhk):
+#                         continue
+#                     if normalized_property_type and row_type and row_type != normalized_property_type:
+#                         continue
+#                     if min_area_sqft and row_area < min_area_sqft:
+#                         continue
+#                     if max_area_sqft and row_area > max_area_sqft:
+#                         continue
+#                     rows.append(row)
+#                 except Exception:
+#                     continue
 
-        # Fallback: relax property_type and area if strict filter gives no rows.
-        if not rows:
-            with open(dataset_path, "r", encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    try:
-                        if (row.get("locality") or "").strip().lower() != normalized_locality:
-                            continue
-                        if bhk and int(row.get("bhk", 0)) != int(bhk):
-                            continue
-                        rows.append(row)
-                    except Exception:
-                        continue
+#         # Fallback: relax property_type and area if strict filter gives no rows.
+#         if not rows:
+#             with open(dataset_path, "r", encoding="utf-8") as f:
+#                 reader = csv.DictReader(f)
+#                 for row in reader:
+#                     try:
+#                         if (row.get("locality") or "").strip().lower() != normalized_locality:
+#                             continue
+#                         if bhk and int(row.get("bhk", 0)) != int(bhk):
+#                             continue
+#                         rows.append(row)
+#                     except Exception:
+#                         continue
 
-        if not rows:
-            return json.dumps(
-                {
-                    "status": "no_data",
-                    "message": "No comparables found for requested filters.",
-                    "filters": {
-                        "locality": normalized_locality,
-                        "bhk": bhk,
-                        "mode": mode,
-                        "property_type": normalized_property_type,
-                        "min_area_sqft": min_area_sqft,
-                        "max_area_sqft": max_area_sqft,
-                    },
-                }
-            )
+#         if not rows:
+#             return json.dumps(
+#                 {
+#                     "status": "no_data",
+#                     "message": "No comparables found for requested filters.",
+#                     "filters": {
+#                         "locality": normalized_locality,
+#                         "bhk": bhk,
+#                         "mode": mode,
+#                         "property_type": normalized_property_type,
+#                         "min_area_sqft": min_area_sqft,
+#                         "max_area_sqft": max_area_sqft,
+#                     },
+#                 }
+#             )
 
-        values = []
-        ppsf_values = []
-        areas = []
-        for row in rows:
-            try:
-                values.append(float(row.get(target_col, 0)))
-                ppsf_values.append(float(row.get("price_per_sqft", 0)))
-                areas.append(float(row.get("builtup_sqft", 0)))
-            except Exception:
-                pass
+#         values = []
+#         ppsf_values = []
+#         areas = []
+#         for row in rows:
+#             try:
+#                 values.append(float(row.get(target_col, 0)))
+#                 ppsf_values.append(float(row.get("price_per_sqft", 0)))
+#                 areas.append(float(row.get("builtup_sqft", 0)))
+#             except Exception:
+#                 pass
 
-        if not values:
-            return json.dumps(
-                {
-                    "status": "no_data",
-                    "message": "Comparables exist but target values are missing.",
-                    "target_col": target_col,
-                }
-            )
+#         if not values:
+#             return json.dumps(
+#                 {
+#                     "status": "no_data",
+#                     "message": "Comparables exist but target values are missing.",
+#                     "target_col": target_col,
+#                 }
+#             )
 
-        sorted_values = sorted(values)
-        n = len(sorted_values)
-        p25 = sorted_values[max(int(n * 0.25) - 1, 0)]
-        p75 = sorted_values[min(int(n * 0.75), n - 1)]
-        median_val = statistics.median(sorted_values)
-        mean_val = statistics.mean(sorted_values)
-        min_val = min(sorted_values)
-        max_val = max(sorted_values)
+#         sorted_values = sorted(values)
+#         n = len(sorted_values)
+#         p25 = sorted_values[max(int(n * 0.25) - 1, 0)]
+#         p75 = sorted_values[min(int(n * 0.75), n - 1)]
+#         median_val = statistics.median(sorted_values)
+#         mean_val = statistics.mean(sorted_values)
+#         min_val = min(sorted_values)
+#         max_val = max(sorted_values)
 
-        result = {
-            "status": "success",
-            "mode": mode,
-            "metric": target_col,
-            "locality": normalized_locality,
-            "bhk": int(bhk),
-            "property_type": normalized_property_type or "any",
-            "sample_size": n,
-            "stats": {
-                "mean": round(mean_val, 2),
-                "median": round(median_val, 2),
-                "p25": round(p25, 2),
-                "p75": round(p75, 2),
-                "min": round(min_val, 2),
-                "max": round(max_val, 2),
-                "avg_price_per_sqft": round(statistics.mean(ppsf_values), 2) if ppsf_values else None,
-                "avg_area_sqft": round(statistics.mean(areas), 2) if areas else None,
-            },
-            "comparables_preview": rows[:5],
-        }
-        return json.dumps(result)
-    except Exception as e:
-        return json.dumps({"status": "error", "message": str(e)})
+#         result = {
+#             "status": "success",
+#             "mode": mode,
+#             "metric": target_col,
+#             "locality": normalized_locality,
+#             "bhk": int(bhk),
+#             "property_type": normalized_property_type or "any",
+#             "sample_size": n,
+#             "stats": {
+#                 "mean": round(mean_val, 2),
+#                 "median": round(median_val, 2),
+#                 "p25": round(p25, 2),
+#                 "p75": round(p75, 2),
+#                 "min": round(min_val, 2),
+#                 "max": round(max_val, 2),
+#                 "avg_price_per_sqft": round(statistics.mean(ppsf_values), 2) if ppsf_values else None,
+#                 "avg_area_sqft": round(statistics.mean(areas), 2) if areas else None,
+#             },
+#             "comparables_preview": rows[:5],
+#         }
+#         return json.dumps(result)
+#     except Exception as e:
+#         return json.dumps({"status": "error", "message": str(e)})
 
-@tool
-def process_payments(amount_in_rupees: float, receipt_id: str = "", currency: str = "INR", payment_capture: bool = True) -> str:
-    """Processes rent payments by creating a Razorpay payment order. 
+# @tool
+# def process_payments(amount_in_rupees: float, receipt_id: str = "", currency: str = "INR", payment_capture: bool = True) -> str:
+#     """Processes rent payments by creating a Razorpay payment order. 
     
-    Args:
-        amount_in_rupees: The payment amount in Indian Rupees (e.g., 50000 for ₹50,000)
-        receipt_id: Optional receipt/transaction ID for tracking (default: auto-generated if empty)
-        currency: Currency code (default: INR)
-        payment_capture: Whether to auto-capture payment (default: True)
+#     Args:
+#         amount_in_rupees: The payment amount in Indian Rupees (e.g., 50000 for ₹50,000)
+#         receipt_id: Optional receipt/transaction ID for tracking (default: auto-generated if empty)
+#         currency: Currency code (default: INR)
+#         payment_capture: Whether to auto-capture payment (default: True)
     
-    Returns:
-        JSON string with order details including order_id, amount, and status, or error message.
-    """
-    try:
-        # Use fallback credentials if env vars not set
-        razorpay_key_id = os.getenv("RAZORPAY_TEST_KEY_ID") or "rzp_test_v4oAPsjPGsrOQR"
-        razorpay_key_secret = os.getenv("RAZORPAY_KEY_SECRET") or "wnbpXVnrlLqyhDruEbsgBCja"
+#     Returns:
+#         JSON string with order details including order_id, amount, and status, or error message.
+#     """
+#     try:
+#         # Use fallback credentials if env vars not set
+#         razorpay_key_id = os.getenv("RAZORPAY_TEST_KEY_ID") or "rzp_test_v4oAPsjPGsrOQR"
+#         razorpay_key_secret = os.getenv("RAZORPAY_KEY_SECRET") or "wnbpXVnrlLqyhDruEbsgBCja"
         
-        razorpay_client = razorpay.Client(
-            auth=(razorpay_key_id, razorpay_key_secret)
-        )
+#         razorpay_client = razorpay.Client(
+#             auth=(razorpay_key_id, razorpay_key_secret)
+#         )
         
-        # Generate receipt_id if not provided or empty
-        if not receipt_id or receipt_id.strip() == "":
-            receipt_id = f"txn_{uuid.uuid4().hex[:8]}"
+#         # Generate receipt_id if not provided or empty
+#         if not receipt_id or receipt_id.strip() == "":
+#             receipt_id = f"txn_{uuid.uuid4().hex[:8]}"
         
-        order_data = {
-            "amount": int(amount_in_rupees * 100),  # Convert to paise
-            "currency": currency,
-            "receipt": receipt_id,
-            "payment_capture": int(payment_capture)
-        }
+#         order_data = {
+#             "amount": int(amount_in_rupees * 100),  # Convert to paise
+#             "currency": currency,
+#             "receipt": receipt_id,
+#             "payment_capture": int(payment_capture)
+#         }
         
-        order = razorpay_client.order.create(data=order_data)
-        return json.dumps({
-            "status": "success",
-            "order_id": order.get("id"),
-            "amount": order.get("amount"),
-            "amount_in_rupees": amount_in_rupees,
-            "currency": order.get("currency"),
-            "receipt": order.get("receipt"),
-            "order_status": order.get("status"),  # Renamed to avoid overwriting "status"
-            "message": f"Payment order created successfully. Order ID: {order.get('id')}"
-        }, indent=2)
-    except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "error": str(e),
-            "message": f"Failed to process payment: {str(e)}"
-        }, indent=2)
+#         order = razorpay_client.order.create(data=order_data)
+#         return json.dumps({
+#             "status": "success",
+#             "order_id": order.get("id"),
+#             "amount": order.get("amount"),
+#             "amount_in_rupees": amount_in_rupees,
+#             "currency": order.get("currency"),
+#             "receipt": order.get("receipt"),
+#             "order_status": order.get("status"),  # Renamed to avoid overwriting "status"
+#             "message": f"Payment order created successfully. Order ID: {order.get('id')}"
+#         }, indent=2)
+#     except Exception as e:
+#         return json.dumps({
+#             "status": "error",
+#             "error": str(e),
+#             "message": f"Failed to process payment: {str(e)}"
+#         }, indent=2)
 
 # --- Define State with Shared Fields ---
 class AgentState(TypedDict):
