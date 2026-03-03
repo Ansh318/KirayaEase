@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../config/api_config.dart';
 
 class LoginPage extends StatefulWidget {
@@ -14,53 +15,87 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
+  bool _googleSignInInitialized = false;
 
-  // Google auth is temporarily disabled. We still route based on DB user status.
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (_googleSignInInitialized) return;
+    await _googleSignIn.initialize();
+    _googleSignInInitialized = true;
+  }
+
   Future<void> login() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final email = (prefs.getString('user_email') ?? '').trim();
-
-      // Without an authenticated email, treat as new user -> onboarding.
-      if (email.isEmpty) {
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/home');
-        return;
-      }
-
-      final response = await http.post(
-        Uri.parse(ApiConfig.userStatusEndpoint),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"email": email}),
+      // 1️⃣ Google Sign-In
+      await _ensureGoogleSignInInitialized();
+      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate(
+        scopeHint: const ['email'],
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final exists = data['exists'] == true;
-        final onboarded = data['onboarded'] == true;
-        final role = (data['role'] ?? 'tenant').toString().toLowerCase();
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
-        await prefs.setString(
-            'user_role', role == 'landlord' ? 'landlord' : 'tenant');
+      final idToken = googleAuth.idToken;
 
-        if (!mounted) return;
-        if (exists && onboarded) {
-          Navigator.pushReplacementNamed(context, '/tenant');
-        } else {
-          Navigator.pushReplacementNamed(context, '/home');
-        }
-      } else {
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/home');
+      if (idToken == null) {
+        throw Exception("No ID token received");
       }
-    } catch (_) {
+
+      // 2️⃣ Send ID token to backend
+      final response = await http.post(
+        Uri.parse(ApiConfig.googleLoginEndpoint),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"id_token": idToken}),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception("Backend login failed");
+      }
+
+      final data = jsonDecode(response.body);
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // 3️⃣ Store session
+      await prefs.setString('session_id', data['session_id']);
+      await prefs.setString('user_email', data['email']);
+
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/home');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+
+      if (data['onboarded'] == false) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        final response = await http.get(
+          Uri.parse(ApiConfig.userProfileEndpoint),
+          headers: {
+            "Authorization": "Bearer ${prefs.getString('session_id')}",
+          },
+        );
+        if (!mounted) return;
+        // GET THE ROLE FROM THE BACKEND AND NAVIGATE TO THE CORRECT PAGE
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final role = (data['role'] ?? '').toString().toLowerCase();
+          if (role.isNotEmpty) {
+            await prefs.setString('user_role', role);
+          }
+          Navigator.pushReplacementNamed(
+            context,
+            '/tenant',
+          );
+        } else {
+          throw Exception("Failed to get user profile");
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login failed: $e")),
+      );
     }
   }
 
@@ -142,48 +177,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // COMMENTED OUT: Email field - keeping for future use
-                      // TextField(
-                      //   controller: emailController,
-                      //   style: const TextStyle(
-                      //       color: Color.fromARGB(255, 0, 0, 0)),
-                      //   decoration: InputDecoration(
-                      //     hintText: 'Email Address',
-                      //     hintStyle: const TextStyle(
-                      //         color: Color.fromARGB(179, 0, 0, 0)),
-                      //     prefixIcon:
-                      //         const Icon(Icons.email, color: Colors.white54),
-                      //     filled: true,
-                      //     fillColor: Colors.white.withOpacity(0.15),
-                      //     border: OutlineInputBorder(
-                      //       borderRadius: BorderRadius.circular(12),
-                      //       borderSide: BorderSide.none,
-                      //     ),
-                      //   ),
-                      // ),
-                      // const SizedBox(height: 16),
-                      // COMMENTED OUT: OTP field - bypassed for now
-                      // if (otpSent)
-                      //   TextField(
-                      //     controller: otpController,
-                      //     style: const TextStyle(
-                      //         color: Color.fromARGB(255, 0, 0, 0)),
-                      //     decoration: InputDecoration(
-                      //       hintText: 'Enter OTP',
-                      //       hintStyle: const TextStyle(
-                      //           color: Color.fromARGB(179, 0, 0, 0)),
-                      //       prefixIcon: const Icon(Icons.lock_outline,
-                      //           color: Colors.white54),
-                      //       filled: true,
-                      //       fillColor: Colors.white.withOpacity(0.15),
-                      //       border: OutlineInputBorder(
-                      //         borderRadius: BorderRadius.circular(12),
-                      //         borderSide: BorderSide.none,
-                      //       ),
-                      //     ),
-                      //     keyboardType: TextInputType.number,
-                      //   ),
-                      const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -229,24 +222,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-                      // COMMENTED OUT: OTP send button - bypassed for now
-                      // const SizedBox(height: 12),
-                      // if (otpSent)
-                      //   SizedBox(
-                      //     width: double.infinity,
-                      //     child: ElevatedButton(
-                      //       onPressed: login,
-                      //       style: ElevatedButton.styleFrom(
-                      //         backgroundColor: Colors.white,
-                      //         foregroundColor: Colors.black,
-                      //         padding: const EdgeInsets.symmetric(vertical: 14),
-                      //         shape: RoundedRectangleBorder(
-                      //           borderRadius: BorderRadius.circular(12),
-                      //         ),
-                      //       ),
-                      //       child: const Text("Login"),
-                      //     ),
-                      //   ),
                     ],
                   ),
                 ),

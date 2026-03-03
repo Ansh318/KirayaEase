@@ -1,12 +1,14 @@
 // lib/onboarding_form.dart
 // COMMENTED OUT: No longer needed since we skip Digio backend call
-// import 'dart:convert';
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
 // import '../services/digio_kyc_service.dart'; // startKycWorkflow(referenceId, customerIdentifier, {emailOrPhone, ...}) // COMMENTED OUT: Skipping Digio KYC
 
@@ -174,6 +176,42 @@ class _OnboardingFormState extends State<OnboardingForm> {
     setState(() => _submitting = true);
     try {
       final prefs = await SharedPreferences.getInstance();
+      final sessionId = prefs.getString('session_id');
+      if (sessionId == null || sessionId.trim().isEmpty) {
+        throw Exception('Session expired. Please login again.');
+      }
+
+      final response = await http.post(
+        Uri.parse(ApiConfig.onboardingEndpoint),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $sessionId',
+        },
+        body: jsonEncode({
+          'first_name': _firstNameController.text.trim(),
+          'last_name': _lastNameController.text.trim(),
+          'role': _selectedRole,
+        }),
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        String error = 'Onboarding failed';
+        try {
+          final body = jsonDecode(response.body) as Map<String, dynamic>;
+          error = (body['detail'] ?? body['message'] ?? error).toString();
+        } catch (_) {}
+        throw Exception(error);
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final success = body['success'] == true;
+      if (!success) {
+        final message = (body['message'] ?? 'Onboarding failed').toString();
+        throw Exception(message);
+      }
+      final roleFromBackend =
+          (body['role'] ?? _selectedRole).toString().toLowerCase();
+
       await prefs.setString(
         'onboarding_first_name',
         _firstNameController.text.trim(),
@@ -186,7 +224,7 @@ class _OnboardingFormState extends State<OnboardingForm> {
         'onboarding_phone',
         _digits(_phoneController.text),
       );
-      await prefs.setString('user_role', _selectedRole);
+      await prefs.setString('user_role', roleFromBackend);
       Navigator.pushReplacementNamed(context, '/tenant');
     } catch (e) {
       if (!mounted) return;

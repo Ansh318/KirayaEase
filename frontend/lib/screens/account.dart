@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 
 /// Simple user account model
 class UserAccount {
@@ -43,11 +46,72 @@ class _AccountPageState extends State<AccountPage> {
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    final firstName = prefs.getString('onboarding_first_name') ?? 'John';
-    final lastName = prefs.getString('onboarding_last_name') ?? 'Doe';
+    // Local fallback values from onboarding / login
+    String firstName = prefs.getString('onboarding_first_name') ?? 'John';
+    String lastName = prefs.getString('onboarding_last_name') ?? 'Doe';
     final email = prefs.getString('user_email') ?? 'john.doe@example.com';
     final rawPhone = prefs.getString('onboarding_phone') ?? '';
-    final role = (prefs.getString('user_role') ?? 'tenant').toLowerCase();
+    String role = (prefs.getString('user_role') ?? 'tenant').toLowerCase();
+    String? aadhaar;
+    String? pan;
+
+    final sessionId = prefs.getString('session_id');
+
+    // Try to hydrate profile from backend if we have a valid session.
+    if (sessionId != null && sessionId.trim().isNotEmpty) {
+      try {
+        final response = await http.get(
+          Uri.parse(ApiConfig.userProfileEndpoint),
+          headers: {
+            'Authorization': 'Bearer $sessionId',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> data =
+              jsonDecode(utf8.decode(response.bodyBytes));
+
+          final apiFirstName = (data['first_name'] ?? '').toString().trim();
+          final apiLastName = (data['last_name'] ?? '').toString().trim();
+          if (apiFirstName.isNotEmpty) {
+            firstName = apiFirstName;
+          }
+          if (apiLastName.isNotEmpty) {
+            lastName = apiLastName;
+          }
+
+          final aadhaarValue = data['aadhaar'];
+          final panValue = data['pan'];
+          aadhaar =
+              aadhaarValue != null ? aadhaarValue.toString().trim() : null;
+          pan = panValue != null ? panValue.toString().trim() : null;
+
+          final apiRole = (data['role'] ?? '').toString().toLowerCase();
+          if (apiRole.isNotEmpty) {
+            role = apiRole;
+            await prefs.setString('user_role', role);
+          }
+        }
+      } catch (_) {
+        // Ignore network / parsing errors and fall back to local data.
+      }
+    }
+
+    final String resolvedIdNumber;
+    if (pan != null && pan.isNotEmpty) {
+      resolvedIdNumber = pan;
+    } else if (aadhaar != null && aadhaar.isNotEmpty) {
+      resolvedIdNumber = aadhaar;
+    } else {
+      resolvedIdNumber = '';
+    }
+
+    final String resolvedStatus;
+    if (resolvedIdNumber.isNotEmpty) {
+      resolvedStatus = 'Verified';
+    } else {
+      resolvedStatus = 'Pending verification';
+    }
 
     user = widget.initial ??
         UserAccount(
@@ -55,8 +119,8 @@ class _AccountPageState extends State<AccountPage> {
           lastName: lastName,
           email: email,
           phone: _formatPhone(rawPhone),
-          idNumber: 'ABCDE1234F', // hardcoded as requested
-          accountStatus: 'Verified', // hardcoded as requested
+          idNumber: resolvedIdNumber,
+          accountStatus: resolvedStatus,
         );
 
     if (!mounted) return;
@@ -221,8 +285,71 @@ class _AccountPageState extends State<AccountPage> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 24),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => _confirmDeleteAccount(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red[700],
+                    ),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text(
+                      'Delete account',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
               ],
             ),
+    );
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete account?'),
+          content: const Text(
+            'This will request deletion of your KirayaEase account. '
+            'You will be signed out on completion.\n\n'
+            'This is a placeholder only – the actual delete-account API '
+            'integration still needs to be wired.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red[700],
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _deleteAccountPlaceholder(context);
+    }
+  }
+
+  Future<void> _deleteAccountPlaceholder(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    // TODO: Replace this placeholder with the real delete-account backend API call.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Delete account pressed. Backend API integration pending.',
+        ),
+      ),
     );
   }
 

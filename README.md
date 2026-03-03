@@ -67,6 +67,65 @@ By turning rent into a predictable, financeable expense, we’re simplifying the
 - **Android Studio / Xcode** (for mobile emulation or real device testing)
 - Backend dependencies (FastAPI, SQLite)
 
+## Solution Architechture 
+
+```mermaid
+flowchart TD
+
+    %% =========================
+    %% DATA LAYER (DECLARE FIRST)
+    %% =========================
+    DB[(Postgres\nSource of Truth)]
+    R[(Redis\nCache / Queue / Idempotency)]
+
+    %% =========================
+    %% CLIENT
+    %% =========================
+    A[Flutter App\nLandlord / Tenant] --> B[FastAPI API Layer]
+
+    %% =========================
+    %% ORCHESTRATOR
+    %% =========================
+    B --> C[AI Orchestrator Agent]
+
+    %% =========================
+    %% SPECIALIZED AGENTS
+    %% =========================
+    C --> D[Lease Agent]
+    C --> E[Payment Agent]
+    C --> F[Risk & Reminder Agent]
+    C --> G[Document Agent]
+
+    %% =========================
+    %% LEASE AGENT TOOLS
+    %% =========================
+    D --> D1[OpenAI LLM]
+    D --> D2[Pinecone Vector Memory]
+    D --> D3[PDF Generator]
+    D --> D4[Digio Integration]
+    D --> DB
+
+    %% =========================
+    %% PAYMENT AGENT TOOLS
+    %% =========================
+    E --> E1[Razorpay API]
+    E --> E2[Webhook Handler]
+    E --> DB
+    E --> R
+
+    %% =========================
+    %% RISK AGENT TOOLS
+    %% =========================
+    F --> F1[Payment History Analyzer]
+    F --> DB
+    F --> R
+
+    %% =========================
+    %% DOCUMENT AGENT TOOLS
+    %% =========================
+    G --> G1[AWS S3 Storage]
+    G --> DB
+```
 
 ## Installation
 

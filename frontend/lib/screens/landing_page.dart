@@ -158,15 +158,43 @@ class LandingPage extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    const Text(
-                      "Your AI Rental Assistant",
-                      style: TextStyle(
-                        fontSize: 55,
-                        color: Colors.black87,
-                      ),
-                      textAlign: TextAlign.center,
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isCompactHero = constraints.maxWidth < 430;
+                        final titleSize = isCompactHero ? 52.0 : 64.0;
+                        final subtitleSize = isCompactHero ? 16.0 : 24.0;
+
+                        return Column(
+                          children: [
+                            Text(
+                              "RentOS",
+                              style: TextStyle(
+                                fontSize: titleSize,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                                height: 1.0,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                "AI That Manages Your Rent",
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: subtitleSize,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 32),
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final isCompact = constraints.maxWidth < 430;

@@ -52,7 +52,7 @@ class MissionSection extends StatelessWidget {
                           Border.all(color: highlightColor.withOpacity(0.3)),
                     ),
                     child: const Text(
-                      "Our mission is to make renting work for tenants not against tenants. With flexible payment plans, transparent terms, and credit-building, rent becomes a lever for your financial growth. We belive in making rent an opportunity — for flexibility today and credit tomorrow.",
+                      "Our mission is to apply AI to the everyday realities of renting. By turning rent into an intelligent, automated system, we eliminate manual follow-ups, guesswork, and missed signals. We believe rent should run predictably in the background — powered by intelligence, not effort.",
                       style: TextStyle(fontSize: 15, height: 1.5),
                     ),
                   ),

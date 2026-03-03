@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../config/api_config.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -7,6 +8,20 @@ class SettingsPage extends StatelessWidget {
   static const _ink = Color(0xFF1C1C1E);
   static const _sub = Color(0xFF6F6F73);
   static const _divider = Color(0xFFE8E8EB);
+  static const _appShareUrl = 'https://kirayaease.com';
+
+  Future<void> _shareKirayaEase(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    const shareText =
+        'Check out KirayaEase for smarter rent management: $_appShareUrl';
+
+    await Clipboard.setData(const ClipboardData(text: _appShareUrl));
+    await Share.share(shareText);
+
+    messenger.showSnackBar(
+      const SnackBar(content: Text('App link copied. Share sheet opened.')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +74,12 @@ class SettingsPage extends StatelessWidget {
                 onTap: () => Navigator.pushNamed(context, '/lease-manager')),
             const _Divider(),
             _Row.icon(
+              icon: Icons.payments_outlined,
+              title: 'Payments',
+              onTap: () {},
+            ),
+            const _Divider(),
+            _Row.icon(
               icon: Icons.bar_chart_rounded,
               title: 'Rent reporting',
               onTap: () => Navigator.pushNamed(context, '/rent-reporting'),
@@ -83,7 +104,7 @@ class SettingsPage extends StatelessWidget {
             _Row.icon(
               icon: Icons.ios_share_rounded,
               title: 'Share KirayaEase',
-              onTap: () {},
+              onTap: () => _shareKirayaEase(context),
             ),
 
             const SizedBox(height: 28),

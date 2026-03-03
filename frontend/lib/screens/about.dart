@@ -275,33 +275,26 @@ class AboutUsPage extends StatelessWidget {
       ),
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        child: Column(
           children: [
-            // --- Team Rows ---
-            TeamRow(
-              name: 'Ansh Agarwal',
-              role: 'Founder',
-              highlights: const [
-                'Ex SWE UBS / Credit Suisse - Credit Technology',
-                'Ex AI Engineer — Howso Inc ',
-                'BSc Data Science & Comp Sci - UW Madison',
-              ],
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: const TeamRow(
+                  name: 'Ansh Agarwal',
+                  role: 'Founder',
+                  highlights: [
+                    'Ex SWE UBS / Credit Suisse - Credit Technology',
+                    'Ex AI Engineer — Howso Inc ',
+                    'BSc Data Science & Comp Sci - UW Madison',
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
-            TeamRow(
-              name: 'Niranjandas Jayadev',
-              role: 'Co-Founder',
-              highlights: const [
-                'Product Manager - Outlook Group',
-                'Ex Product Manager - Enpointe.io',
-                'Business Administration - University of London'
-              ],
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: Footer(),
             ),
-            const SizedBox(height: 28),
-
-            // --- Footer placeholder ---
-            Footer()
           ],
         ),
       ),

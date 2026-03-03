@@ -8,6 +8,7 @@ import 'screens/home_page.dart';
 import 'screens/tenant.dart';
 import 'screens/mission.dart';
 import 'screens/tenant_info.dart';
+import 'screens/landlord_info.dart';
 import 'screens/technology_info.dart';
 import 'screens/learn.dart';
 import 'screens/settings.dart';
@@ -90,6 +91,7 @@ class KirayaEaseApp extends StatelessWidget {
         '/tenant': (context) => const TenantDashboardV2(), // 👥 Tenant view
         '/mission': (context) => const MissionSection(), // 🌱 Vision & Mission
         '/tenant-info': (context) => const TenantInfo(), // 📘 Info page
+        '/landlord-info': (context) => const LandlordInfo(), // 🏢 Info page
         '/technology': (context) => const TechnologyInfo(), // 💻 Tech
         '/learn': (context) => const LearnPage(),
         '/settings': (context) => const SettingsPage(), // 📚 Learn Hub

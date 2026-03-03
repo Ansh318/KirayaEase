@@ -30,9 +30,16 @@ class Footer extends StatelessWidget {
                   ? Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _footerSection("Explore", _exploreLinks()),
-                        const SizedBox(height: 14),
-                        _footerSection("Follow us", _socialLinks()),
+                        Expanded(
+                          child: _footerSection("Explore", _exploreLinks()),
+                        ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: _footerSection("Follow us", _socialLinks()),
+                          ),
+                        ),
                       ],
                     )
                   : Row(
@@ -74,28 +81,25 @@ class Footer extends StatelessWidget {
   }
 
   Widget _footerSection(String title, List<Widget> children) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 150),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: Colors.black87,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Colors.black87,
           ),
-          const SizedBox(height: 8),
-          ...children.map(
-            (child) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: child,
-            ),
+        ),
+        const SizedBox(height: 8),
+        ...children.map(
+          (child) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: child,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

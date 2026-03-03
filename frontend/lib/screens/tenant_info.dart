@@ -33,63 +33,30 @@ class TenantInfo extends StatelessWidget {
           children: [
             const SizedBox(height: 24),
 
-            // Tagline card
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 10)
-                ],
-              ),
-              child: const Column(
-                children: [
-                  Text(
-                    "Rent That Fits Your Budget.",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    "Financial flexibility starts with smarter rent management",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 15, color: Colors.black54),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Benefit Cards with numbered badges
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              alignment: WrapAlignment.center,
-              children: const [
-                BenefitCard.numbered(
-                  number: 1,
+            _InfoSection(
+              heading: "Tenant Value",
+              title: "Rent Without the Stress.",
+              subtitle:
+                  "Stay on time. Build Credibility. Avoid surprises.",
+              benefits: const [
+                _BenefitItem(
                   title: "Convenient Scheduling",
                   desc: "Pay rent on your own schedule.",
                 ),
-                BenefitCard.numbered(
-                  number: 2,
+                _BenefitItem(
                   title: "Smarter Budgeting",
                   desc: "Split rent into smaller chunks.",
                 ),
-                BenefitCard.numbered(
-                  number: 3,
+                _BenefitItem(
                   title: "Build Credit",
                   desc: "On-time payments boost your score.",
                 ),
-                BenefitCard.numbered(
-                  number: 4,
+                _BenefitItem(
                   title: "No Lock-Ins",
                   desc: "Flexibility without long contracts.",
                 ),
               ],
             ),
-
             const SizedBox(height: 48),
 
             // Footer at bottom
@@ -215,4 +182,71 @@ class BenefitCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _InfoSection extends StatelessWidget {
+  final String heading;
+  final String title;
+  final String subtitle;
+  final List<_BenefitItem> benefits;
+
+  const _InfoSection({
+    required this.heading,
+    required this.title,
+    required this.subtitle,
+    required this.benefits,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+          ),
+          child: Column(
+            children: [
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 15, color: Colors.black54),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          alignment: WrapAlignment.center,
+          children: List.generate(
+            benefits.length,
+            (index) => BenefitCard.numbered(
+              number: index + 1,
+              title: benefits[index].title,
+              desc: benefits[index].desc,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BenefitItem {
+  final String title;
+  final String desc;
+
+  const _BenefitItem({required this.title, required this.desc});
 }

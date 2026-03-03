@@ -55,6 +55,24 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
   // Razorpay instance for payment widget
   Razorpay? _razorpay;
 
+  Map<String, dynamic> _decodeJsonMap(http.Response response) {
+    final decodedBody = utf8.decode(response.bodyBytes);
+    final parsed = jsonDecode(decodedBody);
+    if (parsed is Map<String, dynamic>) return parsed;
+    if (parsed is Map) return parsed.cast<String, dynamic>();
+    return <String, dynamic>{};
+  }
+
+  String _sanitizeAiText(String text) {
+    return text
+        .replaceAll('â¹', '₹')
+        .replaceAll('Â₹', '₹')
+        .replaceAll('â', '-')
+        .replaceAll('â', "'")
+        .replaceAll('â', '"')
+        .replaceAll('â', '"');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -79,9 +97,37 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
     super.dispose();
   }
 
-  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+  Future<bool> _verifyPaymentOnServer(PaymentSuccessResponse response) async {
+    final orderId = response.orderId;
+    final paymentId = response.paymentId;
+    final signature = response.signature;
+    if (orderId == null || paymentId == null || signature == null) {
+      return false;
+    }
+
+    final verifyRes = await http.post(
+      Uri.parse(ApiConfig.verifyPaymentEndpoint),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'order_id': orderId,
+        'payment_id': paymentId,
+        'signature': signature,
+      }),
+    );
+    if (verifyRes.statusCode != 200) return false;
+    final payload = _decodeJsonMap(verifyRes);
+    return payload['success'] == true;
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    final verified = await _verifyPaymentOnServer(response);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Payment successful!')),
+      SnackBar(
+        content: Text(
+          verified ? 'Payment successful!' : 'Payment verification failed.',
+        ),
+      ),
     );
   }
 
@@ -193,7 +239,8 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
 
   int? _extractBhkFromText(String? text) {
     if (text == null) return null;
-    final match = RegExp(r'([2-4])\s*bhk', caseSensitive: false).firstMatch(text);
+    final match =
+        RegExp(r'([2-4])\s*bhk', caseSensitive: false).firstMatch(text);
     if (match == null) return null;
     return int.tryParse(match.group(1)!);
   }
@@ -223,9 +270,10 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
       selectedLease ??= leases.first;
       final raw = selectedLease.rawData;
 
-      final locality = (raw['locality']?.toString().trim().toLowerCase().isNotEmpty ?? false)
-          ? raw['locality'].toString().trim().toLowerCase()
-          : _inferLocalityFromText(selectedLease.propertyAddress);
+      final locality =
+          (raw['locality']?.toString().trim().toLowerCase().isNotEmpty ?? false)
+              ? raw['locality'].toString().trim().toLowerCase()
+              : _inferLocalityFromText(selectedLease.propertyAddress);
 
       int? bhk;
       if (raw['bhk'] != null) {
@@ -252,7 +300,8 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
         "property_address": selectedLease.propertyAddress,
         "locality": locality,
         "bhk": bhk,
-        "property_type": (raw['property_type']?.toString() ?? 'apartment').toLowerCase(),
+        "property_type":
+            (raw['property_type']?.toString() ?? 'apartment').toLowerCase(),
         "builtup_sqft": builtupSqft,
         "current_rent": currentRent,
         "tenant_name": selectedLease.tenantName,
@@ -471,20 +520,22 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
           "conversation_history": conversationHistory,
           "user_role": _userRole,
           "active_scope": _activeScope,
-          "active_tenant_id":
-              _activeScope == "tenant" ? _activeTenantId : null,
+          "active_tenant_id": _activeScope == "tenant" ? _activeTenantId : null,
           "property_context": propertyContext,
         }),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = _decodeJsonMap(response);
         final aiText =
             data["response"] ?? "I'm sorry, I couldn't process that request.";
 
         setState(() {
-          messages.add(
-              {"sender": "ai", "text": aiText, "timestamp": DateTime.now()});
+          messages.add({
+            "sender": "ai",
+            "text": _sanitizeAiText(aiText.toString()),
+            "timestamp": DateTime.now()
+          });
         });
 
         // Check if payment order was created and open Razorpay widget
@@ -647,9 +698,10 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
       final res = await http.Response.fromStream(streamed);
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        final Map<String, dynamic> payload = res.body.isEmpty
+        final decoded = utf8.decode(res.bodyBytes);
+        final Map<String, dynamic> payload = decoded.isEmpty
             ? {}
-            : (jsonDecode(res.body) as Map<String, dynamic>);
+            : (jsonDecode(decoded) as Map<String, dynamic>);
         final Map<String, dynamic> fields =
             (payload['fields'] as Map?)?.cast<String, dynamic>() ?? {};
 
@@ -675,7 +727,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
         setState(() {
           messages.add({
             "sender": "ai",
-            "text": leaseDetails,
+            "text": _sanitizeAiText(leaseDetails),
             "timestamp": DateTime.now()
           });
         });
@@ -746,7 +798,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = _decodeJsonMap(response);
         final apiFirstName = (data["first_name"] ?? "").toString().trim();
         final apiName = (data["name"] ?? "").toString().trim();
         final resolvedName = apiFirstName.isNotEmpty
@@ -1427,11 +1479,45 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
     super.dispose();
   }
 
-  void _handleSuccess(PaymentSuccessResponse response) {
-    if (mounted) Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Payment successful!')),
-    );
+  Future<bool> _verifyPaymentOnServer(PaymentSuccessResponse response) async {
+    final orderId = response.orderId;
+    final paymentId = response.paymentId;
+    final signature = response.signature;
+    if (orderId == null || paymentId == null || signature == null) {
+      return false;
+    }
+
+    try {
+      final verifyRes = await http.post(
+        Uri.parse(ApiConfig.verifyPaymentEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'order_id': orderId,
+          'payment_id': paymentId,
+          'signature': signature,
+        }),
+      );
+      if (verifyRes.statusCode != 200) return false;
+      final payload = jsonDecode(utf8.decode(verifyRes.bodyBytes));
+      return payload is Map<String, dynamic> && payload['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _handleSuccess(PaymentSuccessResponse response) async {
+    final verified = await _verifyPaymentOnServer(response);
+    if (!mounted) return;
+    if (verified) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment successful!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment verification failed.')),
+      );
+    }
   }
 
   void _handleError(PaymentFailureResponse response) {
@@ -1494,7 +1580,7 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
       if (response.statusCode != 200) {
         throw Exception('Failed to create payment order');
       }
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
 
       await _openRazorpayPayment(
         orderId: data['id'],
