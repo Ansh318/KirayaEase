@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Header, Request, Query
-from api.v1 import auth, onboarding, agent_chat
-from services.onboarding_services import UserService
+from app.api.v1 import auth, onboarding, agent_chat
+from app.services.onboarding_services import UserService
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,7 +19,6 @@ app.include_router(agent_chat.router)
 # app.include_router(agent_chat.router)
 # DATABASE_URL = os.getenv("DATABASE_URL")
 # razorpay_service = RazorpayPaymentService()
-
 
 @app.get("/")
 def health_check():

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from schemas.google_auth import GoogleToken
-from services.auth_services import AuthManager
+from app.schemas.google_auth import GoogleToken
+from app.services.auth_services import AuthManager
 
 router = APIRouter()
 

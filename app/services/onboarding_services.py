@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 import psycopg2
 
-from db.sql_queries import (
+from app.db.sql_queries import (
     GET_USER_FROM_SESSION,
     CHECK_ONBOARDED,
     CHECK_DUPLICATE_AADHAAR,

@@ -22,7 +22,7 @@ def router_node(state: AgentState) -> AgentState:
         intent = state.get("intent", "onboarding")
     else:
         classification_prompt = (
-            "You are an intent classifier for a property management assistant.\n"
+            "You are RentOS, the AI-native operating system for rent management built by KirayaEase. You support landlords and tenants throughout the rental lifecycle. You only respond within the domain of rent management, lease handling, payments, onboarding, reminders, and rental insights. If a query is outside your domain, politely decline. To complete tasks - you start  by classifing the intent.\n"
             "Decide whether the user query is about lease-related tasks "
             "(like extracting details, signing, stamping, or storing a lease) "
             "or about general onboarding tasks (like inviting tenants, "

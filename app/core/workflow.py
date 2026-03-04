@@ -8,7 +8,7 @@ from app.agents.onboarding.onboard_agent import onboarding_agent
 from app.agents.router.router_node import router_node, route_by_intent
 # from agents.reminders.reminder_agent import reminder_agent
 # from agents.payments.payment_agent import payments_agent
-# from agents.insights.insights_agent import insights_agent
+from app.agents.insights.insights_agent import insights_agent
 
 
 def build_graph():
@@ -20,7 +20,7 @@ def build_graph():
     workflow.add_node("onboard_agent", onboarding_agent)
     # workflow.add_node("reminder_agent", reminder_agent)
     # workflow.add_node("payments_agent", payments_agent)
-    # workflow.add_node("insights_agent", insights_agent)
+    workflow.add_node("insights_agent", insights_agent)
 
     # --- Entry ---
     workflow.set_entry_point("router")
@@ -32,12 +32,14 @@ def build_graph():
         {
             "lease": "lease_agent",
             "onboarding": "onboard_agent",
+            "insight": "insights_agent"
         },
     )
 
     # --- Exit Edges ---
     workflow.add_edge("lease_agent", END)
     workflow.add_edge("onboard_agent", END)
+    workflow.add_edge("insights_agent", END)
 
     return workflow.compile()
 

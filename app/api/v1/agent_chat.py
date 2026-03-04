@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Header
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse, PlainTextResponse
-from core.workflow import build_graph
-from services.onboarding_services import UserService
+from app.core.workflow import build_graph
+from app.services.onboarding_services import UserService
 
 router = APIRouter()
 

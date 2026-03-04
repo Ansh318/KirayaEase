@@ -9,7 +9,7 @@ import psycopg2
 # Load environment variables
 load_dotenv()
 
-from db.sql_queries import (
+from app.db.sql_queries import (
     CREATE_USER,
     FETCH_USER,
     AUTH_SESSION,

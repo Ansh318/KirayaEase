@@ -6,7 +6,7 @@ class ApiConfig {
       'https://kiraya-ease-50d651c2ed49.herokuapp.com';
 
   // Helper methods for common endpoints
-  static String get chatbotEndpoint => '$baseUrl/chatbot';
+  static String get chatbotEndpoint => '$baseUrl/agent-chat';
   static String get userProfileEndpoint => '$baseUrl/user-profile';
   static String get userStatusEndpoint => '$baseUrl/user-status';
   static String get createPaymentOrderEndpoint =>
