@@ -1,5 +1,5 @@
-from typing import TypedDict, Optional, List, Dict, Any
 
+from typing_extensions import TypedDict, Optional, List, Dict, Any
 
 class AgentState(TypedDict, total=False):
     # Core identity
