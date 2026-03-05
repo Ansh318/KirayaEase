@@ -6,7 +6,6 @@ from app.services.lease_extractor import extract_from_pdf
 import json
 import requests
 from app.schemas.property_manager import PropertyManager
-from langchain.agents import create_agent
 from app.core.state import AgentState
 from app.core.modelConfig import ModelConfigManager
 llm = ModelConfigManager('gpt-4o-mini', 0, 3).model()
