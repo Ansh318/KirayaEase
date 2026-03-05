@@ -66,18 +66,35 @@ def create_property(
         "status": "success",
     }
     
-# --- Define Node ---
+# Bind tools ONCE at module level
+
 def onboarding_agent(state: AgentState) -> dict:
-    """Run onboarding agent and return messages + final answer."""
-    agent = create_agent(
-        llm,
-        [extract_lease_details, invite_tenant, create_property],
-        system_prompt=(
-            "You are an onboarding agent with the helpful assistant with access to tools to carry out the tasks. "
-            "1. Extract Lease Details 2. Invite Tenant, 3. Creating and Storing records for uploaded lease documents."
-        ),
-    )
-    result = agent.invoke({"messages": state["user_query"]})
-    messages = result.get("messages", [])
-    answer = messages[-1].content if messages else ""
-    return {"messages": messages, "answer": answer}
+    """Run onboarding agent and return messages."""
+
+    system_prompt = """
+    You are an onboarding agent.
+
+    Responsibilities:
+    1. Extract lease details from uploaded documents.
+    2. Invite tenants when required.
+    3. Create and store property records.
+    4. Always use tools when performing structured operations.
+    5. Never fabricate database records.
+    """
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        *state["messages"]
+    ]
+    onboarding_llm = llm.bind_tools([
+    extract_lease_details,
+    invite_tenant,
+    create_property
+])
+
+
+    response = onboarding_llm.invoke(messages)
+
+    return {
+        "messages": [response]
+    }

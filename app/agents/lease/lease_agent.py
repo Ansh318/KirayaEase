@@ -1,11 +1,4 @@
 from langchain_core.tools import tool
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from dotenv import load_dotenv
-from app.services.lease_extractor import extract_from_pdf
-import json
-import requests
-from app.schemas.property_manager import PropertyManager
-from langchain.agents import create_agent
 from app.agents.lease.talk2lease import TalkToLeaseRAG
 from app.core.state import AgentState
 from app.core.modelConfig import ModelConfigManager
@@ -30,17 +23,30 @@ def inquire_lease(state: AgentState) -> dict:
     answer = rag.answer_question(query, lease_id)
     return {"answer": answer, "lease_id": lease_id}
 
+
 def lease_agent(state: AgentState) -> dict:
-    """Run lease agent and return messages + final answer."""
-    agent = create_agent(
-        llm,
-        [store_lease, inquire_lease],
-        system_prompt=(
-            "You are a lease agent with access to tools to carry out lease-related tasks. "
-            "1. Extract Lease Details 2. Invite Tenant, 3. Creating and Storing records for uploaded lease documents."
-        ),
-    )
-    result = agent.invoke({"messages": state["user_query"]})
-    messages = result.get("messages", [])
-    answer = messages[-1].content if messages else ""
-    return {"messages": messages, "answer": answer}
+    """Run lease agent and return messages."""
+
+    system_prompt = """
+    You are a lease agent with access to tools.
+
+    Responsibilities:
+    1. Extract lease details when required.
+    2. Store lease records when appropriate.
+    3. Answer lease-related questions using inquire_lease tool.
+    4. Never fabricate lease data.
+    5. Always use tools when factual data is required.
+    """
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        *state["messages"]
+    ]
+    lease_llm = llm.bind_tools([store_lease, inquire_lease])
+
+
+    response = lease_llm.invoke(messages)
+
+    return {
+        "messages": [response]
+    }
