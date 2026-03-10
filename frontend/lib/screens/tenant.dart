@@ -679,6 +679,8 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
     _scrollToBottom();
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final sessionId = prefs.getString('session_id');
       final uri = Uri.parse(ApiConfig.extractLeaseContentEndpoint);
       final req = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath(
@@ -688,6 +690,9 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
           contentType: MediaType('application', 'pdf'),
         ))
         ..fields['query'] = query; // Add query as form field
+      if (sessionId != null && sessionId.trim().isNotEmpty) {
+        req.headers['Authorization'] = 'Bearer $sessionId';
+      }
 
       final streamed = await req.send();
       final res = await http.Response.fromStream(streamed);

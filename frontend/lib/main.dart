@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:kirayaease_flutter/screens/lease_management.dart';
+import 'package:kirayaease_flutter/screens/payments_page.dart';
 // Screens
 import 'screens/landing_page.dart';
 import 'screens/login_page.dart';
@@ -100,6 +101,7 @@ class KirayaEaseApp extends StatelessWidget {
         '/pricing': (context) => const PricingPage(),
         '/rent-reporting': (context) => const RentReportingPage(),
         '/lease-manager': (context) => const LeasePage(),
+        '/payments': (context) => const PaymentsPage(),
         '/account': (context) => const AccountPage()
       },
     );

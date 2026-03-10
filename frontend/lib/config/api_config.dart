@@ -19,4 +19,5 @@ class ApiConfig {
   static String get onboardingEndpoint => '$baseUrl/onboarding';
   static String get leasesEndpoint => '$baseUrl/leases';
   static String get propertiesEndpoint => '$baseUrl/properties';
+  static String get paymentsEndpoint => '$baseUrl/payments';
 }

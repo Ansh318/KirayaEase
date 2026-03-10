@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from app.db.sql_queries import GET_USER_FROM_SESSION, GET_LEASES_BY_OWNER
+from app.db.sql_queries import GET_USER_FROM_SESSION, GET_LEASES_BY_OWNER, GET_RENT_CONFIRMATIONS_BY_OWNER
 from app.schemas.property_manager import PropertyManager
 
 load_dotenv()
@@ -64,3 +64,27 @@ class LeaseService:
                     )
                 user_id = row["user_id"]
         return PropertyManager().get_properties_by_owner(user_id)
+
+    def get_payments_for_owner(self, session_token: str) -> list[dict]:
+        """Returns all rent confirmations (payments) for the landlord identified by the session."""
+        with self._get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(GET_USER_FROM_SESSION, (session_token.strip(),))
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Invalid or expired session",
+                    )
+                user_id = row["user_id"]
+                cur.execute(GET_RENT_CONFIRMATIONS_BY_OWNER, (user_id,))
+                rows = cur.fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            for key in ("month", "confirmed_at", "created_at"):
+                v = d.get(key)
+                if isinstance(v, (date, datetime)):
+                    d[key] = v.isoformat()
+            out.append(d)
+        return out

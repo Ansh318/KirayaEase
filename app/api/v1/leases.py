@@ -1,8 +1,155 @@
-from fastapi import APIRouter, Header, HTTPException
+import tempfile
+import os
+from typing import Optional
+
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
+
+from app.db.sql_queries import GET_USER_FROM_SESSION
+from app.db.vector_db_lease import LeaseDocumentProcessor
+from app.schemas.property_manager import PropertyManager
+from app.services.lease_extractor import extract_from_pdf, read_pdf_text
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 from app.services.lease_services import LeaseService
 
 router = APIRouter()
+
+
+def _get_user_id_from_session(session_token: str) -> Optional[int]:
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(GET_USER_FROM_SESSION, (session_token.strip(),))
+            row = cur.fetchone()
+            return int(row["user_id"]) if row else None
+    finally:
+        conn.close()
+
+
+def _extracted_to_frontend_fields(data: dict) -> dict:
+    """Map extractor output to frontend field names (LeaseData.fromExtractedFields)."""
+    name = data.get("name") or ""
+    addr = data.get("address_line1") or ""
+    city = data.get("city") or ""
+    property_address = name or (f"{addr}, {city}".strip(", ") if (addr or city) else "Unknown Property")
+    return {
+        "property_address": property_address,
+        "name": name,
+        "tenant_name": data.get("tenant_name"),
+        "address_line1": data.get("address_line1"),
+        "city": data.get("city"),
+        "state": data.get("state"),
+        "postal_code": data.get("postal_code"),
+        "property_pincode": data.get("postal_code"),
+        "lease_start": data.get("lease_start"),
+        "lease_end": data.get("lease_end"),
+        "start_date": data.get("lease_start"),
+        "end_date": data.get("lease_end"),
+        "monthly_rent": data.get("monthly_rent"),
+        "rent_amount_inr": data.get("monthly_rent"),
+        "security_deposit": data.get("security_deposit"),
+        "lock_in_period": data.get("lock_in_period"),
+        "due_day": data.get("due_day"),
+        "landlord_name": None,
+    }
+
+
+@router.post("/extract-lease-content")
+async def extract_lease_content(
+    file: UploadFile = File(...),
+    query: Optional[str] = Form(None),
+    authorization: Optional[str] = Header(None),
+):
+    """Extract lease data from uploaded PDF. If authenticated, also creates property + lease and indexes for RAG."""
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="A PDF file is required")
+    session_token = (authorization or "").replace("Bearer ", "").strip()
+    user_id = _get_user_id_from_session(session_token) if session_token else None
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        try:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to save file: {e}")
+
+    try:
+        data = extract_from_pdf(tmp_path)
+        fields = _extracted_to_frontend_fields(data)
+        agent_response = None
+        # If key fields are missing, ask the user to clarify BEFORE storing.
+        missing: list[str] = []
+        if not data.get("lease_start"):
+            missing.append("start date (lease_start)")
+        if not data.get("lease_end"):
+            missing.append("end date (lease_end)")
+        if data.get("monthly_rent") in (None, "", 0):
+            missing.append("monthly rent (monthly_rent)")
+        if data.get("due_day") in (None, "", 0):
+            missing.append("rent due day (due_day)")
+        if (data.get("name") in (None, "") and not any([data.get("address_line1"), data.get("city"), data.get("state"), data.get("postal_code")])):
+            missing.append("property address / name")
+
+        if user_id and not missing:
+            name = data.get("name") or "Property"
+            prop = PropertyManager().add_property(
+                owner_id=user_id,
+                name=name,
+                tenant_name=data.get("tenant_name"),
+                address_line1=data.get("address_line1"),
+                city=data.get("city"),
+                state=data.get("state"),
+                postal_code=data.get("postal_code"),
+            )
+            property_id = prop.get("id")
+            if property_id:
+                lease = PropertyManager().add_lease(
+                    property_id=property_id,
+                    lease_start=str(data["lease_start"]),
+                    lease_end=str(data["lease_end"]),
+                    monthly_rent=int(data.get("monthly_rent") or 0),
+                    security_deposit=int(data["security_deposit"]) if data.get("security_deposit") is not None else None,
+                    lock_in_period=int(data["lock_in_period"]) if data.get("lock_in_period") is not None else None,
+                    due_day=int(data.get("due_day") or 1),
+                )
+                lease_id = lease.get("id")
+                if lease_id:
+                    try:
+                        raw_text = read_pdf_text(tmp_path)
+                        processor = LeaseDocumentProcessor()
+                        processor.processs_lease(lease_id=lease_id, landlord_id=user_id, text=raw_text)
+                    except Exception:
+                        pass
+                    agent_response = (
+                        f"Lease stored successfully. Property: {name}, Lease ID: {lease_id}. "
+                        f"Rent: ₹{data.get('monthly_rent', 'N/A')}/month. "
+                        "You can ask questions about this lease or view it in Leases."
+                    )
+        if agent_response is None:
+            if missing:
+                missing_text = "\n".join([f"- {m}" for m in missing])
+                agent_response = (
+                    "I extracted your lease, but I'm missing a few key details before I can save it.\n\n"
+                    f"Please reply with:\n{missing_text}\n\n"
+                    "Once you share those, I’ll store the lease and set up your rent tracking."
+                )
+            else:
+                agent_response = (
+                    "Lease details extracted. "
+                    f"Property: {fields.get('property_address', 'N/A')}, "
+                    f"Rent: ₹{fields.get('rent_amount_inr', 'N/A')}/month, "
+                    f"Tenant: {fields.get('tenant_name') or 'N/A'}. "
+                    + ("Sign in and upload again to save this lease to your portfolio." if not user_id else "")
+                )
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+
+    return {"fields": fields, "agent_response": agent_response, "missing_fields": missing}
 
 
 @router.get("/leases")
@@ -21,3 +168,12 @@ def get_properties(authorization: str = Header(...)):
     if not session_token:
         raise HTTPException(status_code=401, detail="Missing authorization")
     return LeaseService().get_properties_for_owner(session_token)
+
+
+@router.get("/payments")
+def get_payments(authorization: str = Header(...)):
+    """Return all rent confirmations (payments) for the authenticated landlord."""
+    session_token = authorization.replace("Bearer ", "").strip()
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    return LeaseService().get_payments_for_owner(session_token)

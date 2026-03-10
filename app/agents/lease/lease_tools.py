@@ -9,7 +9,11 @@ import json
 
 @tool
 def store_lease(owner_id: int, pdf_path: str) -> dict:
-    """Extract lease data from a PDF, create the property and lease in the DB, and index the document for RAG. Use the current user's id as owner_id (landlord)."""
+    """Extract lease data from a PDF and, if complete, create the property and lease in the DB and index for RAG.
+
+    If critical fields are missing, this tool will return `status='needs_clarification'` and list missing fields
+    so the agent can ask the user before proceeding.
+    """
     data = extract_from_pdf(pdf_path)
     name = data.get("name") or "Property"
     tenant_name = data.get("tenant_name")
@@ -24,8 +28,30 @@ def store_lease(owner_id: int, pdf_path: str) -> dict:
     lock_in_period = data.get("lock_in_period")
     due_day = data.get("due_day") or 1
 
-    if not lease_start or not lease_end:
-        return {"status": "error", "message": "Could not extract lease start/end dates from PDF"}
+    missing: list[str] = []
+    if not lease_start:
+        missing.append("lease_start")
+    if not lease_end:
+        missing.append("lease_end")
+    # monthly_rent=0 can be a fallback; treat as missing if extractor couldn't find it
+    if data.get("monthly_rent") in (None, "", 0):
+        missing.append("monthly_rent")
+    if data.get("due_day") in (None, "", 0):
+        missing.append("due_day")
+    if (data.get("name") in (None, "") and not any([address_line1, city, state, postal_code])):
+        missing.append("property_address")
+
+    if missing:
+        pretty = ", ".join(missing)
+        return {
+            "status": "needs_clarification",
+            "missing_fields": missing,
+            "extracted_data": data,
+            "message": (
+                "I extracted most of your lease, but I'm missing a few key details "
+                f"({pretty}). Please tell me those values and I'll save the lease to your portfolio."
+            ),
+        }
 
     prop = PropertyManager().add_property(
         owner_id=owner_id,
@@ -62,6 +88,7 @@ def store_lease(owner_id: int, pdf_path: str) -> dict:
         "status": "success",
         "property_id": property_id,
         "lease_id": lease_id,
+        "extracted_data": data,
     }
 
 

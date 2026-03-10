@@ -230,3 +230,23 @@ JOIN properties p ON p.id = l.property_id
 WHERE p.owner_id = %s AND rc.status = 'pending'
 ORDER BY rc.month ASC;
 """
+
+
+GET_RENT_CONFIRMATIONS_BY_OWNER = """
+SELECT
+  rc.id AS confirmation_id,
+  rc.lease_id,
+  rc.month,
+  rc.amount,
+  rc.status AS payment_status,
+  rc.confirmed_at,
+  rc.created_at,
+  p.id AS property_id,
+  p.name AS property_name,
+  l.monthly_rent
+FROM rent_confirmations rc
+JOIN leases l ON l.id = rc.lease_id
+JOIN properties p ON p.id = l.property_id
+WHERE p.owner_id = %s
+ORDER BY rc.month DESC, rc.created_at DESC;
+"""

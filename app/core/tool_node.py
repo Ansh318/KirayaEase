@@ -45,6 +45,7 @@ def create_tool_node(tools: List[Any]):
         if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
             return {"messages": []}
         tool_messages: List[BaseMessage] = []
+        state_updates: Dict[str, Any] = {}
         for tc in last_message.tool_calls:
             name = tc["name"]
             args = dict(tc.get("args") or {})
@@ -53,6 +54,11 @@ def create_tool_node(tools: List[Any]):
             if tool:
                 try:
                     result = tool.invoke(args)
+                    if isinstance(result, dict):
+                        # Allow tools to write back into graph state (so the agent can continue conversationally)
+                        for k in ("extracted_data", "lease_id", "property_id", "query_result", "uploaded_lease_path"):
+                            if k in result and result[k] is not None:
+                                state_updates[k] = result[k]
                     if isinstance(result, dict):
                         content = json.dumps(result, default=str)
                     else:
@@ -64,6 +70,6 @@ def create_tool_node(tools: List[Any]):
             tool_messages.append(
                 ToolMessage(content=content, tool_call_id=tc["id"])
             )
-        return {"messages": tool_messages}
+        return {"messages": tool_messages, **state_updates}
 
     return tool_node

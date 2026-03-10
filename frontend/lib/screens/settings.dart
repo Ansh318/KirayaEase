@@ -76,7 +76,7 @@ class SettingsPage extends StatelessWidget {
             _Row.icon(
               icon: Icons.payments_outlined,
               title: 'Payments',
-              onTap: () {},
+              onTap: () => Navigator.pushNamed(context, '/payments'),
             ),
             const _Divider(),
             // Rent reporting – for later

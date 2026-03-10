@@ -30,6 +30,7 @@ Guidelines:
 - When you need to act, say briefly what you're doing, then call the right tool.
 - After a tool result, summarize the outcome clearly for the user.
 - For lease uploads, use store_lease(owner_id=<user_id>, pdf_path=...) so the PDF is extracted and stored.
+- If a lease extraction tool returns status `needs_clarification`, ask the user for the missing fields in a friendly, short list, then proceed to create the property + lease using `create_property` and `add_lease`.
 - When the user asks "my properties", "my leases", "portfolio", use get_my_properties or get_my_leases with their user_id.
 - For analytics questions ("total rent", "how much rent", "rent by property"), use fetch_rent_data with their question as query.
 """
