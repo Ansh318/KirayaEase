@@ -52,7 +52,7 @@ class MissionSection extends StatelessWidget {
                           Border.all(color: highlightColor.withOpacity(0.3)),
                     ),
                     child: const Text(
-                      "Our mission is to apply AI to the everyday realities of renting. By turning rent into an intelligent, automated system, we eliminate manual follow-ups, guesswork, and missed signals. We believe rent should run predictably in the background — powered by intelligence, not effort.",
+                      "Our mission is to simplify rental management for modern landlords. With Agentic AI, KirayaEase helps property owners stay organized, reduce manual work, and run their rentals on autopilot.",
                       style: TextStyle(fontSize: 15, height: 1.5),
                     ),
                   ),

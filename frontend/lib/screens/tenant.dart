@@ -17,15 +17,18 @@ class TenantDashboardV2 extends StatefulWidget {
   State<TenantDashboardV2> createState() => _TenantDashboardV2State();
 }
 
-class _TenantContextOption {
+/// One option in the landlord context selector: Portfolio or a specific property.
+class _PropertyContextOption {
   final String id;
   final String label;
-  final String scope;
+  final String scope; // 'portfolio' | 'property'
+  final Map<String, dynamic>? propertyData;
 
-  const _TenantContextOption({
+  const _PropertyContextOption({
     required this.id,
     required this.label,
     required this.scope,
+    this.propertyData,
   });
 }
 
@@ -33,9 +36,9 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
   final Color bgColor = const Color(0xFFCBF8F3);
   String? userName;
   String _userRole = 'tenant';
-  String _activeScope = 'self'; // self | portfolio | tenant
-  String? _activeTenantId;
-  List<_TenantContextOption> _tenantContexts = const [];
+  String _activeScope = 'self'; // self | portfolio | property
+  String? _activePropertyId;
+  List<_PropertyContextOption> _propertyContexts = const [];
   bool isLoading = true;
 
   // Chat state
@@ -147,85 +150,113 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
     final prefs = await SharedPreferences.getInstance();
     final role = (prefs.getString('user_role') ?? 'tenant').toLowerCase();
     final savedScope = prefs.getString('active_scope');
-    final savedTenantId = prefs.getString('active_tenant_id');
+    final savedPropertyId = prefs.getString('active_property_id');
 
-    List<_TenantContextOption> contexts = const [];
+    List<_PropertyContextOption> contexts = const [];
     if (role == 'landlord') {
-      contexts = await _buildLandlordContexts();
+      contexts = await _buildLandlordPropertyContexts();
     }
 
     if (!mounted) return;
     setState(() {
       _userRole = role == 'landlord' ? 'landlord' : 'tenant';
       if (_userRole == 'landlord') {
-        _tenantContexts = contexts;
-        if (savedScope == 'tenant' &&
-            savedTenantId != null &&
-            contexts.any((item) => item.id == savedTenantId)) {
-          _activeScope = 'tenant';
-          _activeTenantId = savedTenantId;
+        _propertyContexts = contexts;
+        if (savedScope == 'property' &&
+            savedPropertyId != null &&
+            contexts.any((item) => item.id == savedPropertyId)) {
+          _activeScope = 'property';
+          _activePropertyId = savedPropertyId;
         } else {
           _activeScope = 'portfolio';
-          _activeTenantId = null;
+          _activePropertyId = null;
         }
       } else {
         _activeScope = 'self';
-        _activeTenantId = null;
-        _tenantContexts = const [];
+        _activePropertyId = null;
+        _propertyContexts = const [];
       }
     });
   }
 
-  Future<List<_TenantContextOption>> _buildLandlordContexts() async {
-    await LeaseStore().initialize();
-    final leases = LeaseStore().leases;
-    final seen = <String>{};
-    final contexts = <_TenantContextOption>[
-      const _TenantContextOption(
-        id: 'portfolio',
-        label: 'Portfolio (All Tenants)',
-        scope: 'portfolio',
-      ),
-    ];
-
-    for (final lease in leases) {
-      final name = (lease.tenantName ?? '').trim();
-      final tenantId = name.isEmpty ? 'lease_${lease.id}' : name.toLowerCase();
-      if (seen.contains(tenantId)) continue;
-      seen.add(tenantId);
-      contexts.add(
-        _TenantContextOption(
-          id: tenantId,
-          label: name.isEmpty ? 'Tenant ${contexts.length}' : name,
-          scope: 'tenant',
+  Future<List<_PropertyContextOption>> _buildLandlordPropertyContexts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final sessionId = prefs.getString('session_id');
+    if (sessionId == null || sessionId.trim().isEmpty) {
+      return [
+        const _PropertyContextOption(
+          id: 'portfolio',
+          label: 'Portfolio (All Properties)',
+          scope: 'portfolio',
         ),
-      );
+      ];
     }
-    return contexts;
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConfig.propertiesEndpoint),
+        headers: {'Authorization': 'Bearer $sessionId'},
+      );
+      if (response.statusCode != 200) return _defaultPropertyContexts();
+      final List<dynamic> body = response.body.isEmpty
+          ? <dynamic>[]
+          : (jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>? ?? []);
+      final contexts = <_PropertyContextOption>[
+        const _PropertyContextOption(
+          id: 'portfolio',
+          label: 'Portfolio (All Properties)',
+          scope: 'portfolio',
+        ),
+      ];
+      for (final item in body) {
+        final map = item as Map<String, dynamic>;
+        final id = map['id'];
+        final name = map['name']?.toString().trim() ?? 'Property ${contexts.length}';
+        if (id == null) continue;
+        contexts.add(
+          _PropertyContextOption(
+            id: id.toString(),
+            label: name,
+            scope: 'property',
+            propertyData: map,
+          ),
+        );
+      }
+      return contexts;
+    } catch (_) {
+      return _defaultPropertyContexts();
+    }
   }
 
-  Future<void> _onContextChanged(_TenantContextOption selected) async {
+  List<_PropertyContextOption> _defaultPropertyContexts() => [
+        const _PropertyContextOption(
+          id: 'portfolio',
+          label: 'Portfolio (All Properties)',
+          scope: 'portfolio',
+        ),
+      ];
+
+  Future<void> _onContextChanged(_PropertyContextOption selected) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('active_scope', selected.scope);
-    if (selected.scope == 'tenant') {
-      await prefs.setString('active_tenant_id', selected.id);
+    if (selected.scope == 'property') {
+      await prefs.setString('active_property_id', selected.id);
     } else {
-      await prefs.remove('active_tenant_id');
+      await prefs.remove('active_property_id');
     }
 
     if (!mounted) return;
     setState(() {
       _activeScope = selected.scope;
-      _activeTenantId = selected.scope == 'tenant' ? selected.id : null;
+      _activePropertyId = selected.scope == 'property' ? selected.id : null;
     });
   }
 
   String _activeContextLabel() {
-    if (_userRole != 'landlord') return 'Tenant context';
-    if (_activeScope == 'portfolio') return 'Portfolio context';
-    final selected = _tenantContexts.where((t) => t.id == _activeTenantId);
-    if (selected.isEmpty) return 'Tenant context';
-    return 'Tenant: ${selected.first.label}';
+    if (_userRole != 'landlord') return 'Property context';
+    if (_activeScope == 'portfolio') return 'Portfolio (All Properties)';
+    final selected = _propertyContexts.where((p) => p.id == _activePropertyId);
+    if (selected.isEmpty) return 'Property context';
+    return selected.first.label;
   }
 
   String? _inferLocalityFromText(String? text) {
@@ -245,95 +276,49 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
     return int.tryParse(match.group(1)!);
   }
 
+  /// Build property_context for the agent when a specific property is selected.
   Future<Map<String, dynamic>> _buildPropertyContextForChat() async {
-    try {
-      final store = LeaseStore();
-      await store.initialize();
-      final leases = store.leases;
-      if (leases.isEmpty) return {};
-
-      LeaseData? selectedLease;
-
-      if (_userRole == 'landlord' &&
-          _activeScope == 'tenant' &&
-          _activeTenantId != null) {
-        final match = leases.where((l) {
-          final tenantName = (l.tenantName ?? '').trim().toLowerCase();
-          final tenantId = tenantName.isEmpty ? 'lease_${l.id}' : tenantName;
-          return tenantId == _activeTenantId;
-        });
-        if (match.isNotEmpty) {
-          selectedLease = match.first;
-        }
-      }
-
-      selectedLease ??= leases.first;
-      final raw = selectedLease.rawData;
-
-      final locality =
-          (raw['locality']?.toString().trim().toLowerCase().isNotEmpty ?? false)
-              ? raw['locality'].toString().trim().toLowerCase()
-              : _inferLocalityFromText(selectedLease.propertyAddress);
-
-      int? bhk;
-      if (raw['bhk'] != null) {
-        bhk = int.tryParse(raw['bhk'].toString());
-      }
-      bhk ??= _extractBhkFromText(selectedLease.propertyAddress);
-      bhk ??= _extractBhkFromText(raw['property_type']?.toString());
-
-      double? currentRent;
-      if (selectedLease.rentAmount != null) {
-        currentRent = double.tryParse(
-          selectedLease.rentAmount!.replaceAll(',', '').trim(),
-        );
-      }
-
-      int? builtupSqft;
-      if (raw['builtup_sqft'] != null) {
-        builtupSqft = int.tryParse(raw['builtup_sqft'].toString());
-      }
-      builtupSqft ??= int.tryParse(raw['area_sqft']?.toString() ?? '');
-
-      return {
-        "lease_id": selectedLease.id,
-        "property_address": selectedLease.propertyAddress,
-        "locality": locality,
-        "bhk": bhk,
-        "property_type":
-            (raw['property_type']?.toString() ?? 'apartment').toLowerCase(),
-        "builtup_sqft": builtupSqft,
-        "current_rent": currentRent,
-        "tenant_name": selectedLease.tenantName,
-      };
-    } catch (_) {
+    if (_userRole != 'landlord' || _activeScope != 'property' || _activePropertyId == null) {
       return {};
     }
+    final selected = _propertyContexts.where((p) => p.id == _activePropertyId);
+    if (selected.isEmpty || selected.first.propertyData == null) return {};
+    final data = selected.first.propertyData!;
+    return {
+      "property_id": data['id'],
+      "name": data['name']?.toString(),
+      "property_name": data['name']?.toString(),
+      "tenant_name": data['tenant_name']?.toString(),
+      "address_line1": data['address_line1']?.toString(),
+      "city": data['city']?.toString(),
+      "state": data['state']?.toString(),
+      "postal_code": data['postal_code']?.toString(),
+    };
   }
 
-  _TenantContextOption _selectedContextOrFallback() {
-    if (_activeScope == 'tenant' && _activeTenantId != null) {
-      for (final option in _tenantContexts) {
-        if (option.id == _activeTenantId && option.scope == 'tenant') {
+  _PropertyContextOption _selectedContextOrFallback() {
+    if (_activeScope == 'property' && _activePropertyId != null) {
+      for (final option in _propertyContexts) {
+        if (option.id == _activePropertyId && option.scope == 'property') {
           return option;
         }
       }
     }
 
-    for (final option in _tenantContexts) {
+    for (final option in _propertyContexts) {
       if (option.scope == 'portfolio') return option;
     }
 
-    return const _TenantContextOption(
+    return const _PropertyContextOption(
       id: 'portfolio',
-      label: 'Portfolio (All Tenants)',
+      label: 'Portfolio (All Properties)',
       scope: 'portfolio',
     );
   }
 
   Future<void> _showContextPickerSheet() async {
     final selected = _selectedContextOrFallback();
-    final choice = await showModalBottomSheet<_TenantContextOption>(
+    final choice = await showModalBottomSheet<_PropertyContextOption>(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
@@ -359,7 +344,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Choose context',
+                    'Choose property context',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -368,12 +353,12 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                ..._tenantContexts.map((ctx) {
+                ..._propertyContexts.map((ctx) {
                   final isSelected =
                       ctx.id == selected.id && ctx.scope == selected.scope;
                   final icon = ctx.scope == 'portfolio'
-                      ? Icons.apartment_rounded
-                      : Icons.person_outline_rounded;
+                      ? Icons.dashboard_rounded
+                      : Icons.apartment_rounded;
                   return InkWell(
                     borderRadius: BorderRadius.circular(14),
                     onTap: () => Navigator.of(context).pop(ctx),
@@ -511,18 +496,28 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
         };
       }).toList();
 
+      final body = <String, dynamic>{
+        "message": text,
+        "session_id": _sessionId,
+        "conversation_history": conversationHistory,
+        "user_role": _userRole,
+        "active_scope": _activeScope,
+        "property_context": propertyContext,
+      };
+      if (_activeScope == 'property' && _activePropertyId != null) {
+        body["property_id"] = int.tryParse(_activePropertyId!) ?? 0;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final sessionToken = prefs.getString('session_id');
+      final headers = <String, String>{"Content-Type": "application/json"};
+      if (sessionToken != null && sessionToken.trim().isNotEmpty) {
+        headers["Authorization"] = "Bearer $sessionToken";
+      }
       final response = await http.post(
         Uri.parse(ApiConfig.chatbotEndpoint),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "message": text,
-          "session_id": _sessionId,
-          "conversation_history": conversationHistory,
-          "user_role": _userRole,
-          "active_scope": _activeScope,
-          "active_tenant_id": _activeScope == "tenant" ? _activeTenantId : null,
-          "property_context": propertyContext,
-        }),
+        headers: headers,
+        body: jsonEncode(body),
       );
 
       if (response.statusCode == 200) {
@@ -1175,8 +1170,8 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
                           children: [
                             Icon(
                               selectedContext?.scope == 'portfolio'
-                                  ? Icons.apartment_rounded
-                                  : Icons.person_outline_rounded,
+                                  ? Icons.dashboard_rounded
+                                  : Icons.apartment_rounded,
                               size: 18,
                               color: const Color(0xFF167D60),
                             ),
@@ -1184,7 +1179,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
                             Expanded(
                               child: Text(
                                 selectedContext?.label ??
-                                    'Portfolio (All Tenants)',
+                                    'Portfolio (All Properties)',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -1374,21 +1369,21 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
           switch (index) {
             case 0:
               break;
+            // case 1: Payments – commented out
+            // _openAddPaymentSheet();
+            // break;
             case 1:
-              _openAddPaymentSheet();
-              break;
-            case 2:
               Navigator.pushNamed(context, '/settings');
               break;
-            case 3:
+            case 2:
               await _signOut();
               break;
           }
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.payments), label: 'Payments'),
+          // BottomNavigationBarItem(
+          //     icon: Icon(Icons.payments), label: 'Payments'),
           BottomNavigationBarItem(
               icon: Icon(Icons.settings), label: 'Settings'),
           BottomNavigationBarItem(icon: Icon(Icons.logout), label: 'Sign Out'),

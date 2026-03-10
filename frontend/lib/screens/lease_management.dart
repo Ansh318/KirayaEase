@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
-import '../services/lease_store.dart';
 
 class LeasePage extends StatefulWidget {
   final String baseUrl = ApiConfig.baseUrl;
@@ -12,54 +14,66 @@ class LeasePage extends StatefulWidget {
 }
 
 class _LeasePageState extends State<LeasePage> {
-  final LeaseStore _leaseStore = LeaseStore();
   final List<_Lease> _leases = <_Lease>[];
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _initializeLeases();
-    // Listen to lease store changes
-    _leaseStore.addListener(_onLeaseStoreChanged);
+    _fetchLeasesFromApi();
   }
 
-  @override
-  void dispose() {
-    _leaseStore.removeListener(_onLeaseStoreChanged);
-    super.dispose();
-  }
-
-  void _onLeaseStoreChanged() {
-    _loadLeasesFromStore();
-  }
-
-  Future<void> _initializeLeases() async {
-    await _leaseStore.initialize();
-    _loadLeasesFromStore();
-  }
-
-  void _loadLeasesFromStore() {
+  Future<void> _fetchLeasesFromApi() async {
     setState(() {
+      _loading = true;
+      _error = null;
       _leases.clear();
-      _leases.addAll(
-        _leaseStore.leases.map((leaseData) => _Lease(
-          id: leaseData.id,
-          title: leaseData.propertyAddress.split('\n').first.trim(),
-          rentDisplay: _formatINR(leaseData.rentAmount),
-          start: _tryParseDate(leaseData.startDate),
-          end: _tryParseDate(leaseData.endDate),
-          verified: true,
-          landlordName: leaseData.landlordName,
-          landlordPhone: leaseData.landlordPhone,
-          landlordEmail: leaseData.landlordEmail,
-          tenantName: leaseData.tenantName,
-          tenantPhone: leaseData.tenantPhone,
-          propertyAddress: leaseData.propertyAddress,
-          rawData: leaseData.rawData,
-          pdfSource: _extractPdfSource(leaseData.rawData),
-        )),
-      );
     });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sessionId = prefs.getString('session_id');
+      if (sessionId == null || sessionId.trim().isEmpty) {
+        setState(() {
+          _loading = false;
+          _error = 'Please sign in to view your leases.';
+        });
+        return;
+      }
+      final response = await http.get(
+        Uri.parse(ApiConfig.leasesEndpoint),
+        headers: {'Authorization': 'Bearer $sessionId'},
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> body = response.body.isEmpty
+            ? <dynamic>[]
+            : (jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>? ?? []);
+        final List<_Lease> list = [];
+        for (final item in body) {
+          final map = item as Map<String, dynamic>;
+          list.add(_Lease.fromApiMap(map));
+        }
+        setState(() {
+          _leases.clear();
+          _leases.addAll(list);
+          _loading = false;
+          _error = null;
+        });
+      } else {
+        setState(() {
+          _loading = false;
+          _error = response.statusCode == 401
+              ? 'Session expired. Please sign in again.'
+              : 'Failed to load leases (${response.statusCode}).';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _error = 'Could not load leases. Please try again.';
+        _leases.clear();
+      });
+    }
   }
 
 
@@ -83,13 +97,46 @@ class _LeasePageState extends State<LeasePage> {
             letterSpacing: -0.2,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loading ? null : _fetchLeasesFromApi,
+          ),
+        ],
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        itemCount: _leases.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, i) => _LeaseCard(lease: _leases[i]),
-      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFF5B6F85),
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextButton.icon(
+                          onPressed: _fetchLeasesFromApi,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  itemCount: _leases.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, i) => _LeaseCard(lease: _leases[i]),
+                ),
     );
   }
 }
@@ -407,12 +454,14 @@ class _LeaseCardState extends State<_LeaseCard> {
                       _PropertyRow('Tenant Phone', lease.tenantPhone!),
                     if (lease.propertyAddress != null && lease.propertyAddress != lease.title)
                       _PropertyRow('Property Address', lease.propertyAddress!),
-                    if (lease.rawData?['property_pincode'] != null)
-                      _PropertyRow('Pincode', lease.rawData!['property_pincode'].toString()),
-                    if (lease.rawData?['aadhar'] != null)
-                      _PropertyRow('Aadhar', lease.rawData!['aadhar'].toString()),
-                    if (lease.rawData?['pan'] != null)
-                      _PropertyRow('PAN', lease.rawData!['pan'].toString()),
+                    if (lease.rawData?['postal_code'] != null)
+                      _PropertyRow('Pincode', lease.rawData!['postal_code'].toString()),
+                    if (lease.rawData?['security_deposit'] != null)
+                      _PropertyRow('Security deposit', lease.rawData!['security_deposit'].toString()),
+                    if (lease.rawData?['lock_in_period'] != null)
+                      _PropertyRow('Lock-in (months)', lease.rawData!['lock_in_period'].toString()),
+                    if (lease.rawData?['due_day'] != null)
+                      _PropertyRow('Rent due day', lease.rawData!['due_day'].toString()),
                   ],
                 ),
               ),
@@ -616,6 +665,45 @@ class _Lease {
     this.pdfSource,
   });
 
+  /// Build from API response (leases by owner endpoint).
+  static _Lease fromApiMap(Map<String, dynamic> map) {
+    final leaseId = map['lease_id'];
+    final id = leaseId != null ? leaseId.toString() : '';
+    final propertyName = map['property_name']?.toString().trim();
+    final addressLine1 = map['address_line1']?.toString().trim();
+    final city = map['city']?.toString().trim();
+    final state = map['state']?.toString().trim();
+    final postalCode = map['postal_code']?.toString().trim();
+    final parts = [addressLine1, city, state, postalCode]
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final propertyAddress = propertyName ??
+        (parts.isEmpty ? 'Lease #$id' : parts.join(', '));
+    final title = propertyName ?? addressLine1 ?? 'Lease #$id';
+    final monthlyRent = map['monthly_rent'];
+    final rentDisplay = monthlyRent != null
+        ? _formatINR(monthlyRent is int ? monthlyRent.toString() : monthlyRent)
+        : '—';
+    final startStr = map['lease_start']?.toString();
+    final endStr = map['lease_end']?.toString();
+    return _Lease(
+      id: id,
+      title: title,
+      rentDisplay: rentDisplay,
+      start: _tryParseDate(startStr),
+      end: _tryParseDate(endStr),
+      verified: true,
+      landlordName: null,
+      landlordPhone: null,
+      landlordEmail: null,
+      tenantName: map['property_tenant_name']?.toString(),
+      tenantPhone: null,
+      propertyAddress: propertyAddress,
+      rawData: map,
+      pdfSource: null,
+    );
+  }
 }
 
 String _fmtDate(DateTime? d) {
@@ -665,22 +753,3 @@ String _formatINR(dynamic amount) {
   }
 }
 
-String? _extractPdfSource(Map<String, dynamic>? rawData) {
-  if (rawData == null) return null;
-  const candidates = [
-    'pdf_url',
-    'lease_pdf_url',
-    'pdf_link',
-    'file_url',
-    'source_file',
-    'document_url',
-    'lease_document_url',
-  ];
-  for (final key in candidates) {
-    final value = rawData[key];
-    if (value != null && value.toString().trim().isNotEmpty) {
-      return value.toString();
-    }
-  }
-  return null;
-}

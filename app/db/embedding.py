@@ -9,7 +9,7 @@ class EmbeddingManager:
     Uses OpenAI embeddings through LangChain's OpenAIEmbeddings wrapper.
     """
 
-    def __init__(self, model_name: str = "gpt-4", temperature: float = 0, max_retries: int = 1):
+    def __init__(self, model_name: str = "text-embedding-3-small", temperature: float = 0, max_retries: int = 1):
         # Load config + initialize embedding model once
         config = ModelConfigManager(
             model_name=model_name,

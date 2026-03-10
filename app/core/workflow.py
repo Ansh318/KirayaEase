@@ -1,48 +1,62 @@
+
+# All tools used by the agent
+from app.agents.lease.lease_tools import extract_lease_details,store_lease,inquire_lease,create_property,create_property  
+from app.agents.onboarding.onboard_tools import invite_tenant
+from app.agents.insights.insights_tools import fetch_rent_data
 from langgraph.graph import StateGraph, END
+from langgraph.prebuilt import ToolNode
 
 from app.core.state import AgentState
+from app.agents.orchestrator.orchestratore_node import orchestrator_node
+from app.agents.orchestrator.route_tools import should_continue
 
-# from agents.router import router_node, route_by_intent
-from app.agents.lease.lease_agent import lease_agent
-from app.agents.onboarding.onboard_agent import onboarding_agent
-from app.agents.router.router_node import router_node, route_by_intent
-# from agents.reminders.reminder_agent import reminder_agent
-# from agents.payments.payment_agent import payments_agent
-from app.agents.insights.insights_agent import insights_agent
+from app.agents.lease.lease_tools import (
+    extract_lease_details,
+    store_lease,
+    inquire_lease,
+    create_property,
+)
+
+from app.agents.onboarding.onboard_tools import invite_tenant
+from app.agents.insights.insights_tools import fetch_rent_data
 
 
 def build_graph():
     workflow = StateGraph(AgentState)
 
-    # --- Add Nodes ---
-    workflow.add_node("router", router_node)
-    workflow.add_node("lease_agent", lease_agent)
-    workflow.add_node("onboard_agent", onboarding_agent)
-    # workflow.add_node("reminder_agent", reminder_agent)
-    # workflow.add_node("payments_agent", payments_agent)
-    workflow.add_node("insights_agent", insights_agent)
+    # Orchestrator (LLM reasoning)
+    workflow.add_node("orchestrator", orchestrator_node)
 
-    # --- Entry ---
-    workflow.set_entry_point("router")
+    # Tools
+    tools = [
+        extract_lease_details,
+        create_property,
+        store_lease,
+        invite_tenant,
+        fetch_rent_data,
+        inquire_lease,
+    ]
 
-    # --- Routing ---
+    tool_node = ToolNode(tools)
+    workflow.add_node("tools", tool_node)
+
+    # Entry point
+    workflow.set_entry_point("orchestrator")
+
+    # Orchestrator decides: tool or finish
     workflow.add_conditional_edges(
-        "router",
-        route_by_intent,
+        "orchestrator",
+        should_continue,
         {
-            "lease": "lease_agent",
-            "onboarding": "onboard_agent",
-            "insight": "insights_agent"
+            "tools": "tools",
+            "end": END,
         },
     )
 
-    # --- Exit Edges ---
-    workflow.add_edge("lease_agent", END)
-    workflow.add_edge("onboard_agent", END)
-    workflow.add_edge("insights_agent", END)
+    # After tool runs → back to orchestrator
+    workflow.add_edge("tools", "orchestrator")
 
     return workflow.compile()
 
 
-# Compile once
 app_graph = build_graph()

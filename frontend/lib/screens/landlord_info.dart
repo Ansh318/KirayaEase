@@ -59,13 +59,13 @@ class _LandlordInfoSection extends StatelessWidget {
           child: const Column(
             children: [
               Text(
-                "AI for the Everyday Landlord",
+                "Smart Rental Management for Landlords",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
               SizedBox(height: 8),
               Text(
-                "RentOS manages your rent end-to-end — so you don't have to.",
+                "An AI copilot for landlords to manage their rental portfolio.",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 15, color: Colors.black54),
               ),
@@ -80,27 +80,20 @@ class _LandlordInfoSection extends StatelessWidget {
           children: [
             BenefitCard.numbered(
               number: 1,
-              title: "Get Your Time Back",
-              desc:
-                  "No chasing tenants. No manual reminders. RentOS handles collections automatically.",
+              title: "Rent Pulse",
+              desc: "AI keeps track of rent schedules.",
             ),
             BenefitCard.numbered(
               number: 2,
-              title: "Prevent Costly Surprises",
+              title: "Lease Vault",
               desc:
-                  "Spot late-payment risks and vacancy issues before they hurt your cash flow.",
+                  "All your lease terms, rent schedules, and key dates organized in one place.",
             ),
             BenefitCard.numbered(
               number: 3,
-              title: "Only Step In When Necessary",
+              title: "Portfolio Intelligence",
               desc:
-                  "Receive alerts only when your intervention is truly required.",
-            ),
-            BenefitCard.numbered(
-              number: 4,
-              title: "Earn More From Every Property",
-              desc:
-                  "Smarter renewal pricing and lease decisions that increase net yield.",
+                  "Instant insights into rent activity across your properties.",
             ),
           ],
         ),

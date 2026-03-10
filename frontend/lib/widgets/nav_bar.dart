@@ -73,8 +73,13 @@ class NavBar extends StatelessWidget {
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.menu, color: Colors.black87),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
+                    color: Colors.white,
+                    elevation: 8,
+                    surfaceTintColor: Colors.transparent,
+                    shadowColor: Colors.black26,
+                    padding: EdgeInsets.zero,
                     onSelected: (route) {
                       Navigator.pushNamed(context, route);
                     },
@@ -83,9 +88,8 @@ class NavBar extends StatelessWidget {
                         _popupItem("Home", '/'),
                         _popupItem("Mission", '/mission'),
                         _popupItem("Landlords", '/landlord-info'),
-                        _popupItem("Technology", '/technology'),
-                        _popupItem("Learn", '/learn'),
-                        _popupItem("About Us", '/about-us'),
+                        _popupItem("Pricing", '/pricing'),
+                        _popupItem("About Me", '/about-us'),
                       ];
                     },
                   ),
@@ -102,9 +106,8 @@ class NavBar extends StatelessWidget {
       _navItem(context, "Home", '/'),
       _navItem(context, "Mission", '/mission'),
       _navItem(context, "Landlords", '/landlord-info'),
-      _navItem(context, "Technology", '/technology'),
-      _navItem(context, "Learn", '/learn'),
-      _navItem(context, "About Us", '/about-us'),
+      _navItem(context, "Pricing", '/pricing'),
+      _navItem(context, "About Me", '/about-us'),
     ];
   }
 
@@ -125,9 +128,17 @@ class NavBar extends StatelessWidget {
   PopupMenuItem<String> _popupItem(String title, String route) {
     return PopupMenuItem<String>(
       value: route,
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: SizedBox(
+        width: 220,
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+          ),
+        ),
       ),
     );
   }

@@ -1,7 +1,7 @@
 # lease_extractor_llm_min.py
 from io import BytesIO
 import os, json, re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 load_dotenv()
 # ---- your reusable manager ----
@@ -15,11 +15,22 @@ except Exception:
     from PyPDF2 import PdfReader  # fallback
 
 # ========= CONFIG =========
-FIELDS = [
-    "landlord_name","landlord_phone","landlord_email","landlord_address",
-    "property_address","property_pincode","start_date","end_date",
-    "tenant_name","tenant_address","tenant_city","tenant_state",
-    "tenant_pincode","tenant_phone","aadhar","pan","rent_amount_inr"
+# Keys match DB columns: properties (name, tenant_name, address_line1, city, state, postal_code)
+# and leases (lease_start, lease_end, monthly_rent, security_deposit, lock_in_period, due_day).
+# owner_id, property_id, lease_text are set by the app when inserting.
+DB_INSERT_FIELDS = [
+    "name",              # property name (e.g. "Property at <address>")
+    "tenant_name",
+    "address_line1",
+    "city",
+    "state",
+    "postal_code",
+    "lease_start",
+    "lease_end",
+    "monthly_rent",
+    "security_deposit",
+    "lock_in_period",
+    "due_day",
 ]
 MAX_CHARS = 12000
 OVERLAP = 400
@@ -58,54 +69,45 @@ def chunk(text: str, max_chars: int = MAX_CHARS, overlap: int = OVERLAP) -> List
     return out
 
 # ========= PROMPT =========
-PROMPT = """You are extracting fields from an Indian residential lease agreement.
-Return ONLY a compact JSON object with these keys (null if not found):
+PROMPT = """You extract data from an Indian residential lease for database insertion.
+
+Return ONLY a single JSON object with exactly these keys. No explanation, no markdown, no other text—only the JSON. Use null for any value not found.
+
+Keys:
 {keys}
 
-Normalization (best-effort; if unsure, use null):
-- Dates: "YYYY-MM-DD" (parse common formats).
-- Aadhaar: 12 digits only, no spaces.
-- PAN: ABCDE1234F (uppercase).
-- Phone: 10 digits (India).
-- PIN: 6 digits.
-- Rent: digits only (no commas/symbols).
+Rules:
+- name: property name (use full property address or "Property at <address>" if no title)
+- tenant_name, address_line1, city, state, postal_code: from tenant/leased premises; postal_code = 6 digits
+- lease_start, lease_end: dates as "YYYY-MM-DD"
+- monthly_rent, security_deposit: integers (INR)
+- lock_in_period: integer (months), or null
+- due_day: integer 1–31 (day of month rent is due)
 
-Example:
-Input snippet:
+Example input:
 ---
-Owner Name: Rahul Sharma
-Owner Mobile: 9876543210
-Owner Email: rahul@example.com
-Agreement Start Date: 01/04/2024
-Monthly Rent: ₹ 18,500
-Tenant's Name: Priya Singh
-Tenant Mobile Number: 9123456789
-Pin code: 560001
-PAN: ABCDE1234F
+Agreement Start: 01/04/2024, End: 28/02/2025
+Monthly Rent: ₹ 18,500. Security: ₹ 50,000. Lock-in: 6 months. Rent due: 5th.
+Tenant: Priya Singh. Premises: 42 MG Road, Bengaluru, Karnataka 560001.
 ---
 
-Expected JSON:
+Expected output (only this JSON, nothing else):
 {{
-  "landlord_name": "Rahul Sharma",
-  "landlord_phone": "9876543210",
-  "landlord_email": "rahul@example.com",
-  "landlord_address": null,
-  "property_address": null,
-  "property_pincode": null,
-  "start_date": "2024-04-01",
-  "end_date": null,
+  "name": "Property at 42 MG Road",
   "tenant_name": "Priya Singh",
-  "tenant_address": null,
-  "tenant_city": null,
-  "tenant_state": null,
-  "tenant_pincode": "560001",
-  "tenant_phone": "9123456789",
-  "aadhar": null,
-  "pan": "ABCDE1234F",
-  "rent_amount_inr": "18500"
+  "address_line1": "42 MG Road",
+  "city": "Bengaluru",
+  "state": "Karnataka",
+  "postal_code": "560001",
+  "lease_start": "2024-04-01",
+  "lease_end": "2025-02-28",
+  "monthly_rent": 18500,
+  "security_deposit": 50000,
+  "lock_in_period": 6,
+  "due_day": 5
 }}
 
-Now extract from this lease text between <LEASE> tags. Be conservative; use null when not explicit.
+Extract from the lease text between <LEASE> tags. Return only the JSON object.
 
 <LEASE>
 {lease_text}
@@ -114,7 +116,7 @@ Now extract from this lease text between <LEASE> tags. Be conservative; use null
 
 def build_prompt(lease_text: str) -> str:
     return PROMPT.format(
-        keys=json.dumps(FIELDS),
+        keys=json.dumps(DB_INSERT_FIELDS),
         lease_text=lease_text
     )
 
@@ -122,7 +124,7 @@ def build_prompt(lease_text: str) -> str:
 def extract_chunk(text: str) -> Dict[str, Optional[str]]:
     prompt = build_prompt(text)
     msg = LLM.invoke([
-        SystemMessage(content="Extract fields strictly and return only valid JSON."),
+        SystemMessage(content="Return only a single JSON object with the exact keys required for database insertion. No markdown, no explanation, no other text."),
         HumanMessage(content=prompt),
     ])
     raw = (msg.content or "").strip()
@@ -132,13 +134,13 @@ def extract_chunk(text: str) -> Dict[str, Optional[str]]:
     try:
         data = json.loads(raw_json)
         # keep only known fields; map "" or "null" to None
-        return {k: (data.get(k) if data.get(k) not in ["", "null"] else None) for k in FIELDS}
+        return {k: (data.get(k) if data.get(k) not in ["", "null"] else None) for k in DB_INSERT_FIELDS}
     except Exception:
-        return {k: None for k in FIELDS}
+        return {k: None for k in DB_INSERT_FIELDS}
 
 # ========= MERGE =========
 def merge_results(partials: List[Dict[str, Optional[str]]]) -> Dict[str, Optional[str]]:
-    merged = {k: None for k in FIELDS}
+    merged = {k: None for k in DB_INSERT_FIELDS}
     for p in partials:
         for k, v in p.items():
             if merged[k] is None and v not in (None, ""):
@@ -147,35 +149,25 @@ def merge_results(partials: List[Dict[str, Optional[str]]]) -> Dict[str, Optiona
 
 #@tool 
 # ========= PUBLIC API =========
-def extract_from_pdf(pdf_path: str) -> Dict[str, Optional[str]]:
+def extract_from_pdf(pdf_path: str) -> Dict[str, Any]:
     text = read_pdf_text(pdf_path)
     pieces = chunk(text)
     partials = [extract_chunk(t) for t in pieces]
     merged = merge_results(partials)
 
-    # quick normalizations (non-destructive)
+    # Normalize for DB: postal_code 6 digits; numeric fields as int or None
     def digits_only(x): return re.sub(r"\D", "", x) if isinstance(x, str) else x
-    if merged.get("tenant_phone"):
-        d = digits_only(merged["tenant_phone"])
-        merged["tenant_phone"] = d if d and len(d) == 10 else None
-    if merged.get("landlord_phone"):
-        d = digits_only(merged["landlord_phone"])
-        merged["landlord_phone"] = d if d and len(d) == 10 else None
-    if merged.get("tenant_pincode"):
-        d = digits_only(merged["tenant_pincode"])
-        merged["tenant_pincode"] = d if d and len(d) == 6 else None
-    if merged.get("property_pincode"):
-        d = digits_only(merged["property_pincode"])
-        merged["property_pincode"] = d if d and len(d) == 6 else None
-    if merged.get("aadhar"):
-        d = digits_only(merged["aadhar"])
-        merged["aadhar"] = d if d and len(d) == 12 else None
-    if merged.get("pan"):
-        p = (merged["pan"] or "").strip().upper()
-        merged["pan"] = p if re.fullmatch(r"[A-Z]{5}\d{4}[A-Z]", p) else None
-    if merged.get("rent_amount_inr"):
-        merged["rent_amount_inr"] = re.sub(r"[^\d]", "", merged["rent_amount_inr"]) or None
-
+    if merged.get("postal_code"):
+        d = digits_only(merged["postal_code"])
+        merged["postal_code"] = d if d and len(d) == 6 else None
+    for num_key in ("monthly_rent", "security_deposit", "lock_in_period", "due_day"):
+        v = merged.get(num_key)
+        if v is not None:
+            if isinstance(v, int):
+                merged[num_key] = v
+            else:
+                d = digits_only(str(v)) if v else None
+                merged[num_key] = int(d) if d else None
     return merged
 
 # if __name__ == "__main__":

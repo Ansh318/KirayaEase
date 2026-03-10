@@ -24,6 +24,8 @@ dependencies:
   firebase_auth: ^5.3.1
   google_sign_in: ^7.2.0
   share_plus: ^10.0.2
+  google_fonts: ^4.0.4
+  font_awesome_flutter: ^10.7.0
 
 dev_dependencies:
   flutter_test:
@@ -36,6 +38,7 @@ flutter:
   assets:
     - assets/rent_mockup.png
     - assets/logo.png
+    - assets/founder_photo.png
     - assets/intro_video.mp4
     - assets/razorpay.png
     - assets/google.png

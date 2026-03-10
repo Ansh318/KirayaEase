@@ -242,6 +242,8 @@
 // }
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../widgets/footer.dart';
 // import 'footer.dart'; // ← When ready, uncomment and ensure a <Footer/> widget exists
 
@@ -269,7 +271,7 @@ class AboutUsPage extends StatelessWidget {
           onPressed: () => Navigator.maybePop(context),
         ),
         centerTitle: true,
-        title: const Text('About Us',
+        title: const Text('About Me',
             style:
                 TextStyle(fontWeight: FontWeight.w700, color: Colors.black87)),
       ),
@@ -283,9 +285,12 @@ class AboutUsPage extends StatelessWidget {
                 child: const TeamRow(
                   name: 'Ansh Agarwal',
                   role: 'Founder',
+                  imagePath: 'assets/founder_photo.png',
+                  linkedInUrl: 'https://www.linkedin.com/in/ansh-agarwal-75766b187/',
                   highlights: [
-                    'Ex SWE UBS / Credit Suisse - Credit Technology',
-                    'Ex AI Engineer — Howso Inc ',
+                    'Data & AI - Ernst & Young LLP',
+                    'Ex Software Engineer - Union Bank of Switzerland Group AG',
+                    'Ex AI Engineer - Howso Inc',
                     'BSc Data Science & Comp Sci - UW Madison',
                   ],
                 ),
@@ -308,9 +313,13 @@ class TeamRow extends StatelessWidget {
       {super.key,
       required this.name,
       required this.role,
+      this.imagePath,
+      this.linkedInUrl,
       this.highlights = const []});
   final String name;
   final String role;
+  final String? imagePath;
+  final String? linkedInUrl;
   final List<String> highlights;
 
   @override
@@ -331,11 +340,65 @@ class TeamRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(name,
-              style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AboutUsPage.ink)),
+          if (imagePath != null) ...[
+            Center(
+              child: Material(
+                elevation: 8,
+                shadowColor: Colors.black26,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: SizedBox(
+                  width: 120,
+                  height: 120,
+                  child: ClipOval(
+                    child: Image.asset(
+                      imagePath!,
+                      fit: BoxFit.cover,
+                      width: 120,
+                      height: 120,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: Text(name,
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AboutUsPage.ink)),
+              ),
+              if (linkedInUrl != null)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () async {
+                      final uri = Uri.parse(linkedInUrl!);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0A66C2).withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const FaIcon(
+                        FontAwesomeIcons.linkedinIn,
+                        size: 20,
+                        color: Color(0xFF0A66C2),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 2),
           Text(role,
               style: const TextStyle(fontSize: 14, color: AboutUsPage.sub)),

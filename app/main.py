@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Header, Request, Query
-from app.api.v1 import auth, onboarding, agent_chat
+from app.api.v1 import auth, onboarding, agent_chat, leases
 from app.services.onboarding_services import UserService
 
 app = FastAPI()
@@ -14,6 +14,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(onboarding.router)
 app.include_router(agent_chat.router)
+app.include_router(leases.router)
 # app.include_router(payments.router)
 # app.include_router(digio.router)
 # app.include_router(agent_chat.router)

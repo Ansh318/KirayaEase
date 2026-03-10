@@ -79,11 +79,13 @@ class SettingsPage extends StatelessWidget {
               onTap: () {},
             ),
             const _Divider(),
-            _Row.icon(
-              icon: Icons.bar_chart_rounded,
-              title: 'Rent reporting',
-              onTap: () => Navigator.pushNamed(context, '/rent-reporting'),
-            ),
+            // Rent reporting – for later
+            // _Row.icon(
+            //   icon: Icons.bar_chart_rounded,
+            //   title: 'Rent reporting',
+            //   onTap: () => Navigator.pushNamed(context, '/rent-reporting'),
+            // ),
+            // const _Divider(),
             const SizedBox(height: 28),
 
             // ===== Other =====

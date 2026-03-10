@@ -13,6 +13,7 @@ import 'screens/technology_info.dart';
 import 'screens/learn.dart';
 import 'screens/settings.dart';
 import 'screens/about.dart';
+import 'screens/pricing.dart';
 import 'screens/rent_reporting.dart';
 import 'screens/account.dart';
 import 'dart:io' show Platform;
@@ -96,6 +97,7 @@ class KirayaEaseApp extends StatelessWidget {
         '/learn': (context) => const LearnPage(),
         '/settings': (context) => const SettingsPage(), // 📚 Learn Hub
         '/about-us': (context) => const AboutUsPage(),
+        '/pricing': (context) => const PricingPage(),
         '/rent-reporting': (context) => const RentReportingPage(),
         '/lease-manager': (context) => const LeasePage(),
         '/account': (context) => const AccountPage()

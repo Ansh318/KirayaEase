@@ -240,51 +240,6 @@ class _AccountPageState extends State<AccountPage> {
                   label: 'Phone',
                   value: user.phone,
                 ),
-                const SizedBox(height: 10),
-                _infoTile(
-                  icon: Icons.verified_user_outlined,
-                  label: 'Aadhaar / PAN',
-                  value: getMaskedId(user.idNumber),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0x14000000)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: _statusColor(user.accountStatus),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Account status',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF6B6B6B),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        user.accountStatus,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 24),
                 Center(
                   child: TextButton.icon(
@@ -397,14 +352,5 @@ class _AccountPageState extends State<AccountPage> {
         ],
       ),
     );
-  }
-
-  // determine color for status dot
-  Color _statusColor(String status) {
-    final s = status.toLowerCase();
-    if (s.contains('verify') || s.contains('active')) return const Color(0xFF21A07A);
-    if (s.contains('pending')) return Colors.orange;
-    if (s.contains('blocked') || s.contains('suspended')) return Colors.red;
-    return Colors.grey;
   }
 }

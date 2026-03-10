@@ -29,17 +29,13 @@ class _OnboardingFormState extends State<OnboardingForm> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _numPropertiesController = TextEditingController();
 
   // Focus
   final _phoneFocus = FocusNode();
 
   // Session / state
-  // COMMENTED OUT: No longer needed since we skip Digio backend call
-  // String? _sessionToken;
-  bool _verifying = false;
   bool _submitting = false;
-  bool _verified = false;
-  String _selectedRole = 'tenant';
 
   // Utils
   String _digits(String s) => s.replaceAll(RegExp(r'\D'), '');
@@ -52,6 +48,13 @@ class _OnboardingFormState extends State<OnboardingForm> {
     if (d.length != 10) return 'Enter a valid 10-digit mobile number';
     if (!RegExp(r'^[6-9]\d{9}$').hasMatch(d))
       return 'Enter a valid Indian mobile number';
+    return null;
+  }
+
+  String? _numPropertiesValidator(String? v) {
+    if (v == null || v.trim().isEmpty) return 'Required';
+    final n = int.tryParse(v.trim());
+    if (n == null || n < 1 || n > 100) return 'Enter a number between 1 and 100';
     return null;
   }
 
@@ -85,92 +88,8 @@ class _OnboardingFormState extends State<OnboardingForm> {
   //   setState(() => _sessionToken = prefs.getString("session_token"));
   // }
 
-  /// COMMENTED OUT: Digio KYC flow
-  /// Original flow:
-  /// 1) Validate inputs
-  /// 2) POST /digio-kyc  -> { reference_id, customer_identifier }
-  /// 3) Launch Digio SDK via startKycWorkflow(...)
-  Future<void> _startKyc() async {
-    if (_verifying) return;
-
-    // minimal validation (first + last + phone)
-    if ((_required(_firstNameController.text) != null) ||
-        (_required(_lastNameController.text) != null) ||
-        (_phoneValidator(_phoneController.text) != null)) {
-      _formKey.currentState?.validate();
-      return;
-    }
-
-    // COMMENTED OUT: Digio backend call and SDK
-    // _sessionToken ??=
-    //     (await SharedPreferences.getInstance()).getString("session_token");
-    // if (_sessionToken == null) {
-    //   if (!mounted) return;
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     const SnackBar(content: Text("Session expired. Please log in again.")),
-    //   );
-    //   return;
-    // }
-
-    // setState(() => _verifying = true);
-    // try {
-    //   // 1) backend: create Digio session
-    //   final startUrl = Uri.parse('$_baseUrl/digio-kyc');
-    //   final startData = await _postJson(startUrl, {
-    //     "session_token": _sessionToken,
-    //     "phone_number": "+91${_digits(_phoneController.text)}",
-    //     "first_name": _firstNameController.text.trim(),
-    //     "last_name": _lastNameController.text.trim(), // ← FIXED
-    //   });
-
-    //   // 2) extract required fields
-    //   final referenceId = startData['access_token']['entity_id']?.toString();
-    //   final customerIdentifier = startData['access_token']['id']?.toString();
-    //   if (referenceId == null || customerIdentifier == null) {
-    //     throw Exception("Backend missing reference_id / customer_identifier");
-    //   }
-
-    //   // 3) launch Digio SDK
-    //   await startKycWorkflow(
-    //     customerId: referenceId,
-    //     nameOrOtherId: customerIdentifier,
-    //     emailOrPhone:
-    //         "+91${_digits(_phoneController.text)}", // pass phone to SDK helper
-    //   );
-
-    //   if (!mounted) return;
-    //   setState(() => _verified = true);
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     const SnackBar(content: Text("KYC flow started ✅")),
-    //   );
-    //   FocusScope.of(context).unfocus();
-    // } catch (e) {
-    //   if (!mounted) return;
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     SnackBar(content: Text("KYC failed: $e")),
-    //   );
-    // } finally {
-    //   if (mounted) setState(() => _verifying = false);
-    // }
-
-    if (!mounted) return;
-    setState(() {
-      _verified = true;
-      _verifying = false;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Mobile verification completed.")),
-    );
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_verified) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please complete verification first.")),
-      );
-      return;
-    }
 
     if (!mounted) return;
     setState(() => _submitting = true);
@@ -190,7 +109,7 @@ class _OnboardingFormState extends State<OnboardingForm> {
         body: jsonEncode({
           'first_name': _firstNameController.text.trim(),
           'last_name': _lastNameController.text.trim(),
-          'role': _selectedRole,
+          'role': 'landlord',
         }),
       );
 
@@ -209,8 +128,6 @@ class _OnboardingFormState extends State<OnboardingForm> {
         final message = (body['message'] ?? 'Onboarding failed').toString();
         throw Exception(message);
       }
-      final roleFromBackend =
-          (body['role'] ?? _selectedRole).toString().toLowerCase();
 
       await prefs.setString(
         'onboarding_first_name',
@@ -224,8 +141,13 @@ class _OnboardingFormState extends State<OnboardingForm> {
         'onboarding_phone',
         _digits(_phoneController.text),
       );
-      await prefs.setString('user_role', roleFromBackend);
-      Navigator.pushReplacementNamed(context, '/tenant');
+      await prefs.setString('user_role', 'landlord');
+      await prefs.setString(
+        'onboarding_num_properties',
+        _numPropertiesController.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -238,8 +160,9 @@ class _OnboardingFormState extends State<OnboardingForm> {
   @override
   void dispose() {
     _firstNameController.dispose();
-    _lastNameController.dispose(); // ← dispose last name controller
+    _lastNameController.dispose();
     _phoneController.dispose();
+    _numPropertiesController.dispose();
     _phoneFocus.dispose();
     super.dispose();
   }
@@ -332,7 +255,7 @@ class _OnboardingFormState extends State<OnboardingForm> {
                   controller: _phoneController,
                   focusNode: _phoneFocus,
                   keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.done,
+                  textInputAction: TextInputAction.next,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(10),
@@ -343,133 +266,23 @@ class _OnboardingFormState extends State<OnboardingForm> {
                     prefixText: '+91 ',
                   ),
                   validator: _phoneValidator,
-                  onFieldSubmitted: (_) => _startKyc(),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
-                DropdownButtonFormField<String>(
-                  value: _selectedRole,
-                  isExpanded: true,
-                  menuMaxHeight: 220,
-                  borderRadius: BorderRadius.circular(16),
-                  dropdownColor: const Color(0xFFF7FBFB),
-                  icon: const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: Color(0xFF167D60),
-                  ),
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  decoration: inputDecoration.copyWith(
-                    labelText: 'Onboard As',
-                    hintText: 'Choose role',
-                    prefixIcon: const Icon(
-                      Icons.groups_rounded,
-                      color: Color(0xFF167D60),
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFFF4FAF9),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(
-                        color: Color(0x3300C6A6),
-                        width: 1.2,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF00BFA5),
-                        width: 1.6,
-                      ),
-                    ),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'tenant',
-                      child: Row(
-                        children: [
-                          Icon(Icons.person_outline_rounded, size: 18),
-                          SizedBox(width: 8),
-                          Text('Tenant'),
-                        ],
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'landlord',
-                      child: Row(
-                        children: [
-                          Icon(Icons.home_work_outlined, size: 18),
-                          SizedBox(width: 8),
-                          Text('Landlord'),
-                        ],
-                      ),
-                    ),
+                // Number of properties
+                TextFormField(
+                  controller: _numPropertiesController,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(3),
                   ],
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      _selectedRole = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // VERIFY BUTTON
-                InkWell(
-                  onTap: _verifying ? null : _startKyc,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF2FAF9),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _verified
-                            ? const Color(0xFF21A07A)
-                            : const Color(0x2200C6A6),
-                        width: 1,
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _verified
-                              ? Icons.verified_rounded
-                              : Icons.phone_android_rounded,
-                          color: _verified
-                              ? const Color(0xFF21A07A)
-                              : Colors.black54,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _verified
-                                ? 'Identity Verified'
-                                : 'Verify via Mobile (Digio)',
-                            style: TextStyle(
-                              fontWeight:
-                                  _verified ? FontWeight.w600 : FontWeight.w500,
-                              color: _verified
-                                  ? const Color(0xFF167D60)
-                                  : Colors.black87,
-                            ),
-                          ),
-                        ),
-                        if (_verifying)
-                          const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else
-                          const Icon(Icons.chevron_right),
-                      ],
-                    ),
+                  decoration: inputDecoration.copyWith(
+                    labelText: 'Number of properties',
+                    hintText: 'e.g. 1, 5, 10',
                   ),
+                  validator: _numPropertiesValidator,
                 ),
                 const SizedBox(height: 20),
 

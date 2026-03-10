@@ -12,6 +12,7 @@ class ModelConfigManager:
         self.model_name = model_name
         self.temperature = temperature
         self.max_retries = max_retries
+        self.embedding_dimensions = 512
     
     def model(self):
         llm = ChatOpenAI(
@@ -23,7 +24,7 @@ class ModelConfigManager:
 
     def embedding_model(self):
         return OpenAIEmbeddings(
-            model=self.embedding_model_name,
+            model=self.model_name,
             dimensions=self.embedding_dimensions
         )
     

@@ -17,4 +17,6 @@ class ApiConfig {
   static String get digioKycEndpoint => '$baseUrl/digio-kyc';
   static String get googleLoginEndpoint => '$baseUrl/auth-google';
   static String get onboardingEndpoint => '$baseUrl/onboarding';
+  static String get leasesEndpoint => '$baseUrl/leases';
+  static String get propertiesEndpoint => '$baseUrl/properties';
 }

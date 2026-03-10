@@ -109,18 +109,13 @@ class LandingPage extends StatelessWidget {
             'AI reads your lease details, rent cycle, and tenant info to create a live rent system.',
       ),
       StepData(
-        title: 'Tenant Onboarding',
-        desc:
-            'Complete KYC verification and onboarding to your apartment.',
-      ),
-      StepData(
         title: 'AI runs the rent cycle',
         desc:
             'Our AI tracks due dates, nudges tenants, flags issues & provide insights to increase rental income.',
       ),
       StepData(
         title: 'Rent gets paid on time, everytime',
-        desc: 'We pay your landlord directly or give you a secure gateway.',
+        desc: 'Smart reminders keep every rent payment on schedule.',
       ),
     ];
 
@@ -180,7 +175,7 @@ class LandingPage extends StatelessWidget {
                             FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                "AI That Manages Your Rent",
+                                "AI For Modern Landlords",
                                 maxLines: 1,
                                 style: TextStyle(
                                   fontSize: subtitleSize,
@@ -209,38 +204,27 @@ class LandingPage extends StatelessWidget {
                           ),
                         );
 
+                        const maxButtonWidth = 200.0;
                         if (isCompact) {
                           return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              ElevatedButton(
-                                style: buttonStyle,
-                                onPressed: () {
-                                  Navigator.pushNamed(context, '/login');
-                                },
-                                child: const Text(
-                                  "Sign in",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              ElevatedButton(
-                                style: buttonStyle,
-                                onPressed: () {
-                                  Navigator.pushNamed(context, '/login');
-                                },
-                                child: const Text(
-                                  "Create Account",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
+                              Center(
+                                child: SizedBox(
+                                  width: maxButtonWidth,
+                                  child: ElevatedButton(
+                                    style: buttonStyle,
+                                    onPressed: () {
+                                      Navigator.pushNamed(context, '/login');
+                                    },
+                                    child: const Text(
+                                      "Sign in",
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -248,45 +232,25 @@ class LandingPage extends StatelessWidget {
                           );
                         }
 
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                style: buttonStyle,
-                                onPressed: () {
-                                  Navigator.pushNamed(context, '/login');
-                                },
-                                child: const Text(
-                                  "Sign in",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                        return Center(
+                          child: SizedBox(
+                            width: maxButtonWidth,
+                            child: ElevatedButton(
+                              style: buttonStyle,
+                              onPressed: () {
+                                Navigator.pushNamed(context, '/login');
+                              },
+                              child: const Text(
+                                "Sign in",
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton(
-                                style: buttonStyle,
-                                onPressed: () {
-                                  Navigator.pushNamed(context, '/login');
-                                },
-                                child: const Text(
-                                  "Create Account",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         );
                       },
                     ),
@@ -297,11 +261,11 @@ class LandingPage extends StatelessWidget {
               const Text(
                 "How does it work?",
                 style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w500,
-                  fontFamily: 'Inter',
-                  color: Colors.black87,
-                  letterSpacing: 1.0,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A1A1A),
+                  letterSpacing: -0.5,
+                  height: 1.2,
                 ),
                 textAlign: TextAlign.left,
               ),
