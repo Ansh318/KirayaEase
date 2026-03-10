@@ -42,63 +42,37 @@ DATABASE SCHEMA
 users
 - id (BIGSERIAL PRIMARY KEY)
 - email (TEXT UNIQUE)
+- first_name, last_name (TEXT)
 - onboarded (BOOLEAN)
 - created_at (TIMESTAMPTZ)
-
-user_profiles
-- user_id (BIGINT PRIMARY KEY → users.id)
-- role ('tenant','landlord')
-- first_name
-- last_name
-- aadhaar
-- pan
-- date_of_birth
 
 properties
 - id (BIGSERIAL PRIMARY KEY)
 - owner_id → users.id
-- landlord_name
-- name
-- address_line1
-- city
-- state
-- postal_code
+- name, tenant_name (TEXT)
+- address_line1, city, state, postal_code
 - created_at
 
 leases
 - id (BIGSERIAL PRIMARY KEY)
 - property_id → properties.id
-- tenant_id → users.id
-- lease_text
-- lease_start
-- lease_end
-- monthly_rent
-- security_deposit
-- lock_in_period
-- due_day
+- lease_text, lease_start (DATE), lease_end (DATE)
+- monthly_rent, security_deposit, lock_in_period, due_day (INT)
 - status ('active','inactive','expired')
+- created_at
 
-rent_payments
+rent_confirmations
 - id (BIGSERIAL PRIMARY KEY)
 - lease_id → leases.id
-- amount
-- payment_date
-- status ('paid','pending','failed')
-- payment_method ('UPI','Card','NetBanking','Wallet')
-- sender_id → users.id
-- receiver_id → users.id
-- receipt_id
+- confirmed_by → users.id
+- month (DATE), amount (INT), status ('pending','confirmed')
+- confirmed_at, notes, created_at
 
 RELATIONSHIPS
-
 properties.owner_id → users.id
-
 leases.property_id → properties.id
-leases.tenant_id → users.id
-
-rent_payments.lease_id → leases.id
-rent_payments.sender_id → users.id
-rent_payments.receiver_id → users.id
+rent_confirmations.lease_id → leases.id
+rent_confirmations.confirmed_by → users.id
 """
 
     # ==========================================================

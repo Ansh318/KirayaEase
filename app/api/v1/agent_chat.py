@@ -1,8 +1,8 @@
-import tempfile
-import os
 from typing import Optional, Any
 
-from fastapi import APIRouter, HTTPException, Header, File, UploadFile, Form, Body
+from fastapi import APIRouter, HTTPException, Header, Body
+from langchain_core.messages import HumanMessage
+
 from app.core.workflow import build_graph
 from app.services.onboarding_services import UserService
 
@@ -11,11 +11,11 @@ router = APIRouter()
 
 def _get_profile(session_token: str | None):
     if not session_token:
-        return {"user_id": 0, "role": "tenant"}
+        return {"user_id": 0}
     try:
         return UserService().get_user_by_token(session_token)
     except Exception:
-        return {"user_id": 0, "role": "tenant"}
+        return {"user_id": 0}
 
 
 def build_initial_state(
@@ -26,15 +26,20 @@ def build_initial_state(
     property_id: Optional[int] = None,
     scope: Optional[str] = None,
     property_context: Optional[dict[str, Any]] = None,
+    role: Optional[str] = None,
 ):
     session_token = (authorization or "").replace("Bearer ", "").strip() or session_id
     profile = _get_profile(session_token)
+    # Role is not stored in DB anymore; use request body (user_role) or default
+    resolved_role = (role or "").strip().lower() or "tenant"
+    if resolved_role not in ("tenant", "landlord"):
+        resolved_role = "tenant"
     state = {
-        "messages": [{"role": "user", "content": message}],
-        "user_id": profile["user_id"],
-        "role": profile["role"],
+        "messages": [HumanMessage(content=message)],
+        "user_query": message,
+        "user_id": profile.get("user_id", 0),
+        "role": resolved_role,
         "session_id": session_token,
-        "intent": None,
         "query_result": None,
         "uploaded_lease_path": uploaded_lease_path,
     }
@@ -58,6 +63,7 @@ def agent_chat(
     property_id = body.get("property_id")
     scope = body.get("active_scope") or body.get("scope") or "portfolio"
     property_context = body.get("property_context")
+    role = body.get("user_role")
 
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
@@ -69,6 +75,7 @@ def agent_chat(
         property_id=property_id,
         scope=scope,
         property_context=property_context,
+        role=role,
     )
     result = build_graph().invoke(state)
     # Frontend expects "response" with the assistant reply text

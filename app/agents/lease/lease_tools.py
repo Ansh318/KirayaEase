@@ -1,39 +1,78 @@
 from langchain_core.tools import tool
 from app.agents.lease.talk2lease import TalkToLeaseRAG
-from app.core.state import AgentState
 from app.core.modelConfig import ModelConfigManager
 from app.db.vector_db_lease import LeaseDocumentProcessor
-from app.services.lease_extractor import extract_from_pdf
+from app.services.lease_extractor import extract_from_pdf, read_pdf_text
 from app.schemas.property_manager import PropertyManager
-# llm = ModelConfigManager('gpt-4o-mini', 0, 3).model()
 import json
 
+
 @tool
-def store_lease(lease_id_num, landlord_id_num, lease_text):
-    "DocString"
-    processor = LeaseDocumentProcessor()
+def store_lease(owner_id: int, pdf_path: str) -> dict:
+    """Extract lease data from a PDF, create the property and lease in the DB, and index the document for RAG. Use the current user's id as owner_id (landlord)."""
+    data = extract_from_pdf(pdf_path)
+    name = data.get("name") or "Property"
+    tenant_name = data.get("tenant_name")
+    address_line1 = data.get("address_line1")
+    city = data.get("city")
+    state = data.get("state")
+    postal_code = data.get("postal_code")
+    lease_start = data.get("lease_start")
+    lease_end = data.get("lease_end")
+    monthly_rent = data.get("monthly_rent") or 0
+    security_deposit = data.get("security_deposit")
+    lock_in_period = data.get("lock_in_period")
+    due_day = data.get("due_day") or 1
 
-    processor.processs_lease(
-        lease_id = lease_id_num,
-        landlord_id = landlord_id_num,
-        text = lease_text
+    if not lease_start or not lease_end:
+        return {"status": "error", "message": "Could not extract lease start/end dates from PDF"}
+
+    prop = PropertyManager().add_property(
+        owner_id=owner_id,
+        name=name,
+        tenant_name=tenant_name,
+        address_line1=address_line1,
+        city=city,
+        state=state,
+        postal_code=postal_code,
     )
-    extract_text =  extract_from_pdf(lease_text)
+    property_id = prop.get("id")
+    if not property_id:
+        return {"status": "error", "message": "Failed to create property"}
 
-    #Step 2 - Store record in SQL 
-    #Return success 
-    pass
+    lease = PropertyManager().add_lease(
+        property_id=property_id,
+        lease_start=str(lease_start),
+        lease_end=str(lease_end),
+        monthly_rent=int(monthly_rent),
+        security_deposit=int(security_deposit) if security_deposit is not None else None,
+        lock_in_period=int(lock_in_period) if lock_in_period is not None else None,
+        due_day=int(due_day),
+    )
+    lease_id = lease.get("id")
 
-@tool 
-def inquire_lease(state: AgentState) -> dict:
-    """Inquire about a lease"""
+    try:
+        raw_text = read_pdf_text(pdf_path)
+        processor = LeaseDocumentProcessor()
+        processor.processs_lease(lease_id=lease_id, landlord_id=owner_id, text=raw_text)
+    except Exception:
+        pass
+
+    return {
+        "status": "success",
+        "property_id": property_id,
+        "lease_id": lease_id,
+    }
+
+
+@tool
+def inquire_lease(query: str, lease_id: int) -> dict:
+    """Answer a question about a specific lease using the stored lease document. Pass the user's question and the lease id."""
     rag = TalkToLeaseRAG(
         model_name="gpt-4o-mini",
         temperature=0,
         max_retries=3,
     )
-    query = state["user_query"]
-    lease_id = state["lease_id"]
     answer = rag.answer_question(query, lease_id)
     return {"answer": answer, "lease_id": lease_id}
 

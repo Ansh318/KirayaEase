@@ -220,3 +220,13 @@ FROM rent_confirmations
 WHERE status = 'pending'
 ORDER BY month ASC;
 """
+
+
+GET_PENDING_RENTS_BY_OWNER = """
+SELECT rc.*, p.name AS property_name, l.monthly_rent
+FROM rent_confirmations rc
+JOIN leases l ON l.id = rc.lease_id
+JOIN properties p ON p.id = l.property_id
+WHERE p.owner_id = %s AND rc.status = 'pending'
+ORDER BY rc.month ASC;
+"""
