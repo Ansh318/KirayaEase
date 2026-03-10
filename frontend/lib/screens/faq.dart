@@ -52,12 +52,12 @@ class FaqPage extends StatelessWidget {
                   _FaqItem(
                     question: 'Where can I see all my leases?',
                     answer:
-                        'Open Settings → “Lease manager”. You will see all active and past leases, along with rent, dates, tenant name, and the attached PDF.',
+                        'Open Settings → “Settings and properties”. You will see all active and past leases, along with rent, dates, tenant name, and the attached PDF.',
                   ),
                   _FaqItem(
                     question: 'How do I view the lease PDF?',
                     answer:
-                        'On the Lease manager screen, tap “View Lease” on a card. If a PDF is attached, it opens directly inside the app.',
+                        'On the Properties screen, tap “View Lease” on a card. If a PDF is attached, it opens directly inside the app.',
                   ),
                   _FaqItem(
                     question: 'A tenant paid rent – how do I confirm it?',
@@ -67,7 +67,7 @@ class FaqPage extends StatelessWidget {
                   _FaqItem(
                     question: 'Can I delete a lease?',
                     answer:
-                        'Yes. Open Settings → “Lease manager”, tap “View Lease”, and use the delete icon in the top-right of the drawer.',
+                        'Yes. Open Settings → “Settings and properties”, tap “View Lease”, and use the delete icon in the top-right of the drawer.',
                   ),
                   _FaqItem(
                     question: 'What happens if I sign out?',

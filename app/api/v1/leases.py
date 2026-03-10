@@ -116,7 +116,7 @@ async def extract_lease_content(
                 lease_id_existing = existing.get("lease_id")
                 agent_response = (
                     "This lease has already been uploaded. "
-                    "You can view it in the **Leases** section (Settings → Lease manager)."
+                    "You can view it in the **Properties** section (Settings → Settings and properties)."
                 )
                 return {
                     "fields": fields,

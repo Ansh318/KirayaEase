@@ -704,20 +704,12 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
     setState(() {
       _isUploadingFile = true;
       _isSendingMessage = true;
-      // Show user's message with file
-      if (query.isNotEmpty) {
-        messages.add({
-          "sender": "user",
-          "text": "📄 $filename\n\n$query",
-          "timestamp": DateTime.now()
-        });
-      } else {
-        messages.add({
-          "sender": "user",
-          "text": "📄 $filename",
-          "timestamp": DateTime.now()
-        });
-      }
+      // Show only file (icon + name), not the query text
+      messages.add({
+        "sender": "user",
+        "text": "📄 $filename",
+        "timestamp": DateTime.now()
+      });
       _messageController.clear();
     });
 
@@ -989,59 +981,8 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
       controller: _scrollController,
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      itemCount: messages.length + (_isSendingMessage ? 1 : 0),
+      itemCount: messages.length,
       itemBuilder: (context, index) {
-        if (index == messages.length) {
-          // Loading indicator with AI icon style
-          return Padding(
-            padding: const EdgeInsets.only(left: 0, top: 8, bottom: 8),
-            child: Row(
-              children: [
-                Container(
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFFCBF8F3),
-                        Color(0xFF9EE8DD),
-                      ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFCBF8F3).withOpacity(0.4),
-                        blurRadius: 6,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1.2,
-                      ),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(5.0),
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-              ],
-            ),
-          );
-        }
-
-        final message = messages[index];
         final isUser = message["sender"] == "user";
 
         return Padding(
@@ -1312,24 +1253,26 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
             Expanded(
               child: messages.isEmpty ? _buildInitialState() : _buildChatView(),
             ),
-            // Input field with send button - always visible at bottom
+            // Typing indicator (dots above input bar, OpenAI-style)
+            if (_isSendingMessage || _isUploadingFile) _TypingDots(),
+            // Input field with send button - white glassy (matches agent bubble)
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
               child: Container(
                 decoration: BoxDecoration(
                   color: _selectedFileName != null
                       ? const Color(0xFFF0FAF9)
-                      : Colors.white,
+                      : const Color(0xFFF7FCFB),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: _selectedFileName != null
                         ? const Color(0xFFB8E6E1)
-                        : const Color(0xFFE0E0E0),
+                        : const Color(0xFFE0F2EF),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withOpacity(0.03),
                       blurRadius: 12,
                       offset: const Offset(0, 2),
                     ),
@@ -1337,7 +1280,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                 ),
                 child: Row(
                   children: [
-                    // Lease / attach icon - shows lease doc when file selected
+                    // Lease / attach icon - no spinner when loading; dots show above
                     GestureDetector(
                       onTap: _isUploadingFile ? null : _pickAndUploadFile,
                       child: Container(
@@ -1347,9 +1290,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                         decoration: BoxDecoration(
                           color: _selectedFileName != null
                               ? const Color(0xFFE0F5F3)
-                              : (_isUploadingFile
-                                  ? const Color(0xFFEEEEEE)
-                                  : const Color(0xFFF5F5F5)),
+                              : const Color(0xFFF5F5F5),
                           shape: BoxShape.circle,
                           border: _selectedFileName != null
                               ? Border.all(
@@ -1358,26 +1299,15 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                                 )
                               : null,
                         ),
-                        child: _isUploadingFile
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF1AAE9F),
-                                  ),
-                                ),
-                              )
-                            : Icon(
-                                _selectedFileName != null
-                                    ? Icons.description_rounded
-                                    : Icons.attach_file_rounded,
-                                color: _selectedFileName != null
-                                    ? const Color(0xFF1AAE9F)
-                                    : const Color(0xFF5C5C5C),
-                                size: 20,
-                              ),
+                        child: Icon(
+                          _selectedFileName != null
+                              ? Icons.description_rounded
+                              : Icons.attach_file_rounded,
+                          color: (_isUploadingFile || _selectedFileName != null)
+                              ? const Color(0xFF1AAE9F)
+                              : const Color(0xFF5C5C5C),
+                          size: 20,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -1443,7 +1373,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                         textInputAction: TextInputAction.send,
                       ),
                     ),
-                    // Send button
+                    // Send button - no spinner; dots above show loading
                     GestureDetector(
                       onTap: _sendMessage,
                       child: Container(
@@ -1451,7 +1381,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                         height: 40,
                         margin: const EdgeInsets.only(right: 6, top: 6, bottom: 6),
                         decoration: BoxDecoration(
-                          gradient: _isSendingMessage
+                          gradient: (_isSendingMessage || _isUploadingFile)
                               ? null
                               : const LinearGradient(
                                   begin: Alignment.topLeft,
@@ -1461,11 +1391,11 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                                     Color(0xFF158F7A),
                                   ],
                                 ),
-                          color: _isSendingMessage
+                          color: (_isSendingMessage || _isUploadingFile)
                               ? const Color(0xFFE0E0E0)
                               : null,
                           shape: BoxShape.circle,
-                          boxShadow: _isSendingMessage
+                          boxShadow: (_isSendingMessage || _isUploadingFile)
                               ? null
                               : [
                                   BoxShadow(
@@ -1475,22 +1405,11 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                                   ),
                                 ],
                         ),
-                        child: _isSendingMessage
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF1A1A1A),
-                                  ),
-                                ),
-                              )
-                            : const Icon(
-                                Icons.arrow_upward_rounded,
-                                color: Colors.white,
-                                size: 20,
-                              ),
+                        child: const Icon(
+                          Icons.arrow_upward_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ],
@@ -1844,6 +1763,63 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
           ),
         );
       },
+    );
+  }
+}
+
+/// OpenAI-style typing indicator: three pulsing dots above the input bar.
+class _TypingDots extends StatefulWidget {
+  const _TypingDots();
+
+  @override
+  State<_TypingDots> createState() => _TypingDotsState();
+}
+
+class _TypingDotsState extends State<_TypingDots>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 24, bottom: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (i) {
+          return AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              final t = (_controller.value + i * 0.33) % 1.0;
+              final opacity =
+                  0.3 + 0.7 * (1 - (t - 0.5).abs() * 2).clamp(0.0, 1.0);
+              return Container(
+                margin: const EdgeInsets.only(right: 4),
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF1AAE9F).withOpacity(opacity),
+                ),
+              );
+            },
+          );
+        }),
+      ),
     );
   }
 }

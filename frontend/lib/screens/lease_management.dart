@@ -92,7 +92,7 @@ class _LeasePageState extends State<LeasePage> {
         centerTitle: false,
         titleSpacing: 16,
         title: const Text(
-          'Leases',
+          'Properties',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w800,
@@ -454,16 +454,33 @@ class _LeaseCardState extends State<_LeaseCard> {
                 children: [
                   _ActiveChip(active: isActive),
                   const SizedBox(height: 8),
-                  _GlassPdfButton(
-                    label: 'View Lease',
-                    onTap: () {
-                      if (lease.pdfSource != null &&
-                          lease.pdfSource!.trim().isNotEmpty) {
-                        _openPdfInApp(context, lease);
-                      } else {
-                        _openLeaseSidePanel(lease);
-                      }
-                    },
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _GlassPdfButton(
+                        label: 'View Lease',
+                        onTap: () {
+                          if (lease.pdfSource != null &&
+                              lease.pdfSource!.trim().isNotEmpty) {
+                            _openPdfInApp(context, lease);
+                          } else {
+                            _openLeaseSidePanel(lease);
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: _deleting
+                            ? null
+                            : () => _confirmDeleteLease(context, lease),
+                        icon: const Icon(Icons.delete_outline,
+                            color: Color(0xFFB42318), size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                            minWidth: 32, minHeight: 32),
+                        tooltip: 'Delete lease',
+                      ),
+                    ],
                   ),
                 ],
               ),
