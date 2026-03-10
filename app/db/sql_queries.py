@@ -215,6 +215,53 @@ AND month = %s;
 """
 
 
+UPSERT_CONFIRM_RENT_PAYMENT = """
+INSERT INTO rent_confirmations (lease_id, confirmed_by, month, amount, status, confirmed_at)
+SELECT %s, %s, %s, l.monthly_rent, 'confirmed', NOW()
+FROM leases l
+WHERE l.id = %s
+ON CONFLICT (lease_id, month)
+DO UPDATE SET
+  confirmed_by = EXCLUDED.confirmed_by,
+  amount = EXCLUDED.amount,
+  status = 'confirmed',
+  confirmed_at = NOW();
+"""
+
+
+# =========================
+# LEASE FILES (PDF storage)
+# =========================
+
+UPSERT_LEASE_FILE = """
+INSERT INTO lease_files (lease_id, content, content_type)
+VALUES (%s, %s, %s)
+ON CONFLICT (lease_id)
+DO UPDATE SET
+  content = EXCLUDED.content,
+  content_type = EXCLUDED.content_type,
+  updated_at = NOW();
+"""
+
+GET_LEASE_FILE_FOR_OWNER = """
+SELECT lf.content, COALESCE(lf.content_type, 'application/pdf') AS content_type
+FROM lease_files lf
+JOIN leases l ON l.id = lf.lease_id
+JOIN properties p ON p.id = l.property_id
+WHERE lf.lease_id = %s
+  AND p.owner_id = %s
+LIMIT 1;
+"""
+
+CHECK_LEASE_OWNERSHIP = """
+SELECT 1
+FROM leases l
+JOIN properties p ON p.id = l.property_id
+WHERE l.id = %s AND p.owner_id = %s
+LIMIT 1;
+"""
+
+
 GET_RENT_HISTORY = """
 SELECT *
 FROM rent_confirmations

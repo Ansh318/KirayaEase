@@ -137,7 +137,10 @@ class _LeasePageState extends State<LeasePage> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   itemCount: _leases.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) => _LeaseCard(lease: _leases[i]),
+                  itemBuilder: (context, i) => _LeaseCard(
+                    lease: _leases[i],
+                    onDeleted: _fetchLeasesFromApi,
+                  ),
                 ),
     );
   }
@@ -147,7 +150,8 @@ class _LeasePageState extends State<LeasePage> {
 
 class _LeaseCard extends StatefulWidget {
   final _Lease lease;
-  const _LeaseCard({required this.lease});
+  final Future<void> Function() onDeleted;
+  const _LeaseCard({required this.lease, required this.onDeleted});
 
   @override
   State<_LeaseCard> createState() => _LeaseCardState();
@@ -155,6 +159,65 @@ class _LeaseCard extends StatefulWidget {
 
 class _LeaseCardState extends State<_LeaseCard> {
   bool _isExpanded = false;
+  bool _deleting = false;
+
+  Future<void> _confirmDeleteLease(BuildContext context, _Lease lease) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete lease?'),
+        content: Text('This will permanently delete "${lease.title}".'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFB42318)),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _deleteLease(context, lease);
+    }
+  }
+
+  Future<void> _deleteLease(BuildContext context, _Lease lease) async {
+    if (_deleting) return;
+    setState(() {
+      _deleting = true;
+    });
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sessionId = prefs.getString('session_id');
+      if (sessionId == null || sessionId.trim().isEmpty) {
+        messenger.showSnackBar(const SnackBar(content: Text('Please sign in again.')));
+        return;
+      }
+      final uri = Uri.parse('${ApiConfig.baseUrl}/leases/${lease.id}');
+      final resp = await http.delete(uri, headers: {'Authorization': 'Bearer $sessionId'});
+      if (resp.statusCode == 200) {
+        // Close the side panel if we're in it.
+        Navigator.of(context).maybePop();
+        await widget.onDeleted();
+        messenger.showSnackBar(const SnackBar(content: Text('Lease deleted.')));
+      } else {
+        messenger.showSnackBar(const SnackBar(content: Text('Could not delete lease.')));
+      }
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(content: Text('Could not delete lease.')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _deleting = false;
+        });
+      }
+    }
+  }
 
   bool get isActive {
     final now = DateTime.now();
@@ -209,6 +272,11 @@ class _LeaseCardState extends State<_LeaseCard> {
                               fontSize: 16,
                             ),
                           ),
+                        ),
+                        IconButton(
+                          onPressed: _deleting ? null : () => _confirmDeleteLease(context, lease),
+                          icon: const Icon(Icons.delete_outline, color: Color(0xFFB42318)),
+                          tooltip: 'Delete lease',
                         ),
                         IconButton(
                           onPressed: () => Navigator.of(context).pop(),
@@ -385,7 +453,10 @@ class _LeaseCardState extends State<_LeaseCard> {
                 children: [
                   _ActiveChip(active: isActive),
                   const SizedBox(height: 8),
-                  _GlassPdfButton(onTap: () => _openLeaseSidePanel(lease)),
+                  _GlassPdfButton(
+                    label: 'View Lease',
+                    onTap: () => _openLeaseSidePanel(lease),
+                  ),
                 ],
               ),
             ],
@@ -463,10 +534,22 @@ class _LeaseCardState extends State<_LeaseCard> {
 
 Future<void> _openPdfUrl(BuildContext context, String url) async {
   final messenger = ScaffoldMessenger.of(context);
-  final uri = Uri.tryParse(url);
-  if (uri == null) {
+  final parsed = Uri.tryParse(url);
+  if (parsed == null) {
     messenger.showSnackBar(const SnackBar(content: Text('Invalid PDF URL.')));
     return;
+  }
+  Uri uri = parsed;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final sessionId = prefs.getString('session_id')?.trim();
+    if (sessionId != null && sessionId.isNotEmpty) {
+      final qp = Map<String, String>.from(uri.queryParameters);
+      qp.putIfAbsent('session', () => sessionId);
+      uri = uri.replace(queryParameters: qp);
+    }
+  } catch (_) {
+    // ignore
   }
   try {
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -480,29 +563,43 @@ Future<void> _openPdfUrl(BuildContext context, String url) async {
 
 class _GlassPdfButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _GlassPdfButton({required this.onTap});
+  final String label;
+  const _GlassPdfButton({required this.onTap, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(14),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(14),
           child: Container(
-            width: 34,
-            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.28),
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white.withOpacity(0.55)),
             ),
-            child: const Icon(
-              Icons.picture_as_pdf_rounded,
-              size: 18,
-              color: Color(0xFF1A6FD4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.picture_as_pdf_rounded,
+                  size: 18,
+                  color: Color(0xFF1A6FD4),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1A1A),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

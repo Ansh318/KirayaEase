@@ -27,5 +27,16 @@ def ensure_runtime_migrations() -> None:
                     ADD COLUMN IF NOT EXISTS pdf_url TEXT;
                     """
                 )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS lease_files (
+                      lease_id      BIGINT PRIMARY KEY REFERENCES leases(id) ON DELETE CASCADE,
+                      content       BYTEA NOT NULL,
+                      content_type  TEXT NOT NULL DEFAULT 'application/pdf',
+                      created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+                      updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    """
+                )
     finally:
         conn.close()

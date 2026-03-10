@@ -2,9 +2,11 @@ import tempfile
 import os
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile, Request
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile, Request, Query
+from fastapi.responses import Response
 
 from app.db.sql_queries import GET_USER_FROM_SESSION
+from app.db.sql_queries import CHECK_LEASE_OWNERSHIP, GET_LEASE_FILE_FOR_OWNER, UPSERT_LEASE_FILE
 from app.db.vector_db_lease import LeaseDocumentProcessor
 from app.schemas.property_manager import PropertyManager
 from app.services.lease_extractor import extract_from_pdf, read_pdf_text
@@ -28,6 +30,11 @@ def _get_user_id_from_session(session_token: str) -> Optional[int]:
             return int(row["user_id"]) if row else None
     finally:
         conn.close()
+
+
+def _build_pdf_url(request: Request, lease_id: int) -> str:
+    # Always prefer a stable API URL over filesystem paths (Heroku dynos are ephemeral).
+    return str(request.base_url).rstrip("/") + f"/leases/{lease_id}/pdf"
 
 
 def _extracted_to_frontend_fields(data: dict) -> dict:
@@ -120,16 +127,27 @@ async def extract_lease_content(
                 )
                 lease_id = lease.get("id")
                 if lease_id:
-                    # Persist the PDF so the app can open it later.
+                    # Persist the PDF into Postgres (durable on Heroku) and expose a stable URL.
                     try:
-                        dest_path = os.path.join(_UPLOADS_DIR, f"{lease_id}.pdf")
-                        with open(tmp_path, "rb") as src, open(dest_path, "wb") as dst:
-                            dst.write(src.read())
-                        rel = f"/uploads/leases/{lease_id}.pdf"
-                        abs_url = str(request.base_url).rstrip("/") + rel
-                        PropertyManager().set_lease_pdf_url(int(lease_id), abs_url)
-                        fields["pdf_url"] = abs_url
+                        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                        try:
+                            with conn:
+                                with conn.cursor() as cur:
+                                    cur.execute(
+                                        UPSERT_LEASE_FILE,
+                                        (
+                                            int(lease_id),
+                                            psycopg2.Binary(content),
+                                            file.content_type or "application/pdf",
+                                        ),
+                                    )
+                        finally:
+                            conn.close()
+                        pdf_url = _build_pdf_url(request, int(lease_id))
+                        PropertyManager().set_lease_pdf_url(int(lease_id), pdf_url)
+                        fields["pdf_url"] = pdf_url
                     except Exception:
+                        # If PDF persistence fails, still keep the lease; user can re-upload.
                         pass
                     try:
                         raw_text = read_pdf_text(tmp_path)
@@ -165,6 +183,55 @@ async def extract_lease_content(
             pass
 
     return {"fields": fields, "agent_response": agent_response, "missing_fields": missing}
+
+
+@router.get("/leases/{lease_id}/pdf")
+def get_lease_pdf(
+    lease_id: int,
+    authorization: Optional[str] = Header(None),
+    session: Optional[str] = Query(None),
+):
+    """Return the stored lease PDF for the authenticated landlord."""
+    session_token = ((authorization or "").replace("Bearer ", "").strip()) or (session or "").strip()
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    owner_id = _get_user_id_from_session(session_token)
+    if owner_id is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    try:
+        with conn.cursor() as cur:
+            cur.execute(GET_LEASE_FILE_FOR_OWNER, (lease_id, owner_id))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="PDF not found for this lease")
+            content, content_type = row[0], row[1]
+            return Response(content=content, media_type=content_type, headers={"Content-Disposition": "inline; filename=lease.pdf"})
+    finally:
+        conn.close()
+
+
+@router.delete("/leases/{lease_id}")
+def delete_lease(lease_id: int, authorization: str = Header(...)):
+    """Delete a lease owned by the authenticated landlord."""
+    session_token = authorization.replace("Bearer ", "").strip()
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    owner_id = _get_user_id_from_session(session_token)
+    if owner_id is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    try:
+        with conn.cursor() as cur:
+            cur.execute(CHECK_LEASE_OWNERSHIP, (lease_id, owner_id))
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Lease not found")
+        PropertyManager().delete_lease(lease_id)
+        return {"ok": True}
+    finally:
+        conn.close()
 
 
 @router.get("/leases")

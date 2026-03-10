@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from app.db.sql_queries import CONFIRM_RENT_PAYMENT, GET_PENDING_RENTS_BY_OWNER
+from app.db.sql_queries import GET_PENDING_RENTS_BY_OWNER, UPSERT_CONFIRM_RENT_PAYMENT
 
 
 def _conn():
@@ -36,6 +36,7 @@ def confirm_rent_payment(lease_id: int, month: str, confirmed_by: int) -> Dict[s
     """Mark rent as confirmed for the given lease and month. month format: YYYY-MM-01."""
     with _conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(CONFIRM_RENT_PAYMENT, (lease_id, month))
+            # Upsert so confirmations are persisted even if the row didn't exist yet.
+            cur.execute(UPSERT_CONFIRM_RENT_PAYMENT, (lease_id, confirmed_by, month, lease_id))
             conn.commit()
     return {"status": "confirmed", "lease_id": lease_id, "month": month}
