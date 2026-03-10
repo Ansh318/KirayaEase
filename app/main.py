@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Header, Request, Query
 from app.api.v1 import auth, onboarding, agent_chat, leases
 from app.services.onboarding_services import UserService
+from app.db.migrations import ensure_runtime_migrations
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +28,10 @@ app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")
 # app.include_router(agent_chat.router)
 # DATABASE_URL = os.getenv("DATABASE_URL")
 # razorpay_service = RazorpayPaymentService()
+
+@app.on_event("startup")
+def _startup_migrations() -> None:
+    ensure_runtime_migrations()
 
 @app.get("/")
 def health_check():
