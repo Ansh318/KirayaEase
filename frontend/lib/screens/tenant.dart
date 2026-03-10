@@ -941,6 +941,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
   Widget _buildChatView() {
     return ListView.builder(
       controller: _scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       itemCount: messages.length + (_isSendingMessage ? 1 : 0),
       itemBuilder: (context, index) {
@@ -1120,9 +1121,13 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        onPanDown: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+        child: SafeArea(
+          child: Column(
+            children: [
             // Logo at top
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -1364,6 +1369,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
           ],
         ),
       ),
+    ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
         elevation: 0,

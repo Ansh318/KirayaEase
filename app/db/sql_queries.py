@@ -120,6 +120,7 @@ ADD_LEASE = """
 INSERT INTO leases (
     property_id,
     lease_text,
+    pdf_url,
     lease_start,
     lease_end,
     monthly_rent,
@@ -127,7 +128,7 @@ INSERT INTO leases (
     lock_in_period,
     due_day
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 RETURNING id;
 """
 
@@ -159,6 +160,7 @@ SELECT
   l.id AS lease_id,
   l.property_id,
   l.lease_text,
+  l.pdf_url,
   l.lease_start,
   l.lease_end,
   l.monthly_rent,
@@ -177,6 +179,13 @@ FROM leases l
 JOIN properties p ON p.id = l.property_id
 WHERE p.owner_id = %s
 ORDER BY l.created_at DESC;
+"""
+
+
+UPDATE_LEASE_PDF_URL = """
+UPDATE leases
+SET pdf_url = %s
+WHERE id = %s;
 """
 
 

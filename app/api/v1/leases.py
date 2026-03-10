@@ -2,7 +2,7 @@ import tempfile
 import os
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile, Request
 
 from app.db.sql_queries import GET_USER_FROM_SESSION
 from app.db.vector_db_lease import LeaseDocumentProcessor
@@ -14,6 +14,9 @@ from psycopg2.extras import RealDictCursor
 from app.services.lease_services import LeaseService
 
 router = APIRouter()
+
+_UPLOADS_DIR = os.path.abspath(os.path.join(os.getcwd(), "uploads", "leases"))
+os.makedirs(_UPLOADS_DIR, exist_ok=True)
 
 
 def _get_user_id_from_session(session_token: str) -> Optional[int]:
@@ -57,6 +60,7 @@ def _extracted_to_frontend_fields(data: dict) -> dict:
 
 @router.post("/extract-lease-content")
 async def extract_lease_content(
+    request: Request,
     file: UploadFile = File(...),
     query: Optional[str] = Form(None),
     authorization: Optional[str] = Header(None),
@@ -116,6 +120,17 @@ async def extract_lease_content(
                 )
                 lease_id = lease.get("id")
                 if lease_id:
+                    # Persist the PDF so the app can open it later.
+                    try:
+                        dest_path = os.path.join(_UPLOADS_DIR, f"{lease_id}.pdf")
+                        with open(tmp_path, "rb") as src, open(dest_path, "wb") as dst:
+                            dst.write(src.read())
+                        rel = f"/uploads/leases/{lease_id}.pdf"
+                        abs_url = str(request.base_url).rstrip("/") + rel
+                        PropertyManager().set_lease_pdf_url(int(lease_id), abs_url)
+                        fields["pdf_url"] = abs_url
+                    except Exception:
+                        pass
                     try:
                         raw_text = read_pdf_text(tmp_path)
                         processor = LeaseDocumentProcessor()

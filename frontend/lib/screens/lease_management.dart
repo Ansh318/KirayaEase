@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:ui';
 import '../config/api_config.dart';
 
 class LeasePage extends StatefulWidget {
@@ -261,49 +263,40 @@ class _LeaseCardState extends State<_LeaseCard> {
                             const SizedBox(height: 8),
                             if (lease.pdfSource != null &&
                                 lease.pdfSource!.trim().isNotEmpty) ...[
-                              const Text(
-                                'Source',
+                              Text(
+                                'Tap below to open the PDF.',
                                 style: TextStyle(
-                                  color: Color(0xFF1AAE9F),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF4D5F73),
+                                  fontSize: 12,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                lease.pdfSource!,
-                                style: const TextStyle(
-                                  color: Color(0xFF4D5F73),
-                                  fontSize: 12,
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _openPdfUrl(context, lease.pdfSource!),
+                                  icon: const Icon(Icons.picture_as_pdf_rounded),
+                                  label: const Text('Open PDF'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF1A6FD4),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ] else ...[
                               const Text(
-                                'No direct PDF URL stored yet.',
+                                'No PDF attached to this lease yet.',
                                 style: TextStyle(
                                   color: Color(0xFF4D5F73),
                                   fontSize: 12,
                                 ),
                               ),
                             ],
-                            const Spacer(),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF2F7FC),
-                                borderRadius: BorderRadius.circular(8),
-                                border:
-                                    Border.all(color: const Color(0x3348D1CC)),
-                              ),
-                              child: const Text(
-                                'Tip: Save `pdf_url` in extracted lease data to render a full PDF viewer here.',
-                                style: TextStyle(
-                                  color: Color(0xFF5B6F85),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -390,14 +383,9 @@ class _LeaseCardState extends State<_LeaseCard> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const _VerifiedChip(),
-                  const SizedBox(height: 8),
                   _ActiveChip(active: isActive),
                   const SizedBox(height: 8),
-                  _SleekActionButton(
-                    icon: Icons.insert_drive_file_rounded,
-                    onTap: () => _openLeaseSidePanel(lease),
-                  ),
+                  _GlassPdfButton(onTap: () => _openLeaseSidePanel(lease)),
                 ],
               ),
             ],
@@ -473,45 +461,51 @@ class _LeaseCardState extends State<_LeaseCard> {
   }
 }
 
-/// Meta-style blue tick
-class _VerifiedChip extends StatelessWidget {
-  const _VerifiedChip();
+Future<void> _openPdfUrl(BuildContext context, String url) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final uri = Uri.tryParse(url);
+  if (uri == null) {
+    messenger.showSnackBar(const SnackBar(content: Text('Invalid PDF URL.')));
+    return;
+  }
+  try {
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok) {
+      messenger.showSnackBar(const SnackBar(content: Text('Could not open PDF.')));
+    }
+  } catch (_) {
+    messenger.showSnackBar(const SnackBar(content: Text('Could not open PDF.')));
+  }
+}
+
+class _GlassPdfButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _GlassPdfButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 28),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFE8F6FF), Color(0xFFF4FBFF)],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.28),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: Colors.white.withOpacity(0.55)),
+            ),
+            child: const Icon(
+              Icons.picture_as_pdf_rounded,
+              size: 18,
+              color: Color(0xFF1A6FD4),
+            ),
+          ),
         ),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF5AA8FF)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFF1877F2), // Meta blue
-            ),
-            child: const Icon(Icons.check, size: 7, color: Colors.white),
-          ),
-          const SizedBox(width: 5),
-          const Text(
-            'Verified',
-            style: TextStyle(
-              color: Color(0xFF1465D1),
-              fontWeight: FontWeight.w700,
-              fontSize: 10.5,
-              letterSpacing: -0.1,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -552,39 +546,6 @@ class _ActiveChip extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SleekActionButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _SleekActionButton({
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Ink(
-        width: 28,
-        height: 28,
-        padding: const EdgeInsets.all(0),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF2F6FB),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0x3348D1CC)),
-        ),
-        child: Icon(
-          icon,
-          size: 14,
-          color: const Color(0xFF1A6FD4),
-        ),
       ),
     );
   }
@@ -701,7 +662,7 @@ class _Lease {
       tenantPhone: null,
       propertyAddress: propertyAddress,
       rawData: map,
-      pdfSource: null,
+      pdfSource: map['pdf_url']?.toString(),
     );
   }
 }

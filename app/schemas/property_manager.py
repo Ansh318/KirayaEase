@@ -14,6 +14,7 @@ from app.db.sql_queries import (
     ADD_PROPERTY,
     ADD_LEASE,
     GET_LEASE,
+    UPDATE_LEASE_PDF_URL,
     DELETE_PROPERTY,
     DELETE_LEASE,
 )
@@ -80,6 +81,7 @@ class PropertyManager:
         *,
         property_id: int,
         lease_text: Optional[str] = None,
+        pdf_url: Optional[str] = None,
         lease_start: Union[str, date],
         lease_end: Union[str, date],
         monthly_rent: int,
@@ -87,7 +89,7 @@ class PropertyManager:
         lock_in_period: Optional[int] = None,
         due_day: int,
     ) -> Dict[str, Any]:
-        """Insert a lease. Schema: property_id, lease_text, lease_start, lease_end, monthly_rent, security_deposit, lock_in_period, due_day."""
+        """Insert a lease. Schema: property_id, lease_text, pdf_url, lease_start, lease_end, monthly_rent, security_deposit, lock_in_period, due_day."""
         if not (1 <= due_day <= 31):
             raise ValueError("due_day must be between 1 and 31")
         start = lease_start.isoformat() if isinstance(lease_start, date) else lease_start
@@ -96,12 +98,18 @@ class PropertyManager:
             with conn.cursor() as cur:
                 cur.execute(
                     ADD_LEASE,
-                    (property_id, lease_text, start, end, monthly_rent, security_deposit, lock_in_period, due_day),
+                    (property_id, lease_text, pdf_url, start, end, monthly_rent, security_deposit, lock_in_period, due_day),
                 )
                 row = cur.fetchone()
                 lease_id = row[0] if row else None
             conn.commit()
         return self.get_lease(lease_id) if lease_id is not None else {}
+
+    def set_lease_pdf_url(self, lease_id: int, pdf_url: str) -> None:
+        with self._conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(UPDATE_LEASE_PDF_URL, (pdf_url, lease_id))
+            conn.commit()
 
     def get_lease(self, lease_id: int) -> Dict[str, Any]:
         with self._conn() as conn:

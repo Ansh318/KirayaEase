@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS leases (
   property_id      BIGINT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
 
   lease_text       TEXT,
+  pdf_url          TEXT,
   lease_start      DATE NOT NULL,
   lease_end        DATE NOT NULL,
 
