@@ -55,47 +55,46 @@ class _LoginPageState extends State<LoginPage> {
         throw Exception("Backend login failed");
       }
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       final prefs = await SharedPreferences.getInstance();
 
       // 3️⃣ Store session
-      await prefs.setString('session_id', data['session_id']);
-      await prefs.setString('user_email', data['email']);
+      await prefs.setString('session_id', data['session_id'] as String);
+      await prefs.setString('user_email', data['email'] as String? ?? '');
 
       if (!mounted) return;
 
-      if (data['onboarded'] == false) {
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        final response = await http.get(
+      // Existing user (already onboarded) → go straight to tenant/dashboard
+      final onboarded = data['onboarded'] == true;
+      if (onboarded) {
+        final profileRes = await http.get(
           Uri.parse(ApiConfig.userProfileEndpoint),
           headers: {
-            "Authorization": "Bearer ${prefs.getString('session_id')}",
+            'Authorization': 'Bearer ${prefs.getString('session_id')}',
           },
         );
         if (!mounted) return;
-        // GET THE ROLE FROM THE BACKEND AND NAVIGATE TO THE CORRECT PAGE
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final role = (data['role'] ?? '').toString().toLowerCase();
+        if (profileRes.statusCode == 200) {
+          final profile = jsonDecode(profileRes.body) as Map<String, dynamic>?;
+          final role = (profile?['role'] ?? '').toString().toLowerCase();
           if (role.isNotEmpty) {
             await prefs.setString('user_role', role);
           }
-          Navigator.pushReplacementNamed(
-            context,
-            '/tenant',
-          );
-        } else {
-          throw Exception("Failed to get user profile");
         }
+        Navigator.pushReplacementNamed(context, '/tenant');
+        return;
       }
+
+      // New or not yet onboarded → go to onboarding
+      Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Login failed: $e")),
       );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

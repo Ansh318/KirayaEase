@@ -129,7 +129,7 @@ class _OnboardingFormState extends State<OnboardingForm> {
         _numPropertiesController.text.trim(),
       );
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pushReplacementNamed(context, '/tenant');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
