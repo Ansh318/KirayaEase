@@ -17,6 +17,7 @@ from app.db.sql_queries import (
     UPDATE_LEASE_PDF_URL,
     DELETE_PROPERTY,
     DELETE_LEASE,
+    FIND_LEASE_BY_OWNER_AND_PROPERTY,
 )
 
 class PropertyManager:
@@ -117,6 +118,28 @@ class PropertyManager:
                 cur.execute(GET_LEASE, (lease_id,))
                 row = cur.fetchone()
                 return self._serialize_row(dict(row)) if row else {}
+
+    def find_existing_lease_for_property(
+        self,
+        owner_id: int,
+        name: Optional[str] = None,
+        address_line1: Optional[str] = None,
+        postal_code: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Return an existing lease for this owner matching the property (by name or address+postal), or None."""
+        name = (name or "").strip()
+        address_line1 = (address_line1 or "").strip()
+        postal_code = (postal_code or "").strip()
+        if not name and not (address_line1 and postal_code):
+            return None
+        with self._conn() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    FIND_LEASE_BY_OWNER_AND_PROPERTY,
+                    (owner_id, name, name, address_line1, postal_code, address_line1, postal_code),
+                )
+                row = cur.fetchone()
+                return dict(row) if row else None
 
     def delete_property(self, property_id: int) -> None:
         with self._conn() as conn:

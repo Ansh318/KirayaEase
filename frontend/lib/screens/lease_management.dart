@@ -456,7 +456,14 @@ class _LeaseCardState extends State<_LeaseCard> {
                   const SizedBox(height: 8),
                   _GlassPdfButton(
                     label: 'View Lease',
-                    onTap: () => _openLeaseSidePanel(lease),
+                    onTap: () {
+                      if (lease.pdfSource != null &&
+                          lease.pdfSource!.trim().isNotEmpty) {
+                        _openPdfInApp(context, lease);
+                      } else {
+                        _openLeaseSidePanel(lease);
+                      }
+                    },
                   ),
                 ],
               ),

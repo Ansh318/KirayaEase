@@ -105,6 +105,26 @@ async def extract_lease_content(
 
         if user_id and not missing:
             name = data.get("name") or "Property"
+            # Avoid duplicate: same property/lease already uploaded?
+            existing = PropertyManager().find_existing_lease_for_property(
+                owner_id=user_id,
+                name=data.get("name"),
+                address_line1=data.get("address_line1"),
+                postal_code=data.get("postal_code"),
+            )
+            if existing:
+                lease_id_existing = existing.get("lease_id")
+                agent_response = (
+                    "This lease has already been uploaded. "
+                    "You can view it in the **Leases** section (Settings → Lease manager)."
+                )
+                return {
+                    "fields": fields,
+                    "agent_response": agent_response,
+                    "missing_fields": missing,
+                    "duplicate": True,
+                    "lease_id": lease_id_existing,
+                }
             prop = PropertyManager().add_property(
                 owner_id=user_id,
                 name=name,

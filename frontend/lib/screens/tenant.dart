@@ -1,6 +1,7 @@
 // tenant_dashboard_v2.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:http/http.dart' as http;
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -752,10 +753,8 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
         // Use the agent's response if available, otherwise fall back to formatted fields
         String leaseDetails;
         if (payload['agent_response'] != null) {
-          // Use the intelligent agent response
           leaseDetails = payload['agent_response'] as String;
         } else {
-          // Fallback: Format the extracted lease details as a message
           leaseDetails = "📄 Lease document processed successfully!\n\n";
           leaseDetails +=
               "**Property Address:** ${fields['property_address'] ?? 'N/A'}\n";
@@ -776,12 +775,15 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
           });
         });
 
-        // Save extracted lease data to store
-        try {
-          final leaseData = LeaseData.fromExtractedFields(fields);
-          await LeaseStore().addLease(leaseData);
-        } catch (e) {
-          print('Error saving lease to store: $e');
+        // Save to local store only when it's a new lease (not a duplicate)
+        final isDuplicate = payload['duplicate'] == true;
+        if (!isDuplicate) {
+          try {
+            final leaseData = LeaseData.fromExtractedFields(fields);
+            await LeaseStore().addLease(leaseData);
+          } catch (e) {
+            print('Error saving lease to store: $e');
+          }
         }
       } else {
         setState(() {
@@ -1083,15 +1085,57 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                   ),
                 ),
                 const SizedBox(width: 12),
-                // AI: Text without bubble, directly on background
+                // AI: Rendered markdown (bold, lists) for readable output
                 Flexible(
-                  child: Text(
-                    message["text"],
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: Color(0xFF1A1A1A),
-                      height: 1.4,
-                      // Don't specify fontFamily to use system default which supports emojis
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7FCFB),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFFE0F2EF),
+                        width: 1,
+                      ),
+                    ),
+                    child: MarkdownBody(
+                      data: _sanitizeAiText(message["text"]?.toString() ?? ''),
+                      shrinkWrap: true,
+                      styleSheet: MarkdownStyleSheet(
+                        p: const TextStyle(
+                          fontSize: 15,
+                          color: Color(0xFF1A1A1A),
+                          height: 1.45,
+                        ),
+                        strong: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0D1F1A),
+                        ),
+                        listBullet: const TextStyle(
+                          fontSize: 15,
+                          color: Color(0xFF1AAE9F),
+                          height: 1.45,
+                        ),
+                        listIndent: 20,
+                        blockSpacing: 8,
+                        blockquote: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF4D5F73),
+                          fontStyle: FontStyle.italic,
+                          height: 1.4,
+                        ),
+                        blockquoteDecoration: BoxDecoration(
+                          border: Border(
+                            left: BorderSide(
+                              color: const Color(0xFF1AAE9F),
+                              width: 3,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -1273,53 +1317,76 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  color: _selectedFileName != null
+                      ? const Color(0xFFF0FAF9)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: const Color(0xFFE0E0E0),
+                    color: _selectedFileName != null
+                        ? const Color(0xFFB8E6E1)
+                        : const Color(0xFFE0E0E0),
                     width: 1,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
-                    // File upload button
+                    // Lease / attach icon - shows lease doc when file selected
                     GestureDetector(
                       onTap: _isUploadingFile ? null : _pickAndUploadFile,
                       child: Container(
-                        width: 36,
-                        height: 36,
-                        margin: const EdgeInsets.only(left: 8),
+                        width: 40,
+                        height: 40,
+                        margin: const EdgeInsets.only(left: 6, top: 6, bottom: 6),
                         decoration: BoxDecoration(
-                          color: _isUploadingFile
-                              ? const Color(0xFFE0E0E0)
-                              : const Color(0xFFF5F5F5),
+                          color: _selectedFileName != null
+                              ? const Color(0xFFE0F5F3)
+                              : (_isUploadingFile
+                                  ? const Color(0xFFEEEEEE)
+                                  : const Color(0xFFF5F5F5)),
                           shape: BoxShape.circle,
+                          border: _selectedFileName != null
+                              ? Border.all(
+                                  color: const Color(0xFF1AAE9F).withOpacity(0.4),
+                                  width: 1.2,
+                                )
+                              : null,
                         ),
                         child: _isUploadingFile
                             ? const SizedBox(
-                                width: 18,
-                                height: 18,
+                                width: 20,
+                                height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF1A1A1A),
+                                    Color(0xFF1AAE9F),
                                   ),
                                 ),
                               )
-                            : const Icon(
-                                Icons.attach_file,
-                                color: Color(0xFF1A1A1A),
-                                size: 18,
+                            : Icon(
+                                _selectedFileName != null
+                                    ? Icons.description_rounded
+                                    : Icons.attach_file_rounded,
+                                color: _selectedFileName != null
+                                    ? const Color(0xFF1AAE9F)
+                                    : const Color(0xFF5C5C5C),
+                                size: 20,
                               ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: TextField(
                         controller: _messageController,
                         decoration: InputDecoration(
                           hintText: _selectedFileName != null
-                              ? 'Type your question about ${_selectedFileName}...'
+                              ? 'Ask about this lease...'
                               : 'How may I assist you?',
                           hintStyle: const TextStyle(
                             color: Color(0xFF9B9B9B),
@@ -1327,42 +1394,43 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                           ),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.only(
-                            left: 12,
-                            right: 12,
+                            left: 8,
+                            right: 8,
                             top: 16,
                             bottom: 16,
                           ),
                           suffixIcon: _selectedFileName != null
                               ? Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          _selectedFileName!,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
+                                  padding: const EdgeInsets.only(right: 4),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedFilePath = null;
+                                        _selectedFileName = null;
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 28,
+                                      height: 28,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: const Color(0xFFE0E0E0),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.06),
+                                            blurRadius: 4,
                                           ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 4),
-                                      GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            _selectedFilePath = null;
-                                            _selectedFileName = null;
-                                          });
-                                        },
-                                        child: Icon(
-                                          Icons.close,
-                                          size: 16,
-                                          color: Colors.grey[600],
-                                        ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        size: 16,
+                                        color: Color(0xFF6B6B6B),
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 )
                               : null,
@@ -1375,23 +1443,42 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                         textInputAction: TextInputAction.send,
                       ),
                     ),
-                    // Send button inside input field
+                    // Send button
                     GestureDetector(
                       onTap: _sendMessage,
                       child: Container(
-                        width: 36,
-                        height: 36,
-                        margin: const EdgeInsets.only(right: 8),
+                        width: 40,
+                        height: 40,
+                        margin: const EdgeInsets.only(right: 6, top: 6, bottom: 6),
                         decoration: BoxDecoration(
+                          gradient: _isSendingMessage
+                              ? null
+                              : const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xFF1AAE9F),
+                                    Color(0xFF158F7A),
+                                  ],
+                                ),
                           color: _isSendingMessage
                               ? const Color(0xFFE0E0E0)
-                              : const Color(0xFFF5F5F5),
+                              : null,
                           shape: BoxShape.circle,
+                          boxShadow: _isSendingMessage
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: const Color(0xFF1AAE9F).withOpacity(0.35),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                         ),
                         child: _isSendingMessage
                             ? const SizedBox(
-                                width: 18,
-                                height: 18,
+                                width: 20,
+                                height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
@@ -1400,9 +1487,9 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                                 ),
                               )
                             : const Icon(
-                                Icons.arrow_upward,
-                                color: Color(0xFF1A1A1A),
-                                size: 18,
+                                Icons.arrow_upward_rounded,
+                                color: Colors.white,
+                                size: 20,
                               ),
                       ),
                     ),

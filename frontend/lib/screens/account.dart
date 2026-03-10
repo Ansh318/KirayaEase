@@ -266,10 +266,9 @@ class _AccountPageState extends State<AccountPage> {
         return AlertDialog(
           title: const Text('Delete account?'),
           content: const Text(
-            'This will request deletion of your KirayaEase account. '
-            'You will be signed out on completion.\n\n'
-            'This is a placeholder only – the actual delete-account API '
-            'integration still needs to be wired.',
+            'This will permanently delete your KirayaEase account and all your '
+            'data (properties, leases, payments). You will be signed out and '
+            'returned to the home screen. This cannot be undone.',
           ),
           actions: [
             TextButton(
@@ -289,22 +288,69 @@ class _AccountPageState extends State<AccountPage> {
     );
 
     if (confirmed == true) {
-      await _deleteAccountPlaceholder(context);
+      await _deleteAccount(context);
     }
   }
 
-  Future<void> _deleteAccountPlaceholder(BuildContext context) async {
+  Future<void> _deleteAccount(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
+    final prefs = await SharedPreferences.getInstance();
+    final sessionId = prefs.getString('session_id');
 
-    // TODO: Replace this placeholder with the real delete-account backend API call.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (sessionId == null || sessionId.trim().isEmpty) {
+      await _clearLocalDataAndGoHome(context);
+      return;
+    }
 
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Delete account pressed. Backend API integration pending.',
+    try {
+      final response = await http.delete(
+        Uri.parse(ApiConfig.deleteAccountEndpoint),
+        headers: {'Authorization': 'Bearer $sessionId'},
+      );
+
+      if (response.statusCode == 200) {
+        await _clearLocalDataAndGoHome(context);
+        if (!context.mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Account deleted. You have been signed out.'),
+          ),
+        );
+      } else {
+        if (!context.mounted) return;
+        final msg = response.statusCode == 401
+            ? 'Session expired. You have been signed out.'
+            : 'Could not delete account. Please try again.';
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
+        if (response.statusCode == 401) {
+          await _clearLocalDataAndGoHome(context);
+        }
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Could not delete account. Please try again.'),
         ),
-      ),
+      );
+    }
+  }
+
+  Future<void> _clearLocalDataAndGoHome(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('session_id');
+    await prefs.remove('session_token');
+    await prefs.remove('user_email');
+    await prefs.remove('user_role');
+    await prefs.remove('onboarding_first_name');
+    await prefs.remove('onboarding_last_name');
+    await prefs.remove('onboarding_phone');
+    await prefs.remove('active_scope');
+    await prefs.remove('active_property_id');
+    if (!context.mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/',
+      (route) => false,
     );
   }
 

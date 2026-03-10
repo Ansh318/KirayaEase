@@ -142,6 +142,24 @@ LIMIT 1;
 """
 
 
+# Used to detect duplicate uploads: same owner + same property (by name or address+postal).
+FIND_LEASE_BY_OWNER_AND_PROPERTY = """
+SELECT l.id AS lease_id, p.name AS property_name
+FROM leases l
+JOIN properties p ON p.id = l.property_id
+WHERE p.owner_id = %s
+  AND (
+    (TRIM(COALESCE(%s, '')) != '' AND LOWER(TRIM(p.name)) = LOWER(TRIM(%s)))
+    OR
+    (TRIM(COALESCE(%s, '')) != '' AND TRIM(COALESCE(%s, '')) != ''
+     AND LOWER(TRIM(COALESCE(p.address_line1, ''))) = LOWER(TRIM(COALESCE(%s, '')))
+     AND LOWER(TRIM(COALESCE(p.postal_code, ''))) = LOWER(TRIM(COALESCE(%s, ''))))
+  )
+ORDER BY l.created_at DESC
+LIMIT 1;
+"""
+
+
 GET_LEASE = """
 SELECT *
 FROM leases

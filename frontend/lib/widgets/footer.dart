@@ -31,13 +31,13 @@ class Footer extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: _footerSection("Explore", _exploreLinks()),
+                          child: _footerSection("Explore", _exploreLinks(context)),
                         ),
                         const SizedBox(width: 24),
                         Expanded(
                           child: Align(
                             alignment: Alignment.topRight,
-                            child: _footerSection("Follow us", _socialLinks()),
+                            child: _footerSection("Follow us", _socialLinks(context)),
                           ),
                         ),
                       ],
@@ -45,9 +45,9 @@ class Footer extends StatelessWidget {
                   : Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _footerSection("Explore", _exploreLinks()),
+                        _footerSection("Explore", _exploreLinks(context)),
                         const SizedBox(width: 80),
-                        _footerSection("Follow us", _socialLinks()),
+                        _footerSection("Follow us", _socialLinks(context)),
                       ],
                     ),
               const SizedBox(height: 24),
@@ -66,17 +66,17 @@ class Footer extends StatelessWidget {
     );
   }
 
-  List<Widget> _exploreLinks() {
+  List<Widget> _exploreLinks(BuildContext context) {
     return [
-      _linkText("About us", "/about-us"),
-      _linkText("Contact", "https://kirayaease.com/contact"),
+      _linkText(context, "About us", "/about-us"),
+      _linkText(context, "FAQ", "/faq"),
     ];
   }
 
-  List<Widget> _socialLinks() {
+  List<Widget> _socialLinks(BuildContext context) {
     return [
-      _linkText("LinkedIn", "https://linkedin.com/company/kirayaease"),
-      _linkText("Instagram", "https://instagram.com/kirayaease"),
+      _linkText(context, "LinkedIn", "https://linkedin.com/company/kirayaease"),
+      _linkText(context, "Instagram", "https://instagram.com/kirayaease"),
     ];
   }
 
@@ -103,9 +103,9 @@ class Footer extends StatelessWidget {
     );
   }
 
-  Widget _linkText(String text, String url) {
+  Widget _linkText(BuildContext context, String text, String url) {
     return InkWell(
-      onTap: () => _launchURL(url),
+      onTap: () => _handleTap(context, url),
       child: Text(
         text,
         style: const TextStyle(
@@ -116,7 +116,13 @@ class Footer extends StatelessWidget {
     );
   }
 
-  Future<void> _launchURL(String url) async {
+  Future<void> _handleTap(BuildContext context, String url) async {
+    // Internal route
+    if (url.startsWith('/')) {
+      Navigator.of(context).pushNamed(url);
+      return;
+    }
+
     final uri = Uri.parse(url);
     if (!await launchUrl(uri)) {
       throw Exception("Could not launch $url");

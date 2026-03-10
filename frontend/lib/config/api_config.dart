@@ -20,4 +20,5 @@ class ApiConfig {
   static String get leasesEndpoint => '$baseUrl/leases';
   static String get propertiesEndpoint => '$baseUrl/properties';
   static String get paymentsEndpoint => '$baseUrl/payments';
+  static String get deleteAccountEndpoint => '$baseUrl/account';
 }

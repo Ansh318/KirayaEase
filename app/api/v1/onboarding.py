@@ -19,3 +19,12 @@ def get_user_profile(authorization: str = Header(...)):
     if not user_profile:
         raise HTTPException(status_code=401, detail = 'Invalid user')
     return user_profile
+
+
+@router.delete("/account")
+def delete_account(authorization: str = Header(...)):
+    """Permanently delete the authenticated user's account and all associated data."""
+    session_token = authorization.replace("Bearer ", "").strip()
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    return UserService().delete_user_account(session_token)
