@@ -46,6 +46,20 @@ WHERE id = %s;
 """
 
 
+UPDATE_USER_ONBOARDING = """
+UPDATE users
+SET first_name = %s, last_name = %s
+WHERE id = %s;
+"""
+
+
+GET_USER_BY_ID = """
+SELECT id, email, first_name, last_name, onboarded
+FROM users
+WHERE id = %s;
+"""
+
+
 DELETE_SESSION = """
 DELETE FROM sessions
 WHERE user_id = %s;

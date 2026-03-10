@@ -28,28 +28,14 @@ class _OnboardingFormState extends State<OnboardingForm> {
   // Inputs
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _numPropertiesController = TextEditingController();
-
-  // Focus
-  final _phoneFocus = FocusNode();
 
   // Session / state
   bool _submitting = false;
 
   // Utils
-  String _digits(String s) => s.replaceAll(RegExp(r'\D'), '');
   String? _required(String? v) =>
       (v == null || v.trim().isEmpty) ? 'Required' : null;
-
-  String? _phoneValidator(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Required';
-    final d = _digits(v);
-    if (d.length != 10) return 'Enter a valid 10-digit mobile number';
-    if (!RegExp(r'^[6-9]\d{9}$').hasMatch(d))
-      return 'Enter a valid Indian mobile number';
-    return null;
-  }
 
   String? _numPropertiesValidator(String? v) {
     if (v == null || v.trim().isEmpty) return 'Required';
@@ -137,10 +123,6 @@ class _OnboardingFormState extends State<OnboardingForm> {
         'onboarding_last_name',
         _lastNameController.text.trim(),
       );
-      await prefs.setString(
-        'onboarding_phone',
-        _digits(_phoneController.text),
-      );
       await prefs.setString('user_role', 'landlord');
       await prefs.setString(
         'onboarding_num_properties',
@@ -161,9 +143,7 @@ class _OnboardingFormState extends State<OnboardingForm> {
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
-    _phoneController.dispose();
     _numPropertiesController.dispose();
-    _phoneFocus.dispose();
     super.dispose();
   }
 
@@ -247,25 +227,6 @@ class _OnboardingFormState extends State<OnboardingForm> {
                   ),
                   textInputAction: TextInputAction.next,
                   validator: _required,
-                ),
-                const SizedBox(height: 12),
-
-                // Phone
-                TextFormField(
-                  controller: _phoneController,
-                  focusNode: _phoneFocus,
-                  keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.next,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(10),
-                  ],
-                  decoration: inputDecoration.copyWith(
-                    labelText: 'Mobile Number',
-                    hintText: '10-digit number',
-                    prefixText: '+91 ',
-                  ),
-                  validator: _phoneValidator,
                 ),
                 const SizedBox(height: 12),
 

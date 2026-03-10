@@ -8,7 +8,7 @@ router = APIRouter()
 @router.post("/onboarding")
 def onboarding(data: OnboardingRequest, authorization: str = Header(...)):
     session_token = authorization.replace("Bearer ", "").strip()
-    b = UserService().handle_user_onboarding(session_token, data.first_name, data.last_name, data.dob, data.aadhaar, data.pan, data.role)
+    b = UserService().handle_user_onboarding(session_token, data.first_name, data.last_name, data.role)
     print(b)
     return (b)
 
