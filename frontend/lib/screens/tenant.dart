@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http_parser/http_parser.dart';
 import '../config/api_config.dart';
+import '../route_observer.dart';
 import '../services/lease_store.dart';
 // import '../widgets/ai_assistant.dart';
 
@@ -32,7 +33,8 @@ class _PropertyContextOption {
   });
 }
 
-class _TenantDashboardV2State extends State<TenantDashboardV2> {
+class _TenantDashboardV2State extends State<TenantDashboardV2>
+    with RouteAware {
   final Color bgColor = const Color(0xFFCBF8F3);
   String? userName;
   String _userRole = 'tenant';
@@ -92,12 +94,28 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is ModalRoute<void>) {
+      appRouteObserver.subscribe(this, route);
+    }
+  }
+
+  @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     _razorpay?.clear();
     _razorpay = null;
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // User returned to this screen (e.g. from lease manager); refresh context so deleted leases are reflected.
+    _loadRoleAndContext();
   }
 
   Future<bool> _verifyPaymentOnServer(PaymentSuccessResponse response) async {
@@ -179,21 +197,17 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
     });
   }
 
+  /// Fetches context options from the leases API so the list reflects current leases.
+  /// When a lease is deleted, it no longer appears here.
   Future<List<_PropertyContextOption>> _buildLandlordPropertyContexts() async {
     final prefs = await SharedPreferences.getInstance();
     final sessionId = prefs.getString('session_id');
     if (sessionId == null || sessionId.trim().isEmpty) {
-      return [
-        const _PropertyContextOption(
-          id: 'portfolio',
-          label: 'Portfolio (All Properties)',
-          scope: 'portfolio',
-        ),
-      ];
+      return _defaultPropertyContexts();
     }
     try {
       final response = await http.get(
-        Uri.parse(ApiConfig.propertiesEndpoint),
+        Uri.parse(ApiConfig.leasesEndpoint),
         headers: {'Authorization': 'Bearer $sessionId'},
       );
       if (response.statusCode != 200) return _defaultPropertyContexts();
@@ -209,15 +223,27 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
       ];
       for (final item in body) {
         final map = item as Map<String, dynamic>;
-        final id = map['id'];
-        final name = map['name']?.toString().trim() ?? 'Property ${contexts.length}';
-        if (id == null) continue;
+        final leaseId = map['lease_id'];
+        final propertyId = map['property_id'];
+        final name = map['property_name']?.toString().trim() ??
+            map['address_line1']?.toString().trim() ??
+            'Lease #$leaseId';
+        if (leaseId == null) continue;
+        // Use lease_id as id so deleting a lease removes it from the list.
         contexts.add(
           _PropertyContextOption(
-            id: id.toString(),
+            id: leaseId.toString(),
             label: name,
             scope: 'property',
-            propertyData: map,
+            propertyData: {
+              'id': propertyId,
+              'name': map['property_name'],
+              'tenant_name': map['property_tenant_name'],
+              'address_line1': map['address_line1'],
+              'city': map['city'],
+              'state': map['state'],
+              'postal_code': map['postal_code'],
+            },
           ),
         );
       }
@@ -317,6 +343,24 @@ class _TenantDashboardV2State extends State<TenantDashboardV2> {
   }
 
   Future<void> _showContextPickerSheet() async {
+    // Refresh from backend so deleted leases are immediately reflected.
+    final contexts = await _buildLandlordPropertyContexts();
+    if (!mounted) return;
+    final previouslySelectedId = _activeScope == 'property' ? _activePropertyId : null;
+    final stillPresent = previouslySelectedId != null &&
+        contexts.any((c) => c.scope == 'property' && c.id == previouslySelectedId);
+    setState(() {
+      _propertyContexts = contexts;
+      if (!stillPresent && previouslySelectedId != null) {
+        _activeScope = 'portfolio';
+        _activePropertyId = null;
+      }
+    });
+    final prefs = await SharedPreferences.getInstance();
+    if (!stillPresent && previouslySelectedId != null) {
+      await prefs.setString('active_scope', 'portfolio');
+      await prefs.remove('active_property_id');
+    }
     final selected = _selectedContextOrFallback();
     final choice = await showModalBottomSheet<_PropertyContextOption>(
       context: context,

@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui';
 import '../config/api_config.dart';
 
@@ -342,7 +343,7 @@ class _LeaseCardState extends State<_LeaseCard> {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
-                                  onPressed: () => _openPdfUrl(context, lease.pdfSource!),
+                                  onPressed: () => _openPdfInApp(context, lease),
                                   icon: const Icon(Icons.picture_as_pdf_rounded),
                                   label: const Text('Open PDF'),
                                   style: ElevatedButton.styleFrom(
@@ -532,32 +533,94 @@ class _LeaseCardState extends State<_LeaseCard> {
   }
 }
 
-Future<void> _openPdfUrl(BuildContext context, String url) async {
+/// Fetches the lease PDF with auth and shows it in an in-app popup viewer.
+Future<void> _openPdfInApp(BuildContext context, _Lease lease) async {
   final messenger = ScaffoldMessenger.of(context);
-  final parsed = Uri.tryParse(url);
-  if (parsed == null) {
-    messenger.showSnackBar(const SnackBar(content: Text('Invalid PDF URL.')));
+  final prefs = await SharedPreferences.getInstance();
+  final sessionId = prefs.getString('session_id')?.trim();
+  if (sessionId == null || sessionId.isEmpty) {
+    messenger.showSnackBar(const SnackBar(content: Text('Please sign in to view the lease PDF.')));
     return;
   }
-  Uri uri = parsed;
+  final uri = Uri.parse('${ApiConfig.baseUrl}/leases/${lease.id}/pdf');
   try {
-    final prefs = await SharedPreferences.getInstance();
-    final sessionId = prefs.getString('session_id')?.trim();
-    if (sessionId != null && sessionId.isNotEmpty) {
-      final qp = Map<String, String>.from(uri.queryParameters);
-      qp.putIfAbsent('session', () => sessionId);
-      uri = uri.replace(queryParameters: qp);
+    final response = await http.get(
+      uri,
+      headers: {'Authorization': 'Bearer $sessionId'},
+    );
+    if (!context.mounted) return;
+    if (response.statusCode != 200) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            response.statusCode == 404
+                ? 'No PDF attached to this lease.'
+                : 'Could not load PDF (${response.statusCode}).',
+          ),
+        ),
+      );
+      return;
     }
-  } catch (_) {
-    // ignore
+    final bytes = response.bodyBytes;
+    if (bytes.isEmpty) {
+      messenger.showSnackBar(const SnackBar(content: Text('PDF is empty.')));
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (ctx) => _PdfViewerPage(
+          title: lease.title,
+          sourceName: 'lease_${lease.id}',
+          pdfBytes: Uint8List.fromList(bytes),
+        ),
+      ),
+    );
+  } catch (e) {
+    if (!context.mounted) return;
+    messenger.showSnackBar(const SnackBar(content: Text('Could not load PDF. Please try again.')));
   }
-  try {
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok) {
-      messenger.showSnackBar(const SnackBar(content: Text('Could not open PDF.')));
-    }
-  } catch (_) {
-    messenger.showSnackBar(const SnackBar(content: Text('Could not open PDF.')));
+}
+
+/// Full-screen in-app PDF viewer with close button.
+class _PdfViewerPage extends StatelessWidget {
+  final String title;
+  final String sourceName;
+  final Uint8List pdfBytes;
+
+  const _PdfViewerPage({
+    required this.title,
+    required this.sourceName,
+    required this.pdfBytes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: AppBar(
+        title: Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: const Color(0xFF1AAE9F),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: PdfViewer.data(
+        pdfBytes,
+        sourceName: sourceName,
+        params: const PdfViewerParams(
+          minScale: 0.5,
+          maxScale: 4.0,
+        ),
+      ),
+    );
   }
 }
 

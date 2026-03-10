@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'route_observer.dart';
 import 'package:kirayaease_flutter/screens/lease_management.dart';
 import 'package:kirayaease_flutter/screens/payments_page.dart';
 // Screens
@@ -64,6 +65,7 @@ class KirayaEaseApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorObservers: [appRouteObserver],
       debugShowCheckedModeBanner: false,
       // Configure text theme to support emojis and Unicode characters
       theme: ThemeData(
