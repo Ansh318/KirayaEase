@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -550,7 +551,9 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
         "property_context": propertyContext,
       };
       if (_activeScope == 'property' && _activePropertyId != null) {
-        body["property_id"] = int.tryParse(_activePropertyId!) ?? 0;
+        // Context selector id is the lease_id (one entry per lease)
+        body["lease_id"] = int.tryParse(_activePropertyId!);
+        body["property_id"] = int.tryParse(_activePropertyId!);
       }
 
       final prefs = await SharedPreferences.getInstance();
@@ -571,11 +574,15 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
             data["response"] ?? "I'm sorry, I couldn't process that request.";
 
         setState(() {
-          messages.add({
+          final msg = <String, dynamic>{
             "sender": "ai",
             "text": _sanitizeAiText(aiText.toString()),
-            "timestamp": DateTime.now()
-          });
+            "timestamp": DateTime.now(),
+          };
+          if (data["chart"] is Map) {
+            msg["chart"] = data["chart"];
+          }
+          messages.add(msg);
         });
 
         // Check if payment order was created and open Razorpay widget
@@ -646,6 +653,28 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
   void _sendQuickMessage(String message) {
     _messageController.text = message;
     _sendMessage();
+  }
+
+  Future<void> _openUpcomingDuesSheet() async {
+    final prefs = await SharedPreferences.getInstance();
+    final sessionToken = prefs.getString('session_id');
+    if (sessionToken == null || sessionToken.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sign in to see upcoming rent dues'),
+          backgroundColor: Color(0xFF167D60),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _UpcomingDuesSheet(sessionToken: sessionToken),
+    );
   }
 
   Future<void> _pickAndUploadFile() async {
@@ -938,26 +967,26 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _ActionButton(
-                    icon: Icons.calendar_today_outlined,
-                    label: 'Insights Report',
-                    onTap: () => _sendQuickMessage('Insights Report'),
-                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.calendar_today_outlined,
+                        label: 'Insights Report',
+                        onTap: () => _sendQuickMessage('Insights Report'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ActionButton(
+                        icon: Icons.notifications_outlined,
+                        label: 'Reminders',
+                        onTap: _openUpcomingDuesSheet,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ActionButton(
-                    icon: Icons.trending_up_outlined,
-                    label: 'Market trends',
-                    onTap: () => _sendQuickMessage('Market trends'),
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 60),
             // Bottom text
             const Text(
@@ -983,6 +1012,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       itemCount: messages.length,
       itemBuilder: (context, index) {
+        final message = messages[index];
         final isUser = message["sender"] == "user";
 
         return Padding(
@@ -1026,58 +1056,68 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                   ),
                 ),
                 const SizedBox(width: 12),
-                // AI: Rendered markdown (bold, lists) for readable output
+                // AI: Rendered markdown + optional insight chart
                 Flexible(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF7FCFB),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: const Color(0xFFE0F2EF),
-                        width: 1,
-                      ),
-                    ),
-                    child: MarkdownBody(
-                      data: _sanitizeAiText(message["text"]?.toString() ?? ''),
-                      shrinkWrap: true,
-                      styleSheet: MarkdownStyleSheet(
-                        p: const TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF1A1A1A),
-                          height: 1.45,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
                         ),
-                        strong: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF0D1F1A),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7FCFB),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFFE0F2EF),
+                            width: 1,
+                          ),
                         ),
-                        listBullet: const TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF1AAE9F),
-                          height: 1.45,
-                        ),
-                        listIndent: 20,
-                        blockSpacing: 8,
-                        blockquote: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF4D5F73),
-                          fontStyle: FontStyle.italic,
-                          height: 1.4,
-                        ),
-                        blockquoteDecoration: BoxDecoration(
-                          border: Border(
-                            left: BorderSide(
-                              color: const Color(0xFF1AAE9F),
-                              width: 3,
+                        child: MarkdownBody(
+                          data: _sanitizeAiText(message["text"]?.toString() ?? ''),
+                          shrinkWrap: true,
+                          styleSheet: MarkdownStyleSheet(
+                            p: const TextStyle(
+                              fontSize: 15,
+                              color: Color(0xFF1A1A1A),
+                              height: 1.45,
+                            ),
+                            strong: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0D1F1A),
+                            ),
+                            listBullet: const TextStyle(
+                              fontSize: 15,
+                              color: Color(0xFF1AAE9F),
+                              height: 1.45,
+                            ),
+                            listIndent: 20,
+                            blockSpacing: 8,
+                            blockquote: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF4D5F73),
+                              fontStyle: FontStyle.italic,
+                              height: 1.4,
+                            ),
+                            blockquoteDecoration: BoxDecoration(
+                              border: Border(
+                                left: BorderSide(
+                                  color: const Color(0xFF1AAE9F),
+                                  width: 3,
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
+                      if (message["chart"] is Map) ...[
+                        const SizedBox(height: 12),
+                        _InsightChart(data: message["chart"] as Map<String, dynamic>),
+                      ],
+                    ],
                   ),
                 ),
               ],
@@ -1504,6 +1544,225 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
+/// Bottom sheet showing top 3 upcoming rent dues from the API.
+class _UpcomingDuesSheet extends StatefulWidget {
+  final String sessionToken;
+
+  const _UpcomingDuesSheet({required this.sessionToken});
+
+  @override
+  State<_UpcomingDuesSheet> createState() => _UpcomingDuesSheetState();
+}
+
+class _UpcomingDuesSheetState extends State<_UpcomingDuesSheet> {
+  List<Map<String, dynamic>> _dues = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUpcomingDues();
+  }
+
+  Future<void> _fetchUpcomingDues() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final uri = Uri.parse('${ApiConfig.upcomingDuesEndpoint}?limit=3');
+      final response = await http.get(
+        uri,
+        headers: {'Authorization': 'Bearer ${widget.sessionToken}'},
+      );
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        final list = decoded is List ? decoded : (decoded is Map && decoded['items'] is List ? decoded['items'] as List : <dynamic>[]);
+        setState(() {
+          _dues = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          _loading = false;
+          _error = null;
+        });
+      } else {
+        setState(() {
+          _error = 'Could not load reminders (${response.statusCode})';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Connection error. Please try again.';
+        _loading = false;
+      });
+    }
+  }
+
+  String _formatDueDate(String? iso) {
+    if (iso == null || iso.isEmpty) return '—';
+    try {
+      final d = DateTime.parse(iso);
+      const months = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec';
+      final parts = months.split(' ');
+      final month = d.month >= 1 && d.month <= 12 ? parts[d.month - 1] : '';
+      return '${d.day} $month ${d.year}';
+    } catch (_) {
+      return iso;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.45,
+      maxChildSize: 0.7,
+      minChildSize: 0.3,
+      builder: (context, scrollController) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  margin: const EdgeInsets.only(top: 12, bottom: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0x22000000),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                'Upcoming dues',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF1AAE9F)))
+                    : _error != null
+                        ? Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _error!,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Color(0xFF6B6B6B), fontSize: 15),
+                                ),
+                                const SizedBox(height: 16),
+                                TextButton.icon(
+                                  onPressed: _fetchUpcomingDues,
+                                  icon: const Icon(Icons.refresh, size: 20, color: Color(0xFF1AAE9F)),
+                                  label: const Text('Retry', style: TextStyle(color: Color(0xFF1AAE9F))),
+                                ),
+                              ],
+                            ),
+                          )
+                        : _dues.isEmpty
+                            ? const Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Center(
+                                  child: Text(
+                                    'No upcoming dues right now.\nRent due dates will appear here.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Color(0xFF6B6B6B), fontSize: 15),
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                controller: scrollController,
+                                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                                itemCount: _dues.length,
+                                itemBuilder: (context, index) {
+                                  final d = _dues[index];
+                                  final propertyName = (d['property_name'] as String?)?.trim() ?? 'Property';
+                                  final tenantName = (d['tenant_name'] as String?)?.trim() ?? '—';
+                                  final dueDate = _formatDueDate(d['due_date'] as String?);
+                                  final rent = d['monthly_rent'] is int
+                                      ? d['monthly_rent'] as int
+                                      : int.tryParse(d['monthly_rent']?.toString() ?? '0') ?? 0;
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF7FCFB),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: const Color(0xFFE0F2EF)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFE0F2EF),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: const Icon(Icons.calendar_today_rounded, color: Color(0xFF1AAE9F), size: 20),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                propertyName,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 15,
+                                                  color: Color(0xFF1A1A1A),
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Due $dueDate · $tenantName',
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  color: Color(0xFF6B6B6B),
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          '₹${rent.toStringAsFixed(0)}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 15,
+                                            color: Color(0xFF1AAE9F),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ==========================
 // Add Payment Bottom Sheet
 // ==========================
@@ -1763,6 +2022,201 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Renders a small line or bar chart for insight (text2sql) results.
+class _InsightChart extends StatelessWidget {
+  final Map<String, dynamic> data;
+
+  const _InsightChart({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = data["labels"] as List<dynamic>? ?? [];
+    final values = data["values"] as List<dynamic>? ?? [];
+    final chartType = (data["chartType"] as String?)?.toLowerCase() ?? "line";
+    final title = data["title"] as String?;
+
+    if (labels.isEmpty || values.isEmpty) return const SizedBox.shrink();
+
+    final labelStrings = labels.map((e) => e.toString()).toList();
+    final valueNumbers = values.map((e) {
+      if (e is num) return e.toDouble();
+      return double.tryParse(e.toString()) ?? 0.0;
+    }).toList();
+    final maxY = valueNumbers.isEmpty ? 1.0 : (valueNumbers.reduce((a, b) => a > b ? a : b) * 1.1).clamp(1.0, double.infinity);
+    const teal = Color(0xFF1AAE9F);
+
+    Widget chart;
+    if (chartType == "bar" && labelStrings.length <= 12) {
+      final barGroups = List.generate(
+        valueNumbers.length,
+        (i) => BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: valueNumbers[i],
+              color: teal,
+              width: 16,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+            ),
+          ],
+          showingTooltipIndicators: [0],
+        ),
+      );
+      chart = SizedBox(
+        height: 200,
+        child: BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceAround,
+            maxY: maxY,
+            barGroups: barGroups,
+            barTouchData: BarTouchData(enabled: true),
+            titlesData: FlTitlesData(
+              show: true,
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    final i = value.toInt();
+                    if (i >= 0 && i < labelStrings.length) {
+                      final s = labelStrings[i];
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          s.length > 8 ? "${s.substring(0, 7)}…" : s,
+                          style: const TextStyle(
+                            color: Color(0xFF6B6B6B),
+                            fontSize: 10,
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  reservedSize: 28,
+                  interval: 1,
+                ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 36,
+                  getTitlesWidget: (value, meta) => Text(
+                    value >= 1000 ? "${(value / 1000).toStringAsFixed(0)}k" : value.toStringAsFixed(0),
+                    style: const TextStyle(color: Color(0xFF6B6B6B), fontSize: 10),
+                  ),
+                ),
+              ),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            gridData: const FlGridData(show: false),
+            borderData: FlBorderData(show: false),
+          ),
+        ),
+      );
+    } else {
+      final spots = List.generate(
+        valueNumbers.length,
+        (i) => FlSpot(i.toDouble(), valueNumbers[i]),
+      );
+      chart = SizedBox(
+        height: 200,
+        child: LineChart(
+          LineChartData(
+            lineBarsData: [
+              LineChartBarData(
+                spots: spots,
+                isCurved: true,
+                color: teal,
+                barWidth: 2.5,
+                isStrokeCapRound: true,
+                dotData: const FlDotData(show: true),
+                belowBarData: BarAreaData(
+                  show: true,
+                  color: teal.withOpacity(0.15),
+                ),
+              ),
+            ],
+            minX: 0,
+            maxX: (valueNumbers.length - 1).toDouble(),
+            minY: 0,
+            maxY: maxY,
+            titlesData: FlTitlesData(
+              show: true,
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    final i = value.round();
+                    if (i >= 0 && i < labelStrings.length) {
+                      final s = labelStrings[i];
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          s.length > 8 ? "${s.substring(0, 7)}…" : s,
+                          style: const TextStyle(
+                            color: Color(0xFF6B6B6B),
+                            fontSize: 10,
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  reservedSize: 28,
+                  interval: 1,
+                ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 36,
+                  getTitlesWidget: (value, meta) => Text(
+                    value >= 1000 ? "${(value / 1000).toStringAsFixed(0)}k" : value.toStringAsFixed(0),
+                    style: const TextStyle(color: Color(0xFF6B6B6B), fontSize: 10),
+                  ),
+                ),
+              ),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            gridData: const FlGridData(show: false),
+            borderData: FlBorderData(show: false),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FCFB),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE0F2EF), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (title != null && title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            ),
+          chart,
+        ],
+      ),
     );
   }
 }

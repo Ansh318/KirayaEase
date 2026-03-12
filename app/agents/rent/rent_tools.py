@@ -13,5 +13,5 @@ def list_pending_rents(user_id: int) -> dict:
 
 @tool
 def confirm_rent_payment(lease_id: int, month: str, confirmed_by: int) -> dict:
-    """Mark a rent payment as confirmed for a lease and month. month must be YYYY-MM-01 (e.g. 2026-03-01 for March 2026). confirmed_by is the landlord's user_id."""
+    """Mark a rent payment as confirmed for a lease and month. Use when the user says rent was paid for [month], tenant paid for [month], or similar. month must be YYYY-MM-01 (e.g. 2026-03-01 for March 2026). When a single property/lease is selected in context, lease_id is injected; otherwise pass the lease_id from get_my_leases or list_pending_rents. confirmed_by is the landlord's user_id (injected)."""
     return do_confirm(lease_id, month, confirmed_by)

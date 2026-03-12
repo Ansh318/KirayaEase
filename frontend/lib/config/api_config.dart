@@ -18,6 +18,7 @@ class ApiConfig {
   static String get googleLoginEndpoint => '$baseUrl/auth-google';
   static String get onboardingEndpoint => '$baseUrl/onboarding';
   static String get leasesEndpoint => '$baseUrl/leases';
+  static String get upcomingDuesEndpoint => '$baseUrl/leases/upcoming-dues';
   static String get propertiesEndpoint => '$baseUrl/properties';
   static String get paymentsEndpoint => '$baseUrl/payments';
   static String get deleteAccountEndpoint => '$baseUrl/account';

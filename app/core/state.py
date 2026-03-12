@@ -43,3 +43,4 @@ class AgentState(TypedDict, total=False):
     # Query results
     # -------------------------
     query_result: Any
+    insights_chart_spec: Optional[Dict[str, Any]]  # chart payload for frontend when fetch_rent_data is chartable

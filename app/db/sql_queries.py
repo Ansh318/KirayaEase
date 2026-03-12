@@ -324,3 +324,13 @@ JOIN properties p ON p.id = l.property_id
 WHERE p.owner_id = %s
 ORDER BY rc.month DESC, rc.created_at DESC;
 """
+
+
+# For reminders: (lease_id, month) pairs that are already confirmed (month = first-of-month date).
+GET_CONFIRMED_LEASE_MONTHS_BY_OWNER = """
+SELECT rc.lease_id, rc.month
+FROM rent_confirmations rc
+JOIN leases l ON l.id = rc.lease_id
+JOIN properties p ON p.id = l.property_id
+WHERE p.owner_id = %s AND rc.status = 'confirmed';
+"""

@@ -27,6 +27,7 @@ def build_initial_state(
     scope: Optional[str] = None,
     property_context: Optional[dict[str, Any]] = None,
     role: Optional[str] = None,
+    lease_id: Optional[int] = None,
 ):
     session_token = (authorization or "").replace("Bearer ", "").strip() or session_id
     profile = _get_profile(session_token)
@@ -49,6 +50,12 @@ def build_initial_state(
         state["property_id"] = property_id
     if property_context is not None:
         state["property_context"] = property_context
+    # Lease ID from frontend (property/lease selector); use for confirm_rent_payment
+    if lease_id is not None:
+        state["lease_id"] = lease_id
+    elif scope == "property" and state.get("property_id") is not None:
+        # Frontend often sends lease_id as property_id when one lease is selected
+        state["lease_id"] = state["property_id"]
     return state
 
 
@@ -64,6 +71,12 @@ def agent_chat(
     scope = body.get("active_scope") or body.get("scope") or "portfolio"
     property_context = body.get("property_context")
     role = body.get("user_role")
+    lease_id = body.get("lease_id")
+    if lease_id is not None:
+        try:
+            lease_id = int(lease_id)
+        except (TypeError, ValueError):
+            lease_id = None
 
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
@@ -76,6 +89,7 @@ def agent_chat(
         scope=scope,
         property_context=property_context,
         role=role,
+        lease_id=lease_id,
     )
     result = build_graph().invoke(state)
     # Frontend expects "response" with the assistant reply text
@@ -89,4 +103,5 @@ def agent_chat(
         "response": response_text,
         "payment_order_id": result.get("payment_order_id"),
         "payment_amount": result.get("payment_amount"),
+        "chart": result.get("insights_chart_spec"),
     }

@@ -93,6 +93,7 @@ Rules:
 - Do NOT include owner_id filter
 - Limit results to 100 rows
 - Return ONLY SQL
+- For "over time", "by month", "monthly", "trend" or period-based questions: select a period column (e.g. date_trunc('month', rent_confirmations.month) AS month, or month/year) and an aggregate (e.g. SUM(amount) AS total_rent) so the result can be graphed. Use aliases like "month" or "period" and "total" or "amount".
 
 Schema:
 {self.schema}

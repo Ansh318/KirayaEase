@@ -5,13 +5,14 @@ from typing import Any, Dict, List
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
 from app.core.state import AgentState
+from app.agents.insights.chart_spec import build_chart_spec
 
 # Map: tool_name -> { param_name: state_key } for injection (state_key value is injected into param_name)
 STATE_INJECTION: Dict[str, Dict[str, str]] = {
     "store_lease": {"owner_id": "user_id"},
     "fetch_rent_data": {"user_id": "user_id"},
     "list_pending_rents": {"user_id": "user_id"},
-    "confirm_rent_payment": {"confirmed_by": "user_id"},
+    "confirm_rent_payment": {"confirmed_by": "user_id", "lease_id": "lease_id"},
     "get_my_properties": {"user_id": "user_id"},
     "get_my_leases": {"user_id": "user_id"},
     "create_property": {"owner_id": "user_id"},
@@ -59,6 +60,14 @@ def create_tool_node(tools: List[Any]):
                         for k in ("extracted_data", "lease_id", "property_id", "query_result", "uploaded_lease_path"):
                             if k in result and result[k] is not None:
                                 state_updates[k] = result[k]
+                        # When fetch_rent_data returns chartable data, attach chart spec for frontend
+                        if name == "fetch_rent_data" and result.get("success") and result.get("data"):
+                            chart_spec = build_chart_spec(
+                                result["data"],
+                                state.get("user_query") or "",
+                            )
+                            if chart_spec:
+                                state_updates["insights_chart_spec"] = chart_spec
                     if isinstance(result, dict):
                         content = json.dumps(result, default=str)
                     else:

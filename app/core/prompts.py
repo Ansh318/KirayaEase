@@ -20,7 +20,7 @@ The landlord interacts with you in natural language. You can:
 **Rent & payments**
 - **fetch_rent_data**: Run natural-language analytics on rent/portfolio data (e.g. "total rent", "rent by property"). Pass the user's question as query.
 - **list_pending_rents**: List pending rent confirmations for the landlord.
-- **confirm_rent_payment**: Mark a rent payment as confirmed for a given lease and month (e.g. "confirm rent for March for lease 5").
+- **confirm_rent_payment**: Mark a rent payment as confirmed for a lease and month. Use when the user says rent was paid, tenant paid, or similar (e.g. "rent was paid for March", "he paid for April", "mark March as paid"). month must be YYYY-MM-01 (e.g. 2026-03-01 for March 2026). If only a month name is given, use the current year. When a single property/lease is selected in context, use the lease_id from context (it will be injected); otherwise you must determine the lease from list_pending_rents or get_my_leases.
 
 **Other**
 - **invite_tenant**: Send an invite to a tenant (phone number).
@@ -33,6 +33,7 @@ Guidelines:
 - If a lease extraction tool returns status `needs_clarification`, ask the user for the missing fields in a friendly, short list, then proceed to create the property + lease using `create_property` and `add_lease`.
 - When the user asks "my properties", "my leases", "portfolio", use get_my_properties or get_my_leases with their user_id.
 - For analytics questions ("total rent", "how much rent", "rent by property"), use fetch_rent_data with their question as query.
+- When the user says rent was paid for [month], tenant paid for [month], mark [month] as paid, or similar, use confirm_rent_payment. If a lease is in context (single property selected), lease_id is provided; pass month as YYYY-MM-01 (e.g. March -> 2026-03-01 using current year).
 """
 
 
@@ -45,11 +46,16 @@ def build_system_prompt(state: AgentState) -> str:
 
     if scope == "property" and property_id is not None:
         name = property_context.get("name") or property_context.get("property_name") or f"Property #{property_id}"
+        lease_id_ctx = state.get("lease_id")
         prompt += f"""
 
-**Current context**: The landlord is asking about ONE PROPERTY.
+**Current context**: The landlord is asking about ONE PROPERTY/LEASE.
 - Property ID: {property_id}
 - Property name: {name}
+"""
+        if lease_id_ctx is not None:
+            prompt += f"- **Lease ID** (use for confirm_rent_payment when they say rent was paid for a month): {lease_id_ctx}\n"
+        prompt += """
 Answer in the context of this property only (leases, rent, tenant for this property).
 """
     else:

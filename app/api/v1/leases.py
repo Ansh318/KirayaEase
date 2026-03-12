@@ -279,3 +279,15 @@ def get_payments(authorization: str = Header(...)):
     if not session_token:
         raise HTTPException(status_code=401, detail="Missing authorization")
     return LeaseService().get_payments_for_owner(session_token)
+
+
+@router.get("/leases/upcoming-dues")
+def get_upcoming_dues(
+    authorization: Optional[str] = Header(None),
+    limit: int = Query(3, ge=1, le=10),
+):
+    """Return the next few upcoming rent due dates (not yet confirmed) for the authenticated landlord."""
+    session_token = (authorization or "").replace("Bearer ", "").strip()
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    return LeaseService().get_upcoming_dues(session_token, limit=limit)
