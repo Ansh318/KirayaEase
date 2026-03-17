@@ -1,9 +1,12 @@
 import 'dart:ui';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:crypto/crypto.dart';
 import '../config/api_config.dart';
 
 class LoginPage extends StatefulWidget {
@@ -18,6 +21,20 @@ class _LoginPageState extends State<LoginPage> {
   bool _googleSignInInitialized = false;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final rand = Random.secure();
+    return List.generate(length, (_) => charset[rand.nextInt(charset.length)])
+        .join();
+  }
+
+  String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
 
   Future<void> _ensureGoogleSignInInitialized() async {
     if (_googleSignInInitialized) return;
@@ -92,6 +109,77 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Login failed: $e")),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loginWithApple() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final rawNonce = _generateNonce();
+      final hashedNonce = _sha256ofString(rawNonce);
+
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+
+      final idToken = credential.identityToken;
+      if (idToken == null) {
+        throw Exception("No ID token received from Apple");
+      }
+
+      final response = await http.post(
+        Uri.parse(ApiConfig.appleLoginEndpoint),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"id_token": idToken}),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception("Backend Apple login failed");
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setString('session_id', data['session_id'] as String);
+      await prefs.setString('user_email', data['email'] as String? ?? '');
+
+      if (!mounted) return;
+
+      final onboarded = data['onboarded'] == true;
+      if (onboarded) {
+        final profileRes = await http.get(
+          Uri.parse(ApiConfig.userProfileEndpoint),
+          headers: {
+            'Authorization': 'Bearer ${prefs.getString('session_id')}',
+          },
+        );
+        if (!mounted) return;
+        if (profileRes.statusCode == 200) {
+          final profile = jsonDecode(profileRes.body) as Map<String, dynamic>?;
+          final role = (profile?['role'] ?? '').toString().toLowerCase();
+          if (role.isNotEmpty) {
+            await prefs.setString('user_role', role);
+          }
+        }
+        Navigator.pushReplacementNamed(context, '/tenant');
+        return;
+      }
+
+      Navigator.pushReplacementNamed(context, '/home');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Apple login failed: $e")),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -212,6 +300,39 @@ class _LoginPageState extends State<LoginPage> {
                                 _isLoading
                                     ? "Checking account..."
                                     : "Login with Google",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _loginWithApple,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Image.asset(
+                                'assets/apple-icon.png',
+                                height: 20,
+                                width: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                "Sign in with Apple",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,

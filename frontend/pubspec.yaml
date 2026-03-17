@@ -29,6 +29,8 @@ dependencies:
   pdfrx: ^2.2.20
   flutter_markdown: ^0.7.4+1
   fl_chart: ^0.69.0
+  sign_in_with_apple: ^6.0.0
+  crypto: ^3.0.6
 
 dev_dependencies:
   flutter_test:
@@ -45,3 +47,4 @@ flutter:
     - assets/intro_video.mp4
     - assets/razorpay.png
     - assets/google.png
+    - assets/apple-icon.png
