@@ -175,7 +175,7 @@ class LandingPage extends StatelessWidget {
                             FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                "AI For Modern Landlords",
+                                "AI For The Everyday Landlord",
                                 maxLines: 1,
                                 style: TextStyle(
                                   fontSize: subtitleSize,
