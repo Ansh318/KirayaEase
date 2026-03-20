@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 load_dotenv()
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from app.services.whatsapp_service import normalize_whatsapp_e164
+
 from app.db.sql_queries import (
     GET_PROPERTY,
     GET_PROPERTIES_BY_OWNER,
@@ -18,6 +20,7 @@ from app.db.sql_queries import (
     DELETE_PROPERTY,
     DELETE_LEASE,
     FIND_LEASE_BY_OWNER_AND_PROPERTY,
+    UPDATE_PROPERTY_TENANT_PHONE,
 )
 
 class PropertyManager:
@@ -45,17 +48,23 @@ class PropertyManager:
         owner_id: int,
         name: str,
         tenant_name: Optional[str] = None,
+        tenant_phone: Optional[str] = None,
         address_line1: Optional[str] = None,
         city: Optional[str] = None,
         state: Optional[str] = None,
         postal_code: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Insert a property. Schema: owner_id, name, tenant_name, address_line1, city, state, postal_code."""
+        """Insert a property. Schema: owner_id, name, tenant_name, tenant_phone, address_line1, city, state, postal_code."""
+        phone_norm: Optional[str] = None
+        if tenant_phone and str(tenant_phone).strip():
+            phone_norm = normalize_whatsapp_e164(str(tenant_phone))
+            if len(phone_norm) < 10:
+                phone_norm = None
         with self._conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     ADD_PROPERTY,
-                    (owner_id, name, tenant_name, address_line1, city, state, postal_code),
+                    (owner_id, name, tenant_name, phone_norm, address_line1, city, state, postal_code),
                 )
                 row = cur.fetchone()
                 property_id = row[0] if row else None
@@ -68,6 +77,29 @@ class PropertyManager:
                 cur.execute(GET_PROPERTY, (property_id,))
                 row = cur.fetchone()
                 return self._serialize_row(dict(row)) if row else {}
+
+    def update_tenant_phone(
+        self,
+        *,
+        owner_id: int,
+        property_id: int,
+        tenant_phone: str,
+    ) -> Dict[str, Any]:
+        """Set WhatsApp number for the tenant on a property (must belong to owner_id)."""
+        phone = normalize_whatsapp_e164(str(tenant_phone or "").strip())
+        if not phone or len(phone) < 10:
+            raise ValueError("tenant_phone is required (valid mobile with country code)")
+        with self._conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    UPDATE_PROPERTY_TENANT_PHONE,
+                    (phone, property_id, owner_id),
+                )
+                row = cur.fetchone()
+            conn.commit()
+        if not row:
+            raise ValueError("Property not found or not owned by this user")
+        return self.get_property(property_id)
 
     def get_properties_by_owner(self, owner_id: int) -> List[Dict[str, Any]]:
         with self._conn() as conn:

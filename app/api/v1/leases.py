@@ -61,6 +61,7 @@ def _extracted_to_frontend_fields(data: dict) -> dict:
         "security_deposit": data.get("security_deposit"),
         "lock_in_period": data.get("lock_in_period"),
         "due_day": data.get("due_day"),
+        "tenant_phone": data.get("tenant_phone"),
         "landlord_name": None,
     }
 
@@ -129,6 +130,7 @@ async def extract_lease_content(
                 owner_id=user_id,
                 name=name,
                 tenant_name=data.get("tenant_name"),
+                tenant_phone=data.get("tenant_phone"),
                 address_line1=data.get("address_line1"),
                 city=data.get("city"),
                 state=data.get("state"),

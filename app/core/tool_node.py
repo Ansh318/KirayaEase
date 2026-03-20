@@ -13,6 +13,8 @@ STATE_INJECTION: Dict[str, Dict[str, str]] = {
     "fetch_rent_data": {"user_id": "user_id"},
     "list_pending_rents": {"user_id": "user_id"},
     "confirm_rent_payment": {"confirmed_by": "user_id", "lease_id": "lease_id"},
+    "send_rent_reminder_whatsapp": {"landlord_user_id": "user_id", "lease_id": "lease_id"},
+    "set_tenant_whatsapp_phone": {"landlord_user_id": "user_id", "property_id": "property_id"},
     "get_my_properties": {"user_id": "user_id"},
     "get_my_leases": {"user_id": "user_id"},
     "create_property": {"owner_id": "user_id"},

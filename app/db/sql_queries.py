@@ -81,12 +81,13 @@ INSERT INTO properties (
     owner_id,
     name,
     tenant_name,
+    tenant_phone,
     address_line1,
     city,
     state,
     postal_code
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
 RETURNING id;
 """
 
@@ -326,11 +327,36 @@ ORDER BY rc.month DESC, rc.created_at DESC;
 """
 
 
-# For reminders: (lease_id, month) pairs that are already confirmed (month = first-of-month date).
 GET_CONFIRMED_LEASE_MONTHS_BY_OWNER = """
 SELECT rc.lease_id, rc.month
 FROM rent_confirmations rc
 JOIN leases l ON l.id = rc.lease_id
 JOIN properties p ON p.id = l.property_id
 WHERE p.owner_id = %s AND rc.status = 'confirmed';
+"""
+
+
+UPDATE_PROPERTY_TENANT_PHONE = """
+UPDATE properties
+SET tenant_phone = %s
+WHERE id = %s AND owner_id = %s
+RETURNING id, tenant_phone;
+"""
+
+
+GET_LEASE_WITH_PROPERTY_FOR_OWNER = """
+SELECT
+  l.id AS lease_id,
+  l.due_day,
+  l.lease_end,
+  l.status AS lease_status,
+  l.monthly_rent,
+  p.id AS property_id,
+  p.owner_id,
+  p.name AS property_name,
+  p.tenant_phone
+FROM leases l
+JOIN properties p ON p.id = l.property_id
+WHERE l.id = %s AND p.owner_id = %s
+LIMIT 1;
 """

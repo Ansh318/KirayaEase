@@ -57,6 +57,7 @@ def store_lease(owner_id: int, pdf_path: str) -> dict:
         owner_id=owner_id,
         name=name,
         tenant_name=tenant_name,
+        tenant_phone=data.get("tenant_phone"),
         address_line1=address_line1,
         city=city,
         state=state,
@@ -114,16 +115,18 @@ def create_property(
     owner_id: int,
     name: str,
     tenant_name: str | None = None,
+    tenant_phone: str | None = None,
     address_line1: str | None = None,
     city: str | None = None,
     state: str | None = None,
     postal_code: str | None = None,
 ) -> dict:
-    """Create a property record in the database. name = property name (e.g. 'Maple Apartments #302')."""
+    """Create a property record in the database. name = property name (e.g. 'Maple Apartments #302'). tenant_phone optional (digits / +91)."""
     created = PropertyManager().add_property(
         owner_id=owner_id,
         name=name,
         tenant_name=tenant_name,
+        tenant_phone=tenant_phone,
         address_line1=address_line1,
         city=city,
         state=state,

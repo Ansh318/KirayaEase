@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 # ---- your reusable manager ----
 from app.core.modelConfig import ModelConfigManager
+from app.services.whatsapp_service import normalize_whatsapp_e164
 # ---- LangChain messages ----
 from langchain_core.messages import SystemMessage, HumanMessage
 # ---- PDF ----
@@ -15,12 +16,13 @@ except Exception:
     from PyPDF2 import PdfReader  # fallback
 
 # ========= CONFIG =========
-# Keys match DB columns: properties (name, tenant_name, address_line1, city, state, postal_code)
+# Keys match DB columns: properties (name, tenant_name, tenant_phone, address_line1, city, state, postal_code)
 # and leases (lease_start, lease_end, monthly_rent, security_deposit, lock_in_period, due_day).
 # owner_id, property_id, lease_text are set by the app when inserting.
 DB_INSERT_FIELDS = [
     "name",              # property name (e.g. "Property at <address>")
     "tenant_name",
+    "tenant_phone",     # tenant mobile for WhatsApp; null if not stated
     "address_line1",
     "city",
     "state",
@@ -79,6 +81,7 @@ Keys:
 Rules:
 - name: property name (use full property address or "Property at <address>" if no title)
 - tenant_name, address_line1, city, state, postal_code: from tenant/leased premises; postal_code = 6 digits
+- tenant_phone: tenant's mobile number as written in the lease (e.g. "+91 98765 43210", "09876543210", "9876543210"). Use null if no phone appears anywhere for the tenant/lessee.
 - lease_start, lease_end: dates as "YYYY-MM-DD"
 - monthly_rent, security_deposit: integers (INR)
 - lock_in_period: integer (months), or null
@@ -95,6 +98,7 @@ Expected output (only this JSON, nothing else):
 {{
   "name": "Property at 42 MG Road",
   "tenant_name": "Priya Singh",
+  "tenant_phone": "+91 9876543210",
   "address_line1": "42 MG Road",
   "city": "Bengaluru",
   "state": "Karnataka",
@@ -168,6 +172,13 @@ def extract_from_pdf(pdf_path: str) -> Dict[str, Any]:
             else:
                 d = digits_only(str(v)) if v else None
                 merged[num_key] = int(d) if d else None
+    # WhatsApp: normalize tenant phone; drop if invalid/too short
+    raw_phone = merged.get("tenant_phone")
+    if raw_phone not in (None, ""):
+        tp = normalize_whatsapp_e164(str(raw_phone))
+        merged["tenant_phone"] = tp if len(tp) >= 10 else None
+    else:
+        merged["tenant_phone"] = None
     return merged
 
 # if __name__ == "__main__":

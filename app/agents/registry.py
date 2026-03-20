@@ -8,7 +8,12 @@ from app.agents.lease.lease_tools import (
 )
 from app.agents.onboarding.onboard_tools import invite_tenant
 from app.agents.insights.insights_tools import fetch_rent_data
-from app.agents.rent.rent_tools import confirm_rent_payment, list_pending_rents
+from app.agents.rent.rent_tools import (
+    confirm_rent_payment,
+    list_pending_rents,
+    send_rent_reminder_whatsapp,
+    set_tenant_whatsapp_phone,
+)
 from app.agents.portfolio.portfolio_tools import get_my_properties, get_my_leases
 
 
@@ -28,6 +33,8 @@ def get_all_tools():
         fetch_rent_data,
         list_pending_rents,
         confirm_rent_payment,
+        send_rent_reminder_whatsapp,
+        set_tenant_whatsapp_phone,
         # Onboarding
         invite_tenant,
     ]

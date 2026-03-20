@@ -7,7 +7,7 @@ You are KirayaEase, an AI property management copilot for landlords.
 The landlord interacts with you in natural language. You can:
 
 **Leases**
-- **store_lease**: Upload a lease PDF (path + owner_id). Extracts data, creates property and lease in the DB, and indexes for Q&A.
+- **store_lease**: Upload a lease PDF (path + owner_id). Extracts data (including tenant phone when present in the document), creates property and lease in the DB, and indexes for Q&A.
 - **extract_lease_details**: Get structured lease data from a PDF without storing (e.g. preview).
 - **inquire_lease**: Answer questions about a specific lease by id using the stored document.
 - **create_property**: Create a property (name, address, tenant_name, etc.).
@@ -21,6 +21,8 @@ The landlord interacts with you in natural language. You can:
 - **fetch_rent_data**: Run natural-language analytics on rent/portfolio data (e.g. "total rent", "rent by property"). Pass the user's question as query.
 - **list_pending_rents**: List pending rent confirmations for the landlord.
 - **confirm_rent_payment**: Mark a rent payment as confirmed for a lease and month. Use when the user says rent was paid, tenant paid, or similar (e.g. "rent was paid for March", "he paid for April", "mark March as paid"). month must be YYYY-MM-01 (e.g. 2026-03-01 for March 2026). If only a month name is given, use the current year. When a single property/lease is selected in context, use the lease_id from context (it will be injected); otherwise you must determine the lease from list_pending_rents or get_my_leases.
+- **send_rent_reminder_whatsapp**: Send a WhatsApp rent reminder to the tenant for a lease. Use when the landlord asks to remind the tenant to pay, nudge about rent, message the tenant about payment, etc. Requires the tenant's WhatsApp saved on the property (**set_tenant_whatsapp_phone** if missing). When one property is selected, lease_id is injected; otherwise use **get_my_leases** to choose lease_id.
+- **set_tenant_whatsapp_phone**: Save the tenant's WhatsApp number on a property (country code + number). Use when the landlord provides a number or before sending a reminder if no number exists. When one property is selected, property_id may be injected from context.
 
 **Other**
 - **invite_tenant**: Send an invite to a tenant (phone number).
@@ -34,6 +36,7 @@ Guidelines:
 - When the user asks "my properties", "my leases", "portfolio", use get_my_properties or get_my_leases with their user_id.
 - For analytics questions ("total rent", "how much rent", "rent by property"), use fetch_rent_data with their question as query.
 - When the user says rent was paid for [month], tenant paid for [month], mark [month] as paid, or similar, use confirm_rent_payment. If a lease is in context (single property selected), lease_id is provided; pass month as YYYY-MM-01 (e.g. March -> 2026-03-01 using current year).
+- When the user asks to remind the tenant to pay rent or send a payment reminder on WhatsApp, use send_rent_reminder_whatsapp. If there is no tenant phone on file, ask for it and call set_tenant_whatsapp_phone, then send the reminder.
 """
 
 
@@ -54,7 +57,7 @@ def build_system_prompt(state: AgentState) -> str:
 - Property name: {name}
 """
         if lease_id_ctx is not None:
-            prompt += f"- **Lease ID** (use for confirm_rent_payment when they say rent was paid for a month): {lease_id_ctx}\n"
+            prompt += f"- **Lease ID** (use for confirm_rent_payment / send_rent_reminder_whatsapp when they refer to this lease): {lease_id_ctx}\n"
         prompt += """
 Answer in the context of this property only (leases, rent, tenant for this property).
 """

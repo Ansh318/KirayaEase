@@ -38,5 +38,11 @@ def ensure_runtime_migrations() -> None:
                     );
                     """
                 )
+                cur.execute(
+                    """
+                    ALTER TABLE properties
+                    ADD COLUMN IF NOT EXISTS tenant_phone TEXT;
+                    """
+                )
     finally:
         conn.close()

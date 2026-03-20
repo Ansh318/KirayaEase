@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS properties (
 
   name           TEXT NOT NULL,           -- "Maple Apartments #302"
   tenant_name    TEXT,                    -- simple MVP tenant tracking
+  tenant_phone   TEXT,                    -- WhatsApp E.164 digits (optional)
 
   address_line1  TEXT,
   city           TEXT,
