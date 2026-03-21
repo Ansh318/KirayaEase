@@ -80,5 +80,16 @@ def ensure_runtime_migrations() -> None:
                     );
                     """
                 )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS user_lease_agreement_previews (
+                      user_id           BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                      agreement_text    TEXT NOT NULL,
+                      lease_fields_json JSONB NOT NULL,
+                      reference_prompt  TEXT,
+                      updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    """
+                )
     finally:
         conn.close()

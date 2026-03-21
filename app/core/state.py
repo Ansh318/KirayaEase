@@ -47,3 +47,9 @@ class AgentState(TypedDict, total=False):
     # -------------------------
     query_result: Any
     insights_chart_spec: Optional[Dict[str, Any]]  # chart payload for frontend when fetch_rent_data is chartable
+
+    # -------------------------
+    # Client UI (Flutter / web)
+    # -------------------------
+    client_action: Optional[str]  # e.g. open_lease_agreement_widget — returned in agent-chat response
+    client_action_payload: Optional[Dict[str, Any]]  # optional extra context for the client

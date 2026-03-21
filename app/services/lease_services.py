@@ -2,6 +2,7 @@
 import calendar
 from datetime import date, datetime
 import os
+from typing import Optional
 
 from fastapi import HTTPException
 import psycopg2
@@ -16,7 +17,10 @@ from app.db.sql_queries import (
 )
 from app.schemas.property_manager import PropertyManager
 from app.schemas.lease_write import LeaseWriteBody
-from app.services.lease_manual_assets import persist_manual_lease_pdf_and_rag
+from app.services.lease_manual_assets import (
+    persist_generated_agreement_pdf_and_rag,
+    persist_manual_lease_pdf_and_rag,
+)
 from app.services.lease_synthetic_document import render_lease_document_text
 
 load_dotenv()
@@ -106,6 +110,122 @@ def finalize_stored_lease_draft(user_id: int, *, public_base_url: str) -> dict:
     base = (public_base_url or "").strip().rstrip("/")
     detail = create_lease_manual_from_body(user_id, body, public_base_url=base)
     delete_lease_draft(int(user_id))
+    return detail
+
+
+def create_lease_from_generated_agreement(
+    user_id: int,
+    body: LeaseWriteBody,
+    agreement_text: str,
+    *,
+    public_base_url: str,
+) -> dict:
+    """
+    Create property + lease using LLM-generated agreement text for lease_text + PDF + RAG.
+    """
+    if body.lease_end < body.lease_start:
+        raise ValueError("lease_end must be after lease_start")
+    text = (agreement_text or "").strip()
+    if len(text) < 50:
+        raise ValueError("Agreement text is too short to save.")
+
+    pm = PropertyManager()
+    prop = pm.add_property(
+        owner_id=user_id,
+        name=body.property_name.strip(),
+        tenant_name=body.tenant_name.strip() if body.tenant_name else None,
+        tenant_phone=body.tenant_phone.strip() if body.tenant_phone else None,
+        address_line1=body.address_line1.strip() if body.address_line1 else None,
+        city=body.city.strip() if body.city else None,
+        state=body.state.strip() if body.state else None,
+        postal_code=body.postal_code.strip() if body.postal_code else None,
+    )
+    pid = prop.get("id")
+    if not pid:
+        raise ValueError("Failed to create property")
+    lease = pm.add_lease(
+        property_id=int(pid),
+        lease_text=text,
+        pdf_url=None,
+        lease_start=body.lease_start.isoformat(),
+        lease_end=body.lease_end.isoformat(),
+        monthly_rent=body.monthly_rent,
+        security_deposit=body.security_deposit,
+        lock_in_period=body.lock_in_period,
+        due_day=body.due_day,
+    )
+    lid = lease.get("id")
+    if not lid:
+        raise ValueError("Failed to create lease")
+    persist_generated_agreement_pdf_and_rag(
+        lease_id=int(lid),
+        owner_id=user_id,
+        agreement_text=text,
+        public_base_url=public_base_url,
+    )
+    detail = pm.get_lease_detail_for_owner(int(lid), user_id)
+    if not detail:
+        raise ValueError("Lease created but could not load detail")
+    return _serialize_lease_detail_row(detail)
+
+
+def generate_and_store_lease_agreement_preview(
+    user_id: int,
+    body: LeaseWriteBody,
+    reference_prompt: Optional[str] = None,
+) -> dict:
+    """Run LLM agreement generation and persist for preview (widget / API)."""
+    from app.services.lease_agreement_llm import generate_lease_agreement_text
+    from app.services.lease_generated_preview_store import save_agreement_preview
+
+    text = generate_lease_agreement_text(body, reference_prompt=reference_prompt)
+    ok = save_agreement_preview(
+        int(user_id),
+        agreement_text=text,
+        lease_fields=body.model_dump(mode="json"),
+        reference_prompt=reference_prompt,
+    )
+    if not ok:
+        raise ValueError("Could not store lease agreement preview (database).")
+    return {
+        "agreement_text": text,
+        "char_count": len(text),
+        "reference_prompt": (reference_prompt or "").strip() or None,
+    }
+
+
+def finalize_generated_lease_agreement(user_id: int, *, public_base_url: str) -> dict:
+    """Create DB lease from stored LLM preview; clears preview and structured draft."""
+    from pydantic import ValidationError
+
+    from app.services.lease_generated_preview_store import (
+        delete_agreement_preview,
+        get_agreement_preview,
+    )
+    from app.services.user_lease_draft_store import delete_lease_draft
+
+    prev = get_agreement_preview(int(user_id))
+    if not prev or not (prev.get("agreement_text") or "").strip():
+        raise ValueError(
+            "No generated lease agreement to save. Call the generate endpoint or agent tool first."
+        )
+    try:
+        body = LeaseWriteBody.model_validate(prev["lease_fields"])
+    except ValidationError as e:
+        raise ValueError(f"Stored lease fields are invalid: {e}") from e
+
+    base = (public_base_url or "").strip().rstrip("/")
+    detail = create_lease_from_generated_agreement(
+        int(user_id),
+        body,
+        prev["agreement_text"],
+        public_base_url=base,
+    )
+    delete_agreement_preview(int(user_id))
+    try:
+        delete_lease_draft(int(user_id))
+    except Exception:
+        pass
     return detail
 
 

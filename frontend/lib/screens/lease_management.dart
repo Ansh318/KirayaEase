@@ -6,6 +6,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:ui';
 import '../config/api_config.dart';
+import 'lease_agreement_wizard_page.dart';
 import 'lease_editor_page.dart';
 
 class LeasePage extends StatefulWidget {
@@ -103,8 +104,22 @@ class _LeasePageState extends State<LeasePage> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.auto_awesome),
+            tooltip: 'New lease (AI agreement)',
+            onPressed: _loading
+                ? null
+                : () async {
+                    final ok = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => const LeaseAgreementWizardPage(),
+                      ),
+                    );
+                    if (ok == true && mounted) _fetchLeasesFromApi();
+                  },
+          ),
+          IconButton(
             icon: const Icon(Icons.add_circle_outline),
-            tooltip: 'Add lease',
+            tooltip: 'Add lease (quick form)',
             onPressed: _loading
                 ? null
                 : () async {

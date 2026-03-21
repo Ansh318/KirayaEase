@@ -127,3 +127,57 @@ def render_lease_pdf_bytes(body: LeaseWriteBody) -> bytes:
 
     doc.build(story)
     return buf.getvalue()
+
+
+def render_plain_agreement_pdf_bytes(agreement_text: str) -> bytes:
+    """Multi-page PDF from arbitrary plain-text agreement (LLM output)."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        leftMargin=2 * cm,
+        rightMargin=2 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
+    )
+    styles = getSampleStyleSheet()
+    title = ParagraphStyle(
+        "T",
+        parent=styles["Heading1"],
+        fontSize=14,
+        spaceAfter=10,
+    )
+    normal = ParagraphStyle("N", parent=styles["Normal"], fontSize=9, leading=12)
+
+    def esc(s: str) -> str:
+        return (
+            (s or "")
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+
+    story: List = [
+        Paragraph(esc("Residential lease agreement (KirayaEase)"), title),
+        Paragraph(
+            esc(
+                "Generated text for your records and in-app Q&A. Not legal advice. "
+                "Review with a qualified lawyer before signing."
+            ),
+            normal,
+        ),
+        Spacer(1, 0.3 * cm),
+    ]
+    for line in (agreement_text or "").split("\n"):
+        if not line.strip():
+            story.append(Spacer(1, 0.15 * cm))
+        else:
+            story.append(Paragraph(esc(line), normal))
+
+    doc.build(story)
+    return buf.getvalue()

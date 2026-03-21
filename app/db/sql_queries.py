@@ -285,6 +285,31 @@ WHERE user_id = %s;
 """
 
 
+UPSERT_USER_LEASE_AGREEMENT_PREVIEW = """
+INSERT INTO user_lease_agreement_previews (user_id, agreement_text, lease_fields_json, reference_prompt, updated_at)
+VALUES (%s, %s, %s, %s, now())
+ON CONFLICT (user_id) DO UPDATE SET
+  agreement_text = EXCLUDED.agreement_text,
+  lease_fields_json = EXCLUDED.lease_fields_json,
+  reference_prompt = EXCLUDED.reference_prompt,
+  updated_at = now();
+"""
+
+
+GET_USER_LEASE_AGREEMENT_PREVIEW = """
+SELECT agreement_text, lease_fields_json, reference_prompt, updated_at
+FROM user_lease_agreement_previews
+WHERE user_id = %s
+LIMIT 1;
+"""
+
+
+DELETE_USER_LEASE_AGREEMENT_PREVIEW = """
+DELETE FROM user_lease_agreement_previews
+WHERE user_id = %s;
+"""
+
+
 UPDATE_LEASE_TEXT_FOR_OWNER = """
 UPDATE leases l
 SET lease_text = %s

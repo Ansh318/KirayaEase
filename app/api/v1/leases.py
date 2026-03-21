@@ -15,9 +15,19 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 from app.services.lease_draft_preview import format_lease_draft_preview
-from app.services.lease_services import LeaseService, finalize_stored_lease_draft
+from app.services.lease_generated_preview_store import get_agreement_preview
+from app.services.lease_services import (
+    LeaseService,
+    finalize_generated_lease_agreement,
+    finalize_stored_lease_draft,
+    generate_and_store_lease_agreement_preview,
+)
 from app.services.user_lease_draft_store import get_lease_draft, save_lease_draft
-from app.schemas.lease_write import LeaseDraftPatchBody, LeaseWriteBody
+from app.schemas.lease_write import (
+    LeaseAgreementGenerateRequest,
+    LeaseDraftPatchBody,
+    LeaseWriteBody,
+)
 
 router = APIRouter()
 
@@ -307,6 +317,55 @@ def create_lease_manual(
     return LeaseService().create_lease_manual(
         session_token, body, public_base_url=public_base
     )
+
+
+@router.post("/leases/agreement/generate")
+def post_generate_lease_agreement(
+    gen_body: LeaseAgreementGenerateRequest = Body(...),
+    authorization: str = Header(...),
+):
+    """
+    LLM-generates a full lease agreement from structured `lease` facts + optional `reference_prompt`.
+    If `reference_prompt` is empty, the default KirayaEase template applies. Result is stored for preview.
+    """
+    user_id = _require_owner_id(authorization)
+    try:
+        return generate_and_store_lease_agreement_preview(
+            user_id,
+            gen_body.lease,
+            reference_prompt=gen_body.reference_prompt,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get("/leases/agreement/preview")
+def get_lease_agreement_preview(authorization: str = Header(...)):
+    """Return the last generated agreement text + lease fields for the widget preview step."""
+    user_id = _require_owner_id(authorization)
+    prev = get_agreement_preview(user_id)
+    if not prev:
+        raise HTTPException(
+            status_code=404,
+            detail="No generated agreement yet. POST /leases/agreement/generate first.",
+        )
+    return prev
+
+
+@router.post("/leases/agreement/save")
+def post_save_generated_lease_agreement(request: Request, authorization: str = Header(...)):
+    """Persist property + lease after the user previewed the LLM-generated agreement."""
+    user_id = _require_owner_id(authorization)
+    public_base = str(request.base_url).rstrip("/")
+    try:
+        return finalize_generated_lease_agreement(user_id, public_base_url=public_base)
+    except ValueError as e:
+        msg = str(e)
+        if "No generated" in msg or "generate" in msg.lower():
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=400, detail=msg)
 
 
 @router.get("/leases/draft")

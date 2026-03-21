@@ -19,6 +19,12 @@ class ApiConfig {
   static String get appleLoginEndpoint => '$baseUrl/auth-apple';
   static String get onboardingEndpoint => '$baseUrl/onboarding';
   static String get leasesEndpoint => '$baseUrl/leases';
+  static String get leaseAgreementGenerateEndpoint =>
+      '$baseUrl/leases/agreement/generate';
+  static String get leaseAgreementPreviewEndpoint =>
+      '$baseUrl/leases/agreement/preview';
+  static String get leaseAgreementSaveEndpoint =>
+      '$baseUrl/leases/agreement/save';
   static String get upcomingDuesEndpoint => '$baseUrl/leases/upcoming-dues';
   static String get propertiesEndpoint => '$baseUrl/properties';
   static String get paymentsEndpoint => '$baseUrl/payments';

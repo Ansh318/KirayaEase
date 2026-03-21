@@ -13,6 +13,7 @@ from app.schemas.property_manager import PropertyManager
 from app.services.lease_synthetic_document import (
     render_lease_document_text,
     render_lease_pdf_bytes,
+    render_plain_agreement_pdf_bytes,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,64 @@ def persist_manual_lease_pdf_and_rag(
         pdf_bytes = render_lease_pdf_bytes(body)
     except Exception as e:
         logger.exception("render_lease_pdf_bytes failed: %s", e)
+        pdf_bytes = b""
+
+    pm = PropertyManager()
+    try:
+        pm.update_lease_text_for_owner(owner_id=owner_id, lease_id=lease_id, lease_text=text)
+    except Exception as e:
+        logger.exception("update_lease_text_for_owner failed: %s", e)
+
+    if pdf_bytes:
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            try:
+                conn = psycopg2.connect(database_url)
+                try:
+                    with conn:
+                        with conn.cursor() as cur:
+                            cur.execute(
+                                UPSERT_LEASE_FILE,
+                                (
+                                    int(lease_id),
+                                    psycopg2.Binary(pdf_bytes),
+                                    "application/pdf",
+                                ),
+                            )
+                finally:
+                    conn.close()
+            except Exception as e:
+                logger.exception("UPSERT_LEASE_FILE failed: %s", e)
+
+        base = (public_base_url or "").rstrip("/")
+        if base:
+            try:
+                pm.set_lease_pdf_url(int(lease_id), f"{base}/leases/{lease_id}/pdf")
+            except Exception as e:
+                logger.exception("set_lease_pdf_url failed: %s", e)
+
+    try:
+        proc = LeaseDocumentProcessor()
+        proc.reindex_lease(str(lease_id), str(owner_id), text)
+    except Exception as e:
+        logger.exception("Lease RAG reindex failed: %s", e)
+
+
+def persist_generated_agreement_pdf_and_rag(
+    *,
+    lease_id: int,
+    owner_id: int,
+    agreement_text: str,
+    public_base_url: str,
+) -> None:
+    """
+    Store LLM-generated agreement as lease_text, PDF from plain text, Pinecone RAG.
+    """
+    text = (agreement_text or "").strip()
+    try:
+        pdf_bytes = render_plain_agreement_pdf_bytes(text)
+    except Exception as e:
+        logger.exception("render_plain_agreement_pdf_bytes failed: %s", e)
         pdf_bytes = b""
 
     pm = PropertyManager()

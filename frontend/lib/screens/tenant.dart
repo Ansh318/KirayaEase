@@ -11,6 +11,7 @@ import 'package:http_parser/http_parser.dart';
 import '../config/api_config.dart';
 import '../route_observer.dart';
 import '../services/lease_store.dart';
+import 'lease_agreement_wizard_page.dart';
 // import '../widgets/ai_assistant.dart';
 
 class TenantDashboardV2 extends StatefulWidget {
@@ -610,6 +611,27 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
         } else {
           debugPrint(
               'No payment order detected. payment_order_id: $paymentOrderId, payment_amount: $paymentAmount');
+        }
+
+        // Chat-driven UI: open lease agreement wizard when backend signals
+        final clientAction = data['action'] ?? data['client_action'];
+        if (clientAction is String && clientAction.isNotEmpty) {
+          Future.delayed(const Duration(milliseconds: 400), () {
+            if (!mounted) return;
+            if (clientAction == 'open_lease_agreement_widget') {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const LeaseAgreementWizardPage(),
+                ),
+              );
+            } else if (clientAction == 'open_lease_agreement_preview') {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const LeaseAgreementWizardPage(startOnPreview: true),
+                ),
+              );
+            }
+          });
         }
       } else {
         setState(() {

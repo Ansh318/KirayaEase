@@ -5,6 +5,7 @@ from langchain_core.tools import tool
 from pydantic import ValidationError
 
 from app.agents.lease.talk2lease import TalkToLeaseRAG
+from app.core.client_actions import OPEN_LEASE_AGREEMENT_PREVIEW, OPEN_LEASE_AGREEMENT_WIDGET
 from app.core.modelConfig import ModelConfigManager
 from app.db.vector_db_lease import LeaseDocumentProcessor
 from app.services.lease_extractor import extract_from_pdf, read_pdf_text
@@ -14,7 +15,11 @@ from app.services.lease_draft_preview import (
     format_lease_draft_preview,
     format_partial_lease_draft_preview,
 )
-from app.services.lease_services import finalize_stored_lease_draft
+from app.services.lease_services import (
+    finalize_generated_lease_agreement,
+    finalize_stored_lease_draft,
+    generate_and_store_lease_agreement_preview,
+)
 from app.services.user_lease_draft_store import get_lease_draft, save_lease_draft
 import json
 
@@ -362,10 +367,89 @@ def prepare_lease_draft(
         "draft_body": draft_body,
         "missing_fields": [],
         "message": (
-            "Draft complete and saved. Show `preview`. They should fix mistakes **before** Save — "
-            "call prepare_lease_draft with corrections if needed. "
-            "Only when they explicitly want to **create/save** the lease, call finalize_lease_creation."
+            "Draft complete and saved. Show `preview`. Next: call **generate_lease_agreement** "
+            "(optional `reference_prompt`) to build the full agreement with the LLM, then after they confirm the "
+            "preview call **save_generated_lease_agreement**. Legacy shortcut: **finalize_lease_creation** saves a "
+            "short summary PDF only (no full LLM agreement)."
         ),
+    }
+
+
+@tool
+def open_lease_agreement_widget() -> dict:
+    """Tell the app to open the **lease agreement** UI (form: lease facts + optional reference prompt → generate → preview → save). Call when the landlord wants to create a lease using the widget, or asks to open the form / builder / “lease screen”. The client reads `client_action` from the chat API response."""
+    return {
+        "status": "ok",
+        "client_action": OPEN_LEASE_AGREEMENT_WIDGET,
+        "message": "Lease agreement widget should open on the client.",
+    }
+
+
+@tool
+def generate_lease_agreement(
+    owner_id: int,
+    reference_prompt: Optional[str] = None,
+) -> dict:
+    """Use the LLM + default lease template to produce a **full** residential lease agreement text from the saved lease facts. Optional **reference_prompt** customizes clauses (e.g. pets allowed, furnished, notice period). Requires **prepare_lease_draft** to have returned **validated** first (or the widget saved a complete draft). Stores the result server-side for **preview** — user reviews in the lease widget, then **save_generated_lease_agreement**."""
+    oid = int(owner_id)
+    raw = get_lease_draft(oid)
+    if not raw:
+        return {
+            "status": "error",
+            "message": (
+                "No lease facts on file. Use the lease builder widget or **prepare_lease_draft** until "
+                "`status` is **validated**, then call this tool again."
+            ),
+        }
+    try:
+        body = LeaseWriteBody.model_validate(raw)
+    except ValidationError as e:
+        return {
+            "status": "error",
+            "message": "Lease facts incomplete. Finish **prepare_lease_draft** until validated, then generate.",
+            "details": e.errors(),
+        }
+    try:
+        out = generate_and_store_lease_agreement_preview(
+            oid, body, reference_prompt=reference_prompt
+        )
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    except RuntimeError as e:
+        return {"status": "error", "message": str(e)}
+    full_text = out.get("agreement_text") or ""
+    excerpt = full_text[:2400]
+    return {
+        "status": "generated",
+        "char_count": out.get("char_count"),
+        "preview_excerpt": excerpt + ("…" if len(full_text) > 2400 else ""),
+        "client_action": OPEN_LEASE_AGREEMENT_PREVIEW,
+        "client_action_payload": {"char_count": out.get("char_count")},
+        "message": (
+            "Full agreement generated. They should **preview** it in the app (GET /leases/agreement/preview) "
+            "or read the excerpt. When they confirm, call **save_generated_lease_agreement**."
+        ),
+    }
+
+
+@tool
+def save_generated_lease_agreement(
+    owner_id: int,
+    public_base_url: str = "",
+) -> dict:
+    """After preview confirmation: save property + lease using the **LLM-generated** agreement text, PDF, and RAG."""
+    base = (public_base_url or "").strip().rstrip("/")
+    try:
+        detail = finalize_generated_lease_agreement(int(owner_id), public_base_url=base)
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    return {
+        "status": "success",
+        "lease_id": detail.get("lease_id"),
+        "property_id": detail.get("property_id"),
+        "property_name": detail.get("property_name"),
+        "summary": detail,
+        "message": "Lease saved with full agreement text and PDF.",
     }
 
 
@@ -374,7 +458,7 @@ def finalize_lease_creation(
     owner_id: int,
     public_base_url: str = "",
 ) -> dict:
-    """**Save** the lease: writes property + lease, PDF, RAG — only after the landlord finished **editing the draft** and wants to create it. Loads the server draft from **prepare_lease_draft** (or the app draft editor). If something is still wrong, they should **not** finalize — use **prepare_lease_draft** again with fixes instead."""
+    """**Legacy / quick save**: creates property + lease with a **short summary** PDF (no LLM full agreement). Prefer **generate_lease_agreement** → preview → **save_generated_lease_agreement** for the full document flow."""
     base = (public_base_url or "").strip().rstrip("/")
     try:
         detail = finalize_stored_lease_draft(int(owner_id), public_base_url=base)

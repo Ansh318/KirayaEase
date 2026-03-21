@@ -25,6 +25,13 @@ class LeaseWriteBody(BaseModel):
     due_day: int = Field(1, ge=1, le=31)
 
 
+class LeaseAgreementGenerateRequest(BaseModel):
+    """Widget / API: structured lease facts + optional reference prompt for LLM agreement."""
+
+    lease: LeaseWriteBody
+    reference_prompt: Optional[str] = None
+
+
 class LeaseDraftPatchBody(BaseModel):
     """Partial update for `user_lease_drafts` (merge with existing draft)."""
 

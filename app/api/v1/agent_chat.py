@@ -157,6 +157,10 @@ def agent_chat(
         append_exchange(thread_key, uid if uid else None, message, response_text)
     return {
         "response": response_text,
+        "action": result.get("client_action"),
+        "client_action": result.get("client_action"),
+        "action_payload": result.get("client_action_payload"),
+        "client_action_payload": result.get("client_action_payload"),
         "payment_order_id": result.get("payment_order_id"),
         "payment_amount": result.get("payment_amount"),
         "chart": result.get("insights_chart_spec"),
