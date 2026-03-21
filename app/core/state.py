@@ -13,6 +13,7 @@ class AgentState(TypedDict, total=False):
     session_id: str
     api_public_base_url: Optional[str]  # e.g. https://app.herokuapp.com for lease PDF URLs from agent tools
     memory_summary: Optional[str]  # persisted user notes (remember_user_fact); injected into system prompt
+    response_language: Optional[str]  # language instruction for assistant replies in this request
 
     # -------------------------
     # Property context (landlord)

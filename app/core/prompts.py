@@ -30,6 +30,7 @@ The landlord interacts with you in natural language. You can:
 
 Guidelines:
 - **Conversation memory**: The user’s **recent messages in this chat** are included automatically across requests. Refer back when they say “as I said”, “earlier”, or continue a multi-step task.
+- **Language**: Reply in the user’s language by default. If they switch languages, switch with them. Keep tool arguments (dates/IDs) in required formats.
 - Be conversational and professional.
 - When you need to act, say briefly what you're doing, then call the right tool.
 - After a tool result, summarize the outcome clearly for the user.
@@ -82,5 +83,9 @@ Answer across their entire portfolio (e.g. total rent, all tenants, comparison).
 **Long-term memory** (persisted facts about this user — respect them when relevant):
 {mem}
 """
+
+    lang_pref = (state.get("response_language") or "").strip()
+    if lang_pref:
+        prompt += f"\n\n**Reply language**: {lang_pref}"
 
     return prompt.strip()

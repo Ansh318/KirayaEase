@@ -9,6 +9,7 @@ from app.services.chat_thread_memory import (
     build_thread_key,
     load_thread_messages,
 )
+from app.services.language_pref import response_language_instruction
 from app.services.onboarding_services import UserService
 from app.services.user_agent_memory_store import get_memory_summary
 
@@ -49,6 +50,7 @@ def build_initial_state(
     api_public_base_url: Optional[str] = None,
     prior_messages: Optional[List[Any]] = None,
     memory_summary: Optional[str] = None,
+    response_language: Optional[str] = None,
 ):
     session_token = (authorization or "").replace("Bearer ", "").strip() or session_id
     profile = _get_profile(session_token)
@@ -71,6 +73,8 @@ def build_initial_state(
     }
     if memory_summary:
         state["memory_summary"] = memory_summary
+    if response_language:
+        state["response_language"] = response_language
     if scope is not None:
         state["scope"] = scope
     if property_id is not None:
@@ -100,6 +104,7 @@ def agent_chat(
     scope = body.get("active_scope") or body.get("scope") or "portfolio"
     property_context = body.get("property_context")
     role = body.get("user_role")
+    preferred_language = body.get("language") or body.get("preferred_language")
     lease_id = body.get("lease_id")
     if lease_id is not None:
         try:
@@ -134,6 +139,7 @@ def agent_chat(
         api_public_base_url=str(request.base_url).rstrip("/"),
         prior_messages=prior,
         memory_summary=mem or None,
+        response_language=response_language_instruction(message, preferred_language),
     )
     result = build_graph().invoke(state)
     # Frontend expects "response" with the assistant reply text
