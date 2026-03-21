@@ -21,6 +21,7 @@ STATE_INJECTION: Dict[str, Dict[str, str]] = {
     "create_property": {"owner_id": "user_id"},
     "prepare_lease_draft": {"owner_id": "user_id"},
     "finalize_lease_creation": {"owner_id": "user_id"},
+    "remember_user_fact": {"user_id": "user_id"},
 }
 
 

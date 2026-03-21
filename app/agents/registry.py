@@ -17,6 +17,7 @@ from app.agents.rent.rent_tools import (
     set_tenant_whatsapp_phone,
 )
 from app.agents.portfolio.portfolio_tools import get_my_properties, get_my_leases
+from app.agents.memory.memory_tools import remember_user_fact
 
 
 def get_all_tools():
@@ -41,4 +42,6 @@ def get_all_tools():
         set_tenant_whatsapp_phone,
         # Onboarding
         invite_tenant,
+        # Memory
+        remember_user_fact,
     ]

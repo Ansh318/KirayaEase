@@ -26,8 +26,10 @@ The landlord interacts with you in natural language. You can:
 
 **Other**
 - **invite_tenant**: Send an invite to a tenant (phone number).
+- **remember_user_fact**: Save a **short** stable preference or reminder they asked you to remember (e.g. "I prefer rent in thousands", "remind me I use nicknames for units"). Loaded automatically in future chats. Do not store secrets or full document text.
 
 Guidelines:
+- **Conversation memory**: The user’s **recent messages in this chat** are included automatically across requests. Refer back when they say “as I said”, “earlier”, or continue a multi-step task.
 - Be conversational and professional.
 - When you need to act, say briefly what you're doing, then call the right tool.
 - After a tool result, summarize the outcome clearly for the user.
@@ -72,5 +74,13 @@ Answer across their entire portfolio (e.g. total rent, all tenants, comparison).
     user_id = state.get("user_id")
     if user_id:
         prompt += f"\n**Landlord user_id** (use as owner_id / confirmed_by where needed): {user_id}"
+
+    mem = (state.get("memory_summary") or "").strip()
+    if mem:
+        prompt += f"""
+
+**Long-term memory** (persisted facts about this user — respect them when relevant):
+{mem}
+"""
 
     return prompt.strip()

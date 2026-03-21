@@ -53,5 +53,32 @@ def ensure_runtime_migrations() -> None:
                     );
                     """
                 )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS agent_chat_messages (
+                      id          BIGSERIAL PRIMARY KEY,
+                      thread_key  TEXT NOT NULL,
+                      user_id     BIGINT REFERENCES users(id) ON DELETE SET NULL,
+                      role        TEXT NOT NULL CHECK (role IN ('human','assistant')),
+                      content     TEXT NOT NULL,
+                      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    """
+                )
+                cur.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_agent_chat_messages_thread_id
+                    ON agent_chat_messages(thread_key, id DESC);
+                    """
+                )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS user_agent_memory (
+                      user_id     BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                      summary     TEXT NOT NULL DEFAULT '',
+                      updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+                    );
+                    """
+                )
     finally:
         conn.close()

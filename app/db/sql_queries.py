@@ -455,3 +455,39 @@ JOIN properties p ON p.id = l.property_id
 WHERE l.id = %s AND p.owner_id = %s
 LIMIT 1;
 """
+
+
+# =========================
+# Agent chat memory (thread + long-term notes)
+# =========================
+
+INSERT_AGENT_CHAT_MESSAGE = """
+INSERT INTO agent_chat_messages (thread_key, user_id, role, content)
+VALUES (%s, %s, %s, %s);
+"""
+
+
+LIST_AGENT_CHAT_MESSAGES_RECENT = """
+SELECT role, content
+FROM agent_chat_messages
+WHERE thread_key = %s
+ORDER BY id DESC
+LIMIT %s;
+"""
+
+
+GET_USER_AGENT_MEMORY_SUMMARY = """
+SELECT summary
+FROM user_agent_memory
+WHERE user_id = %s
+LIMIT 1;
+"""
+
+
+UPSERT_USER_AGENT_MEMORY_SUMMARY = """
+INSERT INTO user_agent_memory (user_id, summary, updated_at)
+VALUES (%s, %s, now())
+ON CONFLICT (user_id) DO UPDATE SET
+  summary = EXCLUDED.summary,
+  updated_at = now();
+"""
