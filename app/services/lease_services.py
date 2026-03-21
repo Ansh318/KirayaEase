@@ -15,8 +15,98 @@ from app.db.sql_queries import (
     GET_CONFIRMED_LEASE_MONTHS_BY_OWNER,
 )
 from app.schemas.property_manager import PropertyManager
+from app.schemas.lease_write import LeaseWriteBody
+from app.services.lease_manual_assets import persist_manual_lease_pdf_and_rag
+from app.services.lease_synthetic_document import render_lease_document_text
 
 load_dotenv()
+
+
+def _serialize_lease_detail_row(detail: dict) -> dict:
+    """ISO-format dates for JSON / tool responses."""
+    out = dict(detail)
+    for key in ("lease_start", "lease_end", "lease_created_at"):
+        v = out.get(key)
+        if isinstance(v, (date, datetime)):
+            out[key] = v.isoformat()
+    return out
+
+
+def create_lease_manual_from_body(
+    user_id: int,
+    body: LeaseWriteBody,
+    *,
+    public_base_url: str,
+) -> dict:
+    """
+    Create property + lease, synthetic PDF, Pinecone RAG (same as POST /leases).
+    Returns serialized lease detail. Raises ValueError on invalid dates / DB errors.
+    """
+    if body.lease_end < body.lease_start:
+        raise ValueError("lease_end must be after lease_start")
+    doc_text = render_lease_document_text(body)
+    pm = PropertyManager()
+    prop = pm.add_property(
+        owner_id=user_id,
+        name=body.property_name.strip(),
+        tenant_name=body.tenant_name.strip() if body.tenant_name else None,
+        tenant_phone=body.tenant_phone.strip() if body.tenant_phone else None,
+        address_line1=body.address_line1.strip() if body.address_line1 else None,
+        city=body.city.strip() if body.city else None,
+        state=body.state.strip() if body.state else None,
+        postal_code=body.postal_code.strip() if body.postal_code else None,
+    )
+    pid = prop.get("id")
+    if not pid:
+        raise ValueError("Failed to create property")
+    lease = pm.add_lease(
+        property_id=int(pid),
+        lease_text=doc_text,
+        pdf_url=None,
+        lease_start=body.lease_start.isoformat(),
+        lease_end=body.lease_end.isoformat(),
+        monthly_rent=body.monthly_rent,
+        security_deposit=body.security_deposit,
+        lock_in_period=body.lock_in_period,
+        due_day=body.due_day,
+    )
+    lid = lease.get("id")
+    if not lid:
+        raise ValueError("Failed to create lease")
+    persist_manual_lease_pdf_and_rag(
+        lease_id=int(lid),
+        owner_id=user_id,
+        body=body,
+        public_base_url=public_base_url,
+    )
+    detail = pm.get_lease_detail_for_owner(int(lid), user_id)
+    if not detail:
+        raise ValueError("Lease created but could not load detail")
+    return _serialize_lease_detail_row(detail)
+
+
+def finalize_stored_lease_draft(user_id: int, *, public_base_url: str) -> dict:
+    """
+    Load the landlord's pending lease draft from DB, create property + lease (same as POST /leases),
+    then delete the draft. Use after the user has finished editing the draft and taps Save / confirms.
+    """
+    from pydantic import ValidationError
+
+    from app.services.user_lease_draft_store import delete_lease_draft, get_lease_draft
+
+    draft_body = get_lease_draft(int(user_id))
+    if not draft_body or not isinstance(draft_body, dict):
+        raise ValueError("No lease draft found. Create or update a draft first.")
+    try:
+        body = LeaseWriteBody.model_validate(draft_body)
+    except ValidationError:
+        raise ValueError(
+            "Lease draft is invalid. Fix it in the draft editor or run prepare_lease_draft again."
+        ) from None
+    base = (public_base_url or "").strip().rstrip("/")
+    detail = create_lease_manual_from_body(user_id, body, public_base_url=base)
+    delete_lease_draft(int(user_id))
+    return detail
 
 
 class LeaseService:
@@ -155,6 +245,97 @@ class LeaseService:
 
         upcoming.sort(key=lambda x: x["due_date"])
         return upcoming[:limit]
+
+    def get_lease_detail(self, session_token: str, lease_id: int) -> dict:
+        """Single lease + property row for the editor; raises 401/404."""
+        with self._get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(GET_USER_FROM_SESSION, (session_token.strip(),))
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=401, detail="Invalid or expired session")
+                user_id = row["user_id"]
+        detail = PropertyManager().get_lease_detail_for_owner(lease_id, int(user_id))
+        if not detail:
+            raise HTTPException(status_code=404, detail="Lease not found")
+        return _serialize_lease_detail_row(detail)
+
+    def create_lease_manual(
+        self,
+        session_token: str,
+        body: LeaseWriteBody,
+        *,
+        public_base_url: str,
+    ) -> dict:
+        """Create property + lease from manual entry; generate PDF + RAG like uploaded leases."""
+        with self._get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(GET_USER_FROM_SESSION, (session_token.strip(),))
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=401, detail="Invalid or expired session")
+                user_id = int(row["user_id"])
+        try:
+            return create_lease_manual_from_body(
+                user_id, body, public_base_url=public_base_url
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    def update_lease_manual(
+        self,
+        session_token: str,
+        lease_id: int,
+        body: LeaseWriteBody,
+        *,
+        public_base_url: str,
+    ) -> dict:
+        """Update property + lease; regenerate synthetic PDF + RAG."""
+        with self._get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(GET_USER_FROM_SESSION, (session_token.strip(),))
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=401, detail="Invalid or expired session")
+                user_id = int(row["user_id"])
+        if body.lease_end < body.lease_start:
+            raise HTTPException(status_code=400, detail="lease_end must be after lease_start")
+        pm = PropertyManager()
+        detail = pm.get_lease_detail_for_owner(lease_id, user_id)
+        if not detail:
+            raise HTTPException(status_code=404, detail="Lease not found")
+        property_id = int(detail["property_id"])
+        try:
+            pm.update_property_for_owner(
+                owner_id=user_id,
+                property_id=property_id,
+                name=body.property_name.strip(),
+                tenant_name=body.tenant_name.strip() if body.tenant_name else None,
+                tenant_phone=body.tenant_phone.strip() if body.tenant_phone else None,
+                address_line1=body.address_line1.strip() if body.address_line1 else None,
+                city=body.city.strip() if body.city else None,
+                state=body.state.strip() if body.state else None,
+                postal_code=body.postal_code.strip() if body.postal_code else None,
+            )
+            pm.update_lease_for_owner(
+                owner_id=user_id,
+                lease_id=lease_id,
+                lease_start=body.lease_start.isoformat(),
+                lease_end=body.lease_end.isoformat(),
+                monthly_rent=body.monthly_rent,
+                security_deposit=body.security_deposit,
+                lock_in_period=body.lock_in_period,
+                due_day=body.due_day,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        persist_manual_lease_pdf_and_rag(
+            lease_id=lease_id,
+            owner_id=user_id,
+            body=body,
+            public_base_url=public_base_url,
+        )
+        return self.get_lease_detail(session_token, lease_id)
 
     def get_properties_for_owner(self, session_token: str) -> list[dict]:
         """Returns all properties for the landlord identified by the session."""

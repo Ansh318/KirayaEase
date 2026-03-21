@@ -1,5 +1,6 @@
 """Custom tool node that injects agent state into tool arguments before execution."""
 import json
+import os
 from typing import Any, Dict, List
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
@@ -18,6 +19,8 @@ STATE_INJECTION: Dict[str, Dict[str, str]] = {
     "get_my_properties": {"user_id": "user_id"},
     "get_my_leases": {"user_id": "user_id"},
     "create_property": {"owner_id": "user_id"},
+    "prepare_lease_draft": {"owner_id": "user_id"},
+    "finalize_lease_creation": {"owner_id": "user_id"},
 }
 
 
@@ -36,6 +39,10 @@ def _inject_state(tool_name: str, args: Dict[str, Any], state: AgentState) -> Di
         out["query"] = state["user_query"]
     if tool_name == "store_lease" and not out.get("pdf_path") and state.get("uploaded_lease_path"):
         out["pdf_path"] = state["uploaded_lease_path"]
+    if tool_name == "finalize_lease_creation":
+        if not (out.get("public_base_url") or "").strip():
+            pb = state.get("api_public_base_url") or os.getenv("PUBLIC_BASE_URL", "").strip()
+            out["public_base_url"] = str(pb).rstrip("/") if pb else ""
     return out
 
 

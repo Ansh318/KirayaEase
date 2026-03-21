@@ -11,6 +11,7 @@ class AgentState(TypedDict, total=False):
     user_id: int
     role: str
     session_id: str
+    api_public_base_url: Optional[str]  # e.g. https://app.herokuapp.com for lease PDF URLs from agent tools
 
     # -------------------------
     # Property context (landlord)

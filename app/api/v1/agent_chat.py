@@ -1,6 +1,6 @@
 from typing import Optional, Any
 
-from fastapi import APIRouter, HTTPException, Header, Body
+from fastapi import APIRouter, HTTPException, Header, Body, Request
 from langchain_core.messages import HumanMessage
 
 from app.core.workflow import build_graph
@@ -28,6 +28,7 @@ def build_initial_state(
     property_context: Optional[dict[str, Any]] = None,
     role: Optional[str] = None,
     lease_id: Optional[int] = None,
+    api_public_base_url: Optional[str] = None,
 ):
     session_token = (authorization or "").replace("Bearer ", "").strip() or session_id
     profile = _get_profile(session_token)
@@ -56,11 +57,14 @@ def build_initial_state(
     elif scope == "property" and state.get("property_id") is not None:
         # Frontend often sends lease_id as property_id when one lease is selected
         state["lease_id"] = state["property_id"]
+    if api_public_base_url:
+        state["api_public_base_url"] = str(api_public_base_url).rstrip("/")
     return state
 
 
 @router.post("/agent-chat")
 def agent_chat(
+    request: Request,
     body: dict = Body(...),
     authorization: Optional[str] = Header(None),
 ):
@@ -90,6 +94,7 @@ def agent_chat(
         property_context=property_context,
         role=role,
         lease_id=lease_id,
+        api_public_base_url=str(request.base_url).rstrip("/"),
     )
     result = build_graph().invoke(state)
     # Frontend expects "response" with the assistant reply text

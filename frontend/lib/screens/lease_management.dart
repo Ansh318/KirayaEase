@@ -6,6 +6,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:ui';
 import '../config/api_config.dart';
+import 'lease_editor_page.dart';
 
 class LeasePage extends StatefulWidget {
   final String baseUrl = ApiConfig.baseUrl;
@@ -101,6 +102,20 @@ class _LeasePageState extends State<LeasePage> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'Add lease',
+            onPressed: _loading
+                ? null
+                : () async {
+                    final ok = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => const LeaseEditorPage(),
+                      ),
+                    );
+                    if (ok == true && mounted) _fetchLeasesFromApi();
+                  },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loading ? null : _fetchLeasesFromApi,
@@ -273,6 +288,26 @@ class _LeaseCardState extends State<_LeaseCard> {
                               fontSize: 16,
                             ),
                           ),
+                        ),
+                        IconButton(
+                          onPressed: _deleting
+                              ? null
+                              : () async {
+                                  Navigator.of(context).pop();
+                                  final ok = await Navigator.of(context).push<bool>(
+                                    MaterialPageRoute(
+                                      builder: (_) => LeaseEditorPage(
+                                        leaseId: lease.id,
+                                        initialRow: lease.rawData,
+                                      ),
+                                    ),
+                                  );
+                                  if (ok == true && context.mounted) {
+                                    widget.onDeleted();
+                                  }
+                                },
+                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF1A6FD4)),
+                          tooltip: 'Edit lease',
                         ),
                         IconButton(
                           onPressed: _deleting ? null : () => _confirmDeleteLease(context, lease),
@@ -468,7 +503,27 @@ class _LeaseCardState extends State<_LeaseCard> {
                           }
                         },
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        onPressed: () async {
+                          final ok = await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(
+                              builder: (_) => LeaseEditorPage(
+                                leaseId: lease.id,
+                                initialRow: lease.rawData,
+                              ),
+                            ),
+                          );
+                          if (ok == true && context.mounted) {
+                            widget.onDeleted();
+                          }
+                        },
+                        icon: const Icon(Icons.edit_outlined, color: Color(0xFF1A6FD4), size: 22),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        tooltip: 'Edit lease',
+                      ),
+                      const SizedBox(width: 4),
                       IconButton(
                         onPressed: _deleting
                             ? null
@@ -843,7 +898,7 @@ class _Lease {
       landlordPhone: null,
       landlordEmail: null,
       tenantName: map['property_tenant_name']?.toString(),
-      tenantPhone: null,
+      tenantPhone: map['tenant_phone']?.toString(),
       propertyAddress: propertyAddress,
       rawData: map,
       pdfSource: map['pdf_url']?.toString(),

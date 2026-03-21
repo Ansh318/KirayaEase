@@ -86,3 +86,19 @@ class LeaseDocumentProcessor:
             "lease_id": lease_id,
             "chunks_stored": len(chunks)
         }
+
+    def delete_vectors_for_lease(self, lease_id: str) -> None:
+        """Remove Pinecone chunks for this lease before reindexing (e.g. after manual edit)."""
+        lid = str(lease_id)
+        try:
+            kwargs: dict = {"filter": {"lease_id": {"$eq": lid}}}
+            if self.use_namespace and self.namespace:
+                kwargs["namespace"] = self.namespace
+            self.index.delete(**kwargs)
+        except Exception as e:
+            print(f"[LeaseDocumentProcessor] delete_vectors_for_lease warning: {e}")
+
+    def reindex_lease(self, lease_id: str, landlord_id: str, text: str) -> dict:
+        """Replace vectors for a lease with new text (manual / edited summary)."""
+        self.delete_vectors_for_lease(lease_id)
+        return self.process_lease(lease_id, landlord_id, text)

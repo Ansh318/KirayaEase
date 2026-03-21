@@ -2,7 +2,8 @@ import tempfile
 import os
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile, Request, Query
+from pydantic import ValidationError
+from fastapi import APIRouter, Body, File, Form, Header, HTTPException, UploadFile, Request, Query
 from fastapi.responses import Response
 
 from app.db.sql_queries import GET_USER_FROM_SESSION
@@ -13,7 +14,10 @@ from app.services.lease_extractor import extract_from_pdf, read_pdf_text
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from app.services.lease_services import LeaseService
+from app.services.lease_draft_preview import format_lease_draft_preview
+from app.services.lease_services import LeaseService, finalize_stored_lease_draft
+from app.services.user_lease_draft_store import get_lease_draft, save_lease_draft
+from app.schemas.lease_write import LeaseDraftPatchBody, LeaseWriteBody
 
 router = APIRouter()
 
@@ -30,6 +34,16 @@ def _get_user_id_from_session(session_token: str) -> Optional[int]:
             return int(row["user_id"]) if row else None
     finally:
         conn.close()
+
+
+def _require_owner_id(authorization: str) -> int:
+    session_token = authorization.replace("Bearer ", "").strip()
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    uid = _get_user_id_from_session(session_token)
+    if uid is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    return uid
 
 
 def _build_pdf_url(request: Request, lease_id: int) -> str:
@@ -174,7 +188,9 @@ async def extract_lease_content(
                     try:
                         raw_text = read_pdf_text(tmp_path)
                         processor = LeaseDocumentProcessor()
-                        processor.processs_lease(lease_id=lease_id, landlord_id=user_id, text=raw_text)
+                        processor.process_lease(
+                            str(lease_id), str(user_id), raw_text
+                        )
                     except Exception:
                         pass
                     agent_response = (
@@ -265,6 +281,141 @@ def get_leases(authorization: str = Header(...)):
     return LeaseService().get_leases_for_owner(session_token)
 
 
+@router.get("/leases/upcoming-dues")
+def get_upcoming_dues(
+    authorization: Optional[str] = Header(None),
+    limit: int = Query(3, ge=1, le=10),
+):
+    """Return the next few upcoming rent due dates (not yet confirmed) for the authenticated landlord."""
+    session_token = (authorization or "").replace("Bearer ", "").strip()
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    return LeaseService().get_upcoming_dues(session_token, limit=limit)
+
+
+@router.post("/leases")
+def create_lease_manual(
+    request: Request,
+    body: LeaseWriteBody = Body(...),
+    authorization: str = Header(...),
+):
+    """Create a property + lease manually; generates PDF + RAG like uploads."""
+    session_token = authorization.replace("Bearer ", "").strip()
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    public_base = str(request.base_url).rstrip("/")
+    return LeaseService().create_lease_manual(
+        session_token, body, public_base_url=public_base
+    )
+
+
+@router.get("/leases/draft")
+def get_pending_lease_draft(authorization: str = Header(...)):
+    """Return the landlord's in-progress lease draft (preview → edit → finalize)."""
+    user_id = _require_owner_id(authorization)
+    raw = get_lease_draft(user_id)
+    if not raw:
+        return {"draft": None, "preview": None}
+    try:
+        body = LeaseWriteBody.model_validate(raw)
+    except ValidationError:
+        return {"draft": raw, "preview": None, "warning": "Draft failed validation; fix via PATCH or chat."}
+    return {
+        "draft": body.model_dump(mode="json"),
+        "preview": format_lease_draft_preview(body),
+    }
+
+
+@router.put("/leases/draft")
+def put_pending_lease_draft(
+    body: LeaseWriteBody = Body(...),
+    authorization: str = Header(...),
+):
+    """Replace the pending lease draft (full body). Does not create the lease until POST .../finalize."""
+    user_id = _require_owner_id(authorization)
+    payload = body.model_dump(mode="json")
+    if not save_lease_draft(user_id, payload):
+        raise HTTPException(
+            status_code=503,
+            detail="Could not persist lease draft (DATABASE_URL or DB error).",
+        )
+    return {
+        "draft": payload,
+        "preview": format_lease_draft_preview(body),
+    }
+
+
+@router.patch("/leases/draft")
+def patch_pending_lease_draft(
+    patch: LeaseDraftPatchBody = Body(...),
+    authorization: str = Header(...),
+):
+    """Merge partial fields into the pending draft; re-validates full lease when done."""
+    user_id = _require_owner_id(authorization)
+    current = get_lease_draft(user_id)
+    if not current:
+        raise HTTPException(
+            status_code=404,
+            detail="No draft yet. Start from chat (prepare_lease_draft) or PUT /leases/draft.",
+        )
+    merged = {**current, **patch.model_dump(exclude_unset=True, mode="json")}
+    try:
+        body = LeaseWriteBody.model_validate(merged)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.errors())
+    payload = body.model_dump(mode="json")
+    if not save_lease_draft(user_id, payload):
+        raise HTTPException(
+            status_code=503,
+            detail="Could not persist lease draft (DATABASE_URL or DB error).",
+        )
+    return {
+        "draft": payload,
+        "preview": format_lease_draft_preview(body),
+    }
+
+
+@router.post("/leases/draft/finalize")
+def finalize_pending_lease_draft(request: Request, authorization: str = Header(...)):
+    """Create property + lease from the pending draft (same as agent finalize_lease_creation)."""
+    user_id = _require_owner_id(authorization)
+    public_base = str(request.base_url).rstrip("/")
+    try:
+        detail = finalize_stored_lease_draft(user_id, public_base_url=public_base)
+    except ValueError as e:
+        msg = str(e)
+        if msg.startswith("No lease draft"):
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=400, detail=msg)
+    return detail
+
+
+@router.get("/leases/{lease_id}")
+def get_lease_detail(lease_id: int, authorization: str = Header(...)):
+    """Return one lease + property for editing."""
+    session_token = authorization.replace("Bearer ", "").strip()
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    return LeaseService().get_lease_detail(session_token, lease_id)
+
+
+@router.patch("/leases/{lease_id}")
+def update_lease_manual(
+    request: Request,
+    lease_id: int,
+    body: LeaseWriteBody = Body(...),
+    authorization: str = Header(...),
+):
+    """Update property + lease; regenerates synthetic PDF + RAG."""
+    session_token = authorization.replace("Bearer ", "").strip()
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    public_base = str(request.base_url).rstrip("/")
+    return LeaseService().update_lease_manual(
+        session_token, lease_id, body, public_base_url=public_base
+    )
+
+
 @router.get("/properties")
 def get_properties(authorization: str = Header(...)):
     """Return all properties for the authenticated landlord (owner)."""
@@ -281,15 +432,3 @@ def get_payments(authorization: str = Header(...)):
     if not session_token:
         raise HTTPException(status_code=401, detail="Missing authorization")
     return LeaseService().get_payments_for_owner(session_token)
-
-
-@router.get("/leases/upcoming-dues")
-def get_upcoming_dues(
-    authorization: Optional[str] = Header(None),
-    limit: int = Query(3, ge=1, le=10),
-):
-    """Return the next few upcoming rent due dates (not yet confirmed) for the authenticated landlord."""
-    session_token = (authorization or "").replace("Bearer ", "").strip()
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Missing authorization")
-    return LeaseService().get_upcoming_dues(session_token, limit=limit)

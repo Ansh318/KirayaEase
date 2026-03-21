@@ -3,7 +3,9 @@ from app.agents.lease.lease_tools import (
     add_lease,
     create_property,
     extract_lease_details,
+    finalize_lease_creation,
     inquire_lease,
+    prepare_lease_draft,
     store_lease,
 )
 from app.agents.onboarding.onboard_tools import invite_tenant
@@ -26,6 +28,8 @@ def get_all_tools():
         inquire_lease,
         create_property,
         add_lease,
+        prepare_lease_draft,
+        finalize_lease_creation,
         # Portfolio
         get_my_properties,
         get_my_leases,

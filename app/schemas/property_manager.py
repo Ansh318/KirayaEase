@@ -21,6 +21,10 @@ from app.db.sql_queries import (
     DELETE_LEASE,
     FIND_LEASE_BY_OWNER_AND_PROPERTY,
     UPDATE_PROPERTY_TENANT_PHONE,
+    GET_LEASE_DETAIL_FOR_OWNER,
+    UPDATE_PROPERTY_FOR_OWNER,
+    UPDATE_LEASE_FOR_OWNER,
+    UPDATE_LEASE_TEXT_FOR_OWNER,
 )
 
 class PropertyManager:
@@ -150,6 +154,109 @@ class PropertyManager:
                 cur.execute(GET_LEASE, (lease_id,))
                 row = cur.fetchone()
                 return self._serialize_row(dict(row)) if row else {}
+
+    def get_lease_detail_for_owner(self, lease_id: int, owner_id: int) -> Dict[str, Any]:
+        """Lease row joined with property fields; empty dict if not found or wrong owner."""
+        with self._conn() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(GET_LEASE_DETAIL_FOR_OWNER, (lease_id, owner_id))
+                row = cur.fetchone()
+                return self._serialize_row(dict(row)) if row else {}
+
+    def update_property_for_owner(
+        self,
+        *,
+        owner_id: int,
+        property_id: int,
+        name: str,
+        tenant_name: Optional[str] = None,
+        tenant_phone: Optional[str] = None,
+        address_line1: Optional[str] = None,
+        city: Optional[str] = None,
+        state: Optional[str] = None,
+        postal_code: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        phone_norm: Optional[str] = None
+        if tenant_phone and str(tenant_phone).strip():
+            phone_norm = normalize_whatsapp_e164(str(tenant_phone))
+            if len(phone_norm) < 10:
+                phone_norm = None
+        with self._conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    UPDATE_PROPERTY_FOR_OWNER,
+                    (
+                        name,
+                        tenant_name,
+                        phone_norm,
+                        address_line1,
+                        city,
+                        state,
+                        postal_code,
+                        property_id,
+                        owner_id,
+                    ),
+                )
+                row = cur.fetchone()
+            conn.commit()
+        if not row:
+            raise ValueError("Property not found or not owned by this user")
+        return self.get_property(property_id)
+
+    def update_lease_for_owner(
+        self,
+        *,
+        owner_id: int,
+        lease_id: int,
+        lease_start: Union[str, date],
+        lease_end: Union[str, date],
+        monthly_rent: int,
+        security_deposit: Optional[int] = None,
+        lock_in_period: Optional[int] = None,
+        due_day: int,
+    ) -> Dict[str, Any]:
+        if not (1 <= due_day <= 31):
+            raise ValueError("due_day must be between 1 and 31")
+        start = lease_start.isoformat() if isinstance(lease_start, date) else lease_start
+        end = lease_end.isoformat() if isinstance(lease_end, date) else lease_end
+        with self._conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    UPDATE_LEASE_FOR_OWNER,
+                    (
+                        start,
+                        end,
+                        monthly_rent,
+                        security_deposit,
+                        lock_in_period,
+                        due_day,
+                        lease_id,
+                        owner_id,
+                    ),
+                )
+                row = cur.fetchone()
+            conn.commit()
+        if not row:
+            raise ValueError("Lease not found or not owned by this user")
+        return self.get_lease(lease_id)
+
+    def update_lease_text_for_owner(
+        self,
+        *,
+        owner_id: int,
+        lease_id: int,
+        lease_text: str,
+    ) -> None:
+        with self._conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    UPDATE_LEASE_TEXT_FOR_OWNER,
+                    (lease_text, lease_id, owner_id),
+                )
+                row = cur.fetchone()
+            conn.commit()
+        if not row:
+            raise ValueError("Lease not found or not owned by this user")
 
     def find_existing_lease_for_property(
         self,

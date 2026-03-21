@@ -190,6 +190,7 @@ SELECT
   l.created_at AS lease_created_at,
   p.name AS property_name,
   p.tenant_name AS property_tenant_name,
+  p.tenant_phone,
   p.address_line1,
   p.city,
   p.state,
@@ -198,6 +199,100 @@ FROM leases l
 JOIN properties p ON p.id = l.property_id
 WHERE p.owner_id = %s
 ORDER BY l.created_at DESC;
+"""
+
+
+GET_LEASE_DETAIL_FOR_OWNER = """
+SELECT
+  l.id AS lease_id,
+  l.property_id,
+  l.lease_text,
+  l.pdf_url,
+  l.lease_start,
+  l.lease_end,
+  l.monthly_rent,
+  l.security_deposit,
+  l.lock_in_period,
+  l.due_day,
+  l.status AS lease_status,
+  l.created_at AS lease_created_at,
+  p.name AS property_name,
+  p.tenant_name AS property_tenant_name,
+  p.tenant_phone,
+  p.address_line1,
+  p.city,
+  p.state,
+  p.postal_code
+FROM leases l
+JOIN properties p ON p.id = l.property_id
+WHERE l.id = %s AND p.owner_id = %s
+LIMIT 1;
+"""
+
+
+UPDATE_PROPERTY_FOR_OWNER = """
+UPDATE properties p
+SET
+  name = %s,
+  tenant_name = %s,
+  tenant_phone = %s,
+  address_line1 = %s,
+  city = %s,
+  state = %s,
+  postal_code = %s
+WHERE p.id = %s AND p.owner_id = %s
+RETURNING p.id;
+"""
+
+
+UPDATE_LEASE_FOR_OWNER = """
+UPDATE leases l
+SET
+  lease_start = %s,
+  lease_end = %s,
+  monthly_rent = %s,
+  security_deposit = %s,
+  lock_in_period = %s,
+  due_day = %s
+FROM properties p
+WHERE l.id = %s
+  AND l.property_id = p.id
+  AND p.owner_id = %s
+RETURNING l.id;
+"""
+
+
+UPSERT_USER_LEASE_DRAFT = """
+INSERT INTO user_lease_drafts (user_id, draft_json, updated_at)
+VALUES (%s, %s, now())
+ON CONFLICT (user_id) DO UPDATE SET
+  draft_json = EXCLUDED.draft_json,
+  updated_at = now();
+"""
+
+
+GET_USER_LEASE_DRAFT = """
+SELECT draft_json
+FROM user_lease_drafts
+WHERE user_id = %s
+LIMIT 1;
+"""
+
+
+DELETE_USER_LEASE_DRAFT = """
+DELETE FROM user_lease_drafts
+WHERE user_id = %s;
+"""
+
+
+UPDATE_LEASE_TEXT_FOR_OWNER = """
+UPDATE leases l
+SET lease_text = %s
+FROM properties p
+WHERE l.id = %s
+  AND l.property_id = p.id
+  AND p.owner_id = %s
+RETURNING l.id;
 """
 
 

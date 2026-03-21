@@ -1,9 +1,17 @@
+from typing import Optional
+
 from langchain_core.tools import tool
+from pydantic import ValidationError
+
 from app.agents.lease.talk2lease import TalkToLeaseRAG
 from app.core.modelConfig import ModelConfigManager
 from app.db.vector_db_lease import LeaseDocumentProcessor
 from app.services.lease_extractor import extract_from_pdf, read_pdf_text
 from app.schemas.property_manager import PropertyManager
+from app.schemas.lease_write import LeaseWriteBody
+from app.services.lease_draft_preview import format_lease_draft_preview
+from app.services.lease_services import finalize_stored_lease_draft
+from app.services.user_lease_draft_store import save_lease_draft
 import json
 
 
@@ -81,7 +89,7 @@ def store_lease(owner_id: int, pdf_path: str) -> dict:
     try:
         raw_text = read_pdf_text(pdf_path)
         processor = LeaseDocumentProcessor()
-        processor.processs_lease(lease_id=lease_id, landlord_id=owner_id, text=raw_text)
+        processor.process_lease(str(lease_id), str(owner_id), raw_text)
     except Exception:
         pass
 
@@ -165,5 +173,121 @@ def add_lease(
         "lease_id": created.get("id"),
         "lease": created,
         "status": "success",
+    }
+
+
+def _lease_fields_dict(
+    property_name: str,
+    lease_start: str,
+    lease_end: str,
+    monthly_rent: int,
+    due_day: int = 1,
+    tenant_name: Optional[str] = None,
+    tenant_phone: Optional[str] = None,
+    address_line1: Optional[str] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    postal_code: Optional[str] = None,
+    security_deposit: Optional[int] = None,
+    lock_in_period: Optional[int] = None,
+) -> dict:
+    return {
+        "property_name": property_name.strip(),
+        "lease_start": lease_start.strip()[:10],
+        "lease_end": lease_end.strip()[:10],
+        "monthly_rent": monthly_rent,
+        "due_day": due_day,
+        "tenant_name": tenant_name.strip() if tenant_name else None,
+        "tenant_phone": tenant_phone.strip() if tenant_phone else None,
+        "address_line1": address_line1.strip() if address_line1 else None,
+        "city": city.strip() if city else None,
+        "state": state.strip() if state else None,
+        "postal_code": postal_code.strip() if postal_code else None,
+        "security_deposit": security_deposit,
+        "lock_in_period": lock_in_period,
+    }
+
+
+@tool
+def prepare_lease_draft(
+    owner_id: int,
+    property_name: str,
+    lease_start: str,
+    lease_end: str,
+    monthly_rent: int,
+    due_day: int = 1,
+    tenant_name: Optional[str] = None,
+    tenant_phone: Optional[str] = None,
+    address_line1: Optional[str] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    postal_code: Optional[str] = None,
+    security_deposit: Optional[int] = None,
+    lock_in_period: Optional[int] = None,
+) -> dict:
+    """Validate lease details and show a **preview** — no property/lease row yet; draft is **saved server-side** so they can **edit** (new values → call this again) until happy, then **finalize_lease_creation** = **Save** creates the lease. Required: property_name, lease_start, lease_end (YYYY-MM-DD), monthly_rent, due_day (1-31)."""
+    try:
+        body = LeaseWriteBody.model_validate(
+            _lease_fields_dict(
+                property_name,
+                lease_start,
+                lease_end,
+                monthly_rent,
+                due_day,
+                tenant_name,
+                tenant_phone,
+                address_line1,
+                city,
+                state,
+                postal_code,
+                security_deposit,
+                lock_in_period,
+            )
+        )
+    except ValidationError as e:
+        return {
+            "status": "error",
+            "message": "Validation failed. Use YYYY-MM-DD for dates; monthly_rent >= 1; due_day 1-31.",
+            "details": e.errors(),
+        }
+    draft_body = body.model_dump(mode="json")
+    if not save_lease_draft(int(owner_id), draft_body):
+        return {
+            "status": "error",
+            "message": "Could not persist lease draft (DATABASE_URL missing or DB error). Fix server config and retry.",
+        }
+    return {
+        "status": "validated",
+        "preview": format_lease_draft_preview(body),
+        "draft_body": draft_body,
+        "message": (
+            "Draft saved. Show `preview`. They should fix any mistakes **before** Save — "
+            "gather corrections and call prepare_lease_draft again if needed. "
+            "Only after they explicitly want to **create/save** the lease, call finalize_lease_creation."
+        ),
+    }
+
+
+@tool
+def finalize_lease_creation(
+    owner_id: int,
+    public_base_url: str = "",
+) -> dict:
+    """**Save** the lease: writes property + lease, PDF, RAG — only after the landlord finished **editing the draft** and wants to create it. Loads the server draft from **prepare_lease_draft** (or the app draft editor). If something is still wrong, they should **not** finalize — use **prepare_lease_draft** again with fixes instead."""
+    base = (public_base_url or "").strip().rstrip("/")
+    try:
+        detail = finalize_stored_lease_draft(int(owner_id), public_base_url=base)
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    return {
+        "status": "success",
+        "lease_id": detail.get("lease_id"),
+        "property_id": detail.get("property_id"),
+        "property_name": detail.get("property_name"),
+        "summary": detail,
+        "message": (
+            "Lease **saved** to the portfolio. They can open **Properties** to view the PDF. "
+            "Edits **before** creation should already be done; only minor post-create fixes use edit + Save there."
+        ),
     }
 
