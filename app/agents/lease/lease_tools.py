@@ -1,4 +1,5 @@
-from typing import Optional
+from datetime import date
+from typing import Any, Dict, List, Optional
 
 from langchain_core.tools import tool
 from pydantic import ValidationError
@@ -9,9 +10,12 @@ from app.db.vector_db_lease import LeaseDocumentProcessor
 from app.services.lease_extractor import extract_from_pdf, read_pdf_text
 from app.schemas.property_manager import PropertyManager
 from app.schemas.lease_write import LeaseWriteBody
-from app.services.lease_draft_preview import format_lease_draft_preview
+from app.services.lease_draft_preview import (
+    format_lease_draft_preview,
+    format_partial_lease_draft_preview,
+)
 from app.services.lease_services import finalize_stored_lease_draft
-from app.services.user_lease_draft_store import save_lease_draft
+from app.services.user_lease_draft_store import get_lease_draft, save_lease_draft
 import json
 
 
@@ -176,12 +180,13 @@ def add_lease(
     }
 
 
-def _lease_fields_dict(
-    property_name: str,
-    lease_start: str,
-    lease_end: str,
-    monthly_rent: int,
-    due_day: int = 1,
+def _lease_patch_from_tool_args(
+    *,
+    property_name: Optional[str] = None,
+    lease_start: Optional[str] = None,
+    lease_end: Optional[str] = None,
+    monthly_rent: Optional[int] = None,
+    due_day: Optional[int] = None,
     tenant_name: Optional[str] = None,
     tenant_phone: Optional[str] = None,
     address_line1: Optional[str] = None,
@@ -190,32 +195,94 @@ def _lease_fields_dict(
     postal_code: Optional[str] = None,
     security_deposit: Optional[int] = None,
     lock_in_period: Optional[int] = None,
-) -> dict:
-    return {
-        "property_name": property_name.strip(),
-        "lease_start": lease_start.strip()[:10],
-        "lease_end": lease_end.strip()[:10],
-        "monthly_rent": monthly_rent,
-        "due_day": due_day,
-        "tenant_name": tenant_name.strip() if tenant_name else None,
-        "tenant_phone": tenant_phone.strip() if tenant_phone else None,
-        "address_line1": address_line1.strip() if address_line1 else None,
-        "city": city.strip() if city else None,
-        "state": state.strip() if state else None,
-        "postal_code": postal_code.strip() if postal_code else None,
-        "security_deposit": security_deposit,
-        "lock_in_period": lock_in_period,
-    }
+) -> Dict[str, Any]:
+    """Only keys the model explicitly set (non-None) — merged with any draft already on the server."""
+    patch: Dict[str, Any] = {}
+    if property_name is not None and str(property_name).strip():
+        patch["property_name"] = str(property_name).strip()
+    if lease_start is not None and str(lease_start).strip():
+        patch["lease_start"] = str(lease_start).strip()[:10]
+    if lease_end is not None and str(lease_end).strip():
+        patch["lease_end"] = str(lease_end).strip()[:10]
+    if monthly_rent is not None:
+        patch["monthly_rent"] = int(monthly_rent)
+    if due_day is not None:
+        patch["due_day"] = int(due_day)
+    if tenant_name is not None and str(tenant_name).strip():
+        patch["tenant_name"] = str(tenant_name).strip()
+    if tenant_phone is not None and str(tenant_phone).strip():
+        patch["tenant_phone"] = str(tenant_phone).strip()
+    if address_line1 is not None and str(address_line1).strip():
+        patch["address_line1"] = str(address_line1).strip()
+    if city is not None and str(city).strip():
+        patch["city"] = str(city).strip()
+    if state is not None and str(state).strip():
+        patch["state"] = str(state).strip()
+    if postal_code is not None and str(postal_code).strip():
+        patch["postal_code"] = str(postal_code).strip()
+    if security_deposit is not None:
+        patch["security_deposit"] = int(security_deposit)
+    if lock_in_period is not None:
+        patch["lock_in_period"] = int(lock_in_period)
+    return patch
+
+
+def _merge_lease_draft(existing: Optional[Dict[str, Any]], patch: Dict[str, Any]) -> Dict[str, Any]:
+    base = dict(existing or {})
+    for k, v in patch.items():
+        base[k] = v
+    return base
+
+
+def _date_ok(v: Any) -> bool:
+    if v is None:
+        return False
+    if isinstance(v, date):
+        return True
+    if isinstance(v, str) and v.strip():
+        try:
+            date.fromisoformat(v.strip()[:10])
+            return True
+        except ValueError:
+            return False
+    return False
+
+
+def _missing_lease_field_labels(merged: Dict[str, Any]) -> List[str]:
+    """Human-readable list of what is still needed for a complete manual lease."""
+    missing: List[str] = []
+    pn = merged.get("property_name")
+    if not (isinstance(pn, str) and pn.strip()):
+        missing.append("property name / unit label")
+    if not _date_ok(merged.get("lease_start")):
+        missing.append("lease start date (YYYY-MM-DD)")
+    if not _date_ok(merged.get("lease_end")):
+        missing.append("lease end date (YYYY-MM-DD)")
+    mr = merged.get("monthly_rent")
+    try:
+        mri = int(mr) if mr is not None else 0
+    except (TypeError, ValueError):
+        mri = 0
+    if mri < 1:
+        missing.append("monthly rent in INR (whole number, at least 1)")
+    if "due_day" in merged and merged["due_day"] is not None:
+        try:
+            d = int(merged["due_day"])
+            if d < 1 or d > 31:
+                missing.append("rent due day (1–31)")
+        except (TypeError, ValueError):
+            missing.append("rent due day (1–31)")
+    return missing
 
 
 @tool
 def prepare_lease_draft(
     owner_id: int,
-    property_name: str,
-    lease_start: str,
-    lease_end: str,
-    monthly_rent: int,
-    due_day: int = 1,
+    property_name: Optional[str] = None,
+    lease_start: Optional[str] = None,
+    lease_end: Optional[str] = None,
+    monthly_rent: Optional[int] = None,
+    due_day: Optional[int] = None,
     tenant_name: Optional[str] = None,
     tenant_phone: Optional[str] = None,
     address_line1: Optional[str] = None,
@@ -225,45 +292,79 @@ def prepare_lease_draft(
     security_deposit: Optional[int] = None,
     lock_in_period: Optional[int] = None,
 ) -> dict:
-    """Validate lease details and show a **preview** — no property/lease row yet; draft is **saved server-side** so they can **edit** (new values → call this again) until happy, then **finalize_lease_creation** = **Save** creates the lease. Required: property_name, lease_start, lease_end (YYYY-MM-DD), monthly_rent, due_day (1-31)."""
-    try:
-        body = LeaseWriteBody.model_validate(
-            _lease_fields_dict(
-                property_name,
-                lease_start,
-                lease_end,
-                monthly_rent,
-                due_day,
-                tenant_name,
-                tenant_phone,
-                address_line1,
-                city,
-                state,
-                postal_code,
-                security_deposit,
-                lock_in_period,
-            )
-        )
-    except ValidationError as e:
+    """Update the landlord's lease draft on the server by **merging** these fields with anything already saved.
+
+    **Critical for multi-turn chat:** After each user message, call this with **every field you understood** from
+    the **entire conversation** (not only the latest sentence). Omitted parameters keep the previous saved value.
+    When `status` is `partial`, only ask for `missing_fields` — do not re-ask for data already in `preview_partial`.
+    When `status` is `validated`, show `preview` and wait for confirmation before **finalize_lease_creation**.
+    Dates must be YYYY-MM-DD. `due_day` defaults to 1 if never set."""
+    oid = int(owner_id)
+    patch = _lease_patch_from_tool_args(
+        property_name=property_name,
+        lease_start=lease_start,
+        lease_end=lease_end,
+        monthly_rent=monthly_rent,
+        due_day=due_day,
+        tenant_name=tenant_name,
+        tenant_phone=tenant_phone,
+        address_line1=address_line1,
+        city=city,
+        state=state,
+        postal_code=postal_code,
+        security_deposit=security_deposit,
+        lock_in_period=lock_in_period,
+    )
+    existing = get_lease_draft(oid)
+    merged = _merge_lease_draft(existing, patch)
+
+    if not patch and not existing:
         return {
             "status": "error",
-            "message": "Validation failed. Use YYYY-MM-DD for dates; monthly_rent >= 1; due_day 1-31.",
-            "details": e.errors(),
+            "message": (
+                "No fields to save yet. Read the user's message(s), extract any lease details, "
+                "and call again with those parameters. If they gave nothing concrete, ask one question at a time."
+            ),
         }
-    draft_body = body.model_dump(mode="json")
-    if not save_lease_draft(int(owner_id), draft_body):
+
+    if not save_lease_draft(oid, merged):
         return {
             "status": "error",
             "message": "Could not persist lease draft (DATABASE_URL missing or DB error). Fix server config and retry.",
+        }
+
+    try:
+        body = LeaseWriteBody.model_validate(merged)
+    except ValidationError as e:
+        missing = _missing_lease_field_labels(merged)
+        return {
+            "status": "partial",
+            "missing_fields": missing,
+            "preview_partial": format_partial_lease_draft_preview(merged),
+            "draft_so_far": merged,
+            "details": e.errors(),
+            "message": (
+                "Draft is incomplete or needs fixes. Show `preview_partial` and ask **only** for "
+                "`missing_fields`. Then call prepare_lease_draft again with **all known fields** from the "
+                "conversation plus any new answers (merge happens on the server)."
+            ),
+        }
+
+    draft_body = body.model_dump(mode="json")
+    if not save_lease_draft(oid, draft_body):
+        return {
+            "status": "error",
+            "message": "Could not persist validated lease draft (DB error).",
         }
     return {
         "status": "validated",
         "preview": format_lease_draft_preview(body),
         "draft_body": draft_body,
+        "missing_fields": [],
         "message": (
-            "Draft saved. Show `preview`. They should fix any mistakes **before** Save — "
-            "gather corrections and call prepare_lease_draft again if needed. "
-            "Only after they explicitly want to **create/save** the lease, call finalize_lease_creation."
+            "Draft complete and saved. Show `preview`. They should fix mistakes **before** Save — "
+            "call prepare_lease_draft with corrections if needed. "
+            "Only when they explicitly want to **create/save** the lease, call finalize_lease_creation."
         ),
     }
 
