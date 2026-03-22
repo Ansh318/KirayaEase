@@ -133,5 +133,11 @@ def ensure_runtime_migrations() -> None:
                     ADD COLUMN IF NOT EXISTS docuseal_signing_url TEXT;
                     """
                 )
+                cur.execute(
+                    """
+                    ALTER TABLE leases
+                    ADD COLUMN IF NOT EXISTS docuseal_submitter_embeds JSONB;
+                    """
+                )
     finally:
         conn.close()

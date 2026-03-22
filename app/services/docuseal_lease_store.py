@@ -7,12 +7,37 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
 import psycopg2
+from psycopg2.extras import Json, RealDictCursor
 
 from app.db.sql_queries import (
     GET_LEASE_FILE_FOR_OWNER,
+    GET_USER_BY_ID,
     UPDATE_LEASE_DOCUSEAL_FROM_WEBHOOK,
     UPDATE_LEASE_DOCUSEAL_SUBMISSION_FOR_OWNER,
 )
+
+
+def fetch_owner_profile_for_docuseal(user_id: int) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Return (email, display_name) for the landlord account — used as default DocuSeal submitter.
+    """
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        return None, None
+    conn = psycopg2.connect(database_url)
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(GET_USER_BY_ID, (int(user_id),))
+            row = cur.fetchone()
+            if not row:
+                return None, None
+            email = row.get("email")
+            email_s = str(email).strip() if email else None
+            parts = [row.get("first_name"), row.get("last_name")]
+            name = " ".join(str(p).strip() for p in parts if p and str(p).strip()) or None
+            return email_s, name
+    finally:
+        conn.close()
 
 
 def fetch_lease_pdf_for_owner(lease_id: int, owner_id: int) -> Optional[Tuple[bytes, str]]:
@@ -54,7 +79,9 @@ def save_docuseal_submission_for_lease(
     submission_slug: Optional[str] = None,
     shared_link: Optional[bool] = None,
     signing_url: Optional[str] = None,
+    submitter_embeds: Optional[Dict[str, str]] = None,
 ) -> bool:
+    embed_json = Json(submitter_embeds or {})
     row = _committing_execute(
         UPDATE_LEASE_DOCUSEAL_SUBMISSION_FOR_OWNER,
         (
@@ -63,6 +90,7 @@ def save_docuseal_submission_for_lease(
             submission_slug,
             shared_link,
             signing_url,
+            embed_json,
             lease_id,
             owner_id,
         ),

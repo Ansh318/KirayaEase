@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui';
 import '../config/api_config.dart';
+import 'docuseal_signing_webview_page.dart';
 import 'lease_agreement_wizard_page.dart';
 import 'lease_editor_page.dart';
 
@@ -419,6 +420,7 @@ class _LeaseCardState extends State<_LeaseCard> {
                               ),
                             ],
                             if (lease.docusealStatus != null ||
+                                lease.canLandlordSignInApp ||
                                 (lease.docusealSigningUrl != null &&
                                     lease.docusealSigningUrl!.trim().isNotEmpty) ||
                                 (lease.docusealCombinedDocumentUrl != null &&
@@ -457,6 +459,38 @@ class _LeaseCardState extends State<_LeaseCard> {
                                     ),
                                   ),
                                 ),
+                              if (lease.canLandlordSignInApp) ...[
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton.icon(
+                                    onPressed: () async {
+                                      final url =
+                                          lease.docusealLandlordEmbedSrc!.trim();
+                                      await Navigator.of(context).push<void>(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              DocusealSigningWebViewPage(
+                                            signingUrl: url,
+                                            title: 'Sign as landlord',
+                                          ),
+                                        ),
+                                      );
+                                      if (context.mounted) {
+                                        await widget.onDeleted();
+                                      }
+                                    },
+                                    icon: const Icon(Icons.draw_outlined),
+                                    label: const Text('Sign as landlord (in app)'),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: const Color(0xFF1AAE9F),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                              ],
                               if (lease.docusealSigningUrl != null &&
                                   lease.docusealSigningUrl!.trim().isNotEmpty) ...[
                                 SizedBox(
@@ -733,9 +767,48 @@ Future<void> _shareDocusealLink(BuildContext context, _Lease lease) async {
   );
 }
 
+bool _bytesLookLikePdf(List<int> bytes) {
+  if (bytes.length < 5) return false;
+  return bytes[0] == 0x25 &&
+      bytes[1] == 0x50 &&
+      bytes[2] == 0x44 &&
+      bytes[3] == 0x46;
+}
+
 /// Fetches the lease PDF with auth and shows it in an in-app popup viewer.
+/// When DocuSeal has finished, prefers the **signed** combined PDF URL.
 Future<void> _openPdfInApp(BuildContext context, _Lease lease) async {
   final messenger = ScaffoldMessenger.of(context);
+  final signedUrl = lease.docusealCombinedDocumentUrl?.trim();
+  if (signedUrl != null && signedUrl.isNotEmpty) {
+    try {
+      final suri = Uri.tryParse(signedUrl);
+      if (suri != null && suri.hasScheme) {
+        final signedResp = await http.get(
+          suri,
+          headers: {'User-Agent': 'KirayaEase/1.0'},
+        );
+        if (!context.mounted) return;
+        if (signedResp.statusCode == 200 &&
+            signedResp.bodyBytes.isNotEmpty &&
+            _bytesLookLikePdf(signedResp.bodyBytes)) {
+          await Navigator.of(context).push<void>(
+            MaterialPageRoute(
+              builder: (ctx) => _PdfViewerPage(
+                title: '${lease.title} (signed)',
+                sourceName: 'lease_${lease.id}_signed',
+                pdfBytes: Uint8List.fromList(signedResp.bodyBytes),
+              ),
+            ),
+          );
+          return;
+        }
+      }
+    } catch (_) {
+      /* fall through to API PDF */
+    }
+  }
+
   final prefs = await SharedPreferences.getInstance();
   final sessionId = prefs.getString('session_id')?.trim();
   if (sessionId == null || sessionId.isEmpty) {
@@ -972,6 +1045,15 @@ class _Lease {
   final String? docusealSigningUrl;
   final String? docusealCombinedDocumentUrl;
   final String? docusealSignedAt;
+  final String? docusealLandlordEmbedSrc;
+
+  bool get canLandlordSignInApp {
+    final u = docusealLandlordEmbedSrc?.trim() ?? '';
+    if (u.isEmpty) return false;
+    final st = (docusealStatus ?? '').toLowerCase();
+    if (st == 'signed' || st == 'declined' || st == 'expired') return false;
+    return true;
+  }
 
   _Lease({
     required this.id,
@@ -992,7 +1074,26 @@ class _Lease {
     this.docusealSigningUrl,
     this.docusealCombinedDocumentUrl,
     this.docusealSignedAt,
+    this.docusealLandlordEmbedSrc,
   });
+
+  static String? _parseLandlordEmbed(Map<String, dynamic> map) {
+    dynamic raw = map['docuseal_submitter_embeds'];
+    if (raw is String && raw.trim().isNotEmpty) {
+      try {
+        raw = jsonDecode(raw);
+      } catch (_) {
+        raw = null;
+      }
+    }
+    if (raw is Map) {
+      final v = raw['Landlord'] ?? raw['landlord'];
+      if (v != null && v.toString().trim().isNotEmpty) {
+        return v.toString().trim();
+      }
+    }
+    return null;
+  }
 
   /// Build from API response (leases by owner endpoint).
   static _Lease fromApiMap(Map<String, dynamic> map) {
@@ -1035,6 +1136,7 @@ class _Lease {
       docusealSigningUrl: map['docuseal_signing_url']?.toString(),
       docusealCombinedDocumentUrl: map['docuseal_combined_document_url']?.toString(),
       docusealSignedAt: map['docuseal_signed_at']?.toString(),
+      docusealLandlordEmbedSrc: _parseLandlordEmbed(map),
     );
   }
 }

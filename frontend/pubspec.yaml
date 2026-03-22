@@ -27,6 +27,7 @@ dependencies:
   google_fonts: ^4.0.4
   font_awesome_flutter: ^10.7.0
   pdfrx: ^2.2.20
+  webview_flutter: ^4.10.0
   flutter_markdown: ^0.7.4+1
   fl_chart: ^0.69.0
   sign_in_with_apple: ^6.0.0

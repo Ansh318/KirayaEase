@@ -29,38 +29,71 @@ def build_signature_fields(
     include_tenant: bool,
 ) -> List[Dict[str, Any]]:
     """
-    Normalized 0–1 coordinates (DocuSeal convention). Boxes on the last page, bottom area.
-    Tune via DOCUSEAL_SIG_* env vars if defaults don't match your PDF layout.
+    Normalized 0–1 coordinates (DocuSeal convention). Date fields are filled by each signer
+    in the DocuSeal UI; signatures sit below the date line on the last page.
     """
     lx = float(os.getenv("DOCUSEAL_SIG_LANDLORD_X", "0.08"))
-    ly = float(os.getenv("DOCUSEAL_SIG_LANDLORD_Y", "0.82"))
     lw = float(os.getenv("DOCUSEAL_SIG_LANDLORD_W", "0.38"))
-    lh = float(os.getenv("DOCUSEAL_SIG_LANDLORD_H", "0.06"))
+    l_sig_y = float(os.getenv("DOCUSEAL_SIG_LANDLORD_Y", "0.745"))
+    lh = float(os.getenv("DOCUSEAL_SIG_LANDLORD_H", "0.055"))
+    l_date_y = float(os.getenv("DOCUSEAL_DATE_LANDLORD_Y", "0.695"))
+    l_date_h = float(os.getenv("DOCUSEAL_DATE_H", "0.028"))
 
     tx = float(os.getenv("DOCUSEAL_SIG_TENANT_X", "0.08"))
-    ty = float(os.getenv("DOCUSEAL_SIG_TENANT_Y", "0.90"))
     tw = float(os.getenv("DOCUSEAL_SIG_TENANT_W", "0.38"))
-    th = float(os.getenv("DOCUSEAL_SIG_TENANT_H", "0.06"))
+    t_sig_y = float(os.getenv("DOCUSEAL_SIG_TENANT_Y", "0.885"))
+    th = float(os.getenv("DOCUSEAL_SIG_TENANT_H", "0.055"))
+    t_date_y = float(os.getenv("DOCUSEAL_DATE_TENANT_Y", "0.835"))
+    t_date_h = float(os.getenv("DOCUSEAL_DATE_TENANT_H", l_date_h))
+
+    # Single-party (tenant only): more room on the page
+    if include_tenant and not include_landlord:
+        t_date_y = float(os.getenv("DOCUSEAL_DATE_TENANT_ONLY_Y", "0.82"))
+        t_sig_y = float(os.getenv("DOCUSEAL_SIG_TENANT_ONLY_Y", "0.88"))
+
+    date_format = (os.getenv("DOCUSEAL_DATE_FORMAT") or "DD/MM/YYYY").strip()
 
     fields: List[Dict[str, Any]] = []
     if include_landlord:
+        fields.append(
+            {
+                "name": "Landlord Agreement Date",
+                "type": "date",
+                "role": "Landlord",
+                "required": True,
+                "format": date_format,
+                "title": "Date",
+                "areas": [{"x": lx, "y": l_date_y, "w": lw, "h": l_date_h, "page": last_page}],
+            }
+        )
         fields.append(
             {
                 "name": "Landlord Signature",
                 "type": "signature",
                 "role": "Landlord",
                 "required": True,
-                "areas": [{"x": lx, "y": ly, "w": lw, "h": lh, "page": last_page}],
+                "areas": [{"x": lx, "y": l_sig_y, "w": lw, "h": lh, "page": last_page}],
             }
         )
     if include_tenant:
+        fields.append(
+            {
+                "name": "Tenant Agreement Date",
+                "type": "date",
+                "role": "Tenant",
+                "required": True,
+                "format": date_format,
+                "title": "Date",
+                "areas": [{"x": tx, "y": t_date_y, "w": tw, "h": t_date_h, "page": last_page}],
+            }
+        )
         fields.append(
             {
                 "name": "Tenant Signature",
                 "type": "signature",
                 "role": "Tenant",
                 "required": True,
-                "areas": [{"x": tx, "y": ty, "w": tw, "h": th, "page": last_page}],
+                "areas": [{"x": tx, "y": t_sig_y, "w": tw, "h": th, "page": last_page}],
             }
         )
     return fields
@@ -196,6 +229,19 @@ def request_lease_pdf_signing(
     return fetch_submission_detail_or_use(partial)
 
 
+def embed_src_by_role(raw: Dict[str, Any]) -> Dict[str, str]:
+    """Map DocuSeal role name -> embed_src (in-app signing / WhatsApp)."""
+    out: Dict[str, str] = {}
+    for s in raw.get("submitters") or []:
+        if not isinstance(s, dict):
+            continue
+        role = (s.get("role") or "").strip()
+        src = s.get("embed_src")
+        if role and src:
+            out[role] = str(src).strip()
+    return out
+
+
 def _pick_primary_signing_url(submitters: List[Dict[str, Any]]) -> Optional[str]:
     """Prefer Tenant / First Party embed_src for WhatsApp sharing."""
     for role in ("Tenant", "First Party"):
@@ -270,6 +316,7 @@ def normalize_docuseal_submission_response(raw: Dict[str, Any]) -> Dict[str, Any
     }
 
     signing_url = _pick_primary_signing_url(submitters_out)
+    embeds = embed_src_by_role(raw)
 
     out: Dict[str, Any] = {
         "docuseal": docuseal,
@@ -277,6 +324,7 @@ def normalize_docuseal_submission_response(raw: Dict[str, Any]) -> Dict[str, Any
         "docuseal_submission_slug": raw.get("slug"),
         "docuseal_signing_url": signing_url,
         "docuseal_shared_link": bool(shared),
+        "docuseal_submitter_embeds": embeds,
         # Flatten for older clients / agent tools
         "docuseal_submission_status": raw.get("status"),
         "submitters": submitters_out,

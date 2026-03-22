@@ -195,6 +195,7 @@ SELECT
   l.docuseal_submission_slug,
   l.docuseal_shared_link,
   l.docuseal_signing_url,
+  l.docuseal_submitter_embeds,
   p.name AS property_name,
   p.tenant_name AS property_tenant_name,
   p.tenant_phone,
@@ -230,6 +231,7 @@ SELECT
   l.docuseal_submission_slug,
   l.docuseal_shared_link,
   l.docuseal_signing_url,
+  l.docuseal_submitter_embeds,
   p.name AS property_name,
   p.tenant_name AS property_tenant_name,
   p.tenant_phone,
@@ -509,7 +511,8 @@ SET
   docuseal_combined_document_url = NULL,
   docuseal_submission_slug = %s,
   docuseal_shared_link = %s,
-  docuseal_signing_url = %s
+  docuseal_signing_url = %s,
+  docuseal_submitter_embeds = %s
 FROM properties p
 WHERE l.id = %s
   AND l.property_id = p.id

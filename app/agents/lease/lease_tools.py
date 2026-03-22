@@ -498,6 +498,7 @@ def send_lease_for_signature_docuseal(
             "lease_id": int(lease_id),
             "submitters": out.get("submitters"),
             "docuseal_signing_url": out.get("docuseal_signing_url"),
+            "docuseal_submitter_embeds": out.get("docuseal_submitter_embeds"),
             "docuseal": out.get("docuseal"),
         },
         "message": (

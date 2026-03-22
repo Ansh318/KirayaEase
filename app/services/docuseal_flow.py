@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 from app.schemas.property_manager import PropertyManager
 from app.services.docuseal_lease_store import (
     fetch_lease_pdf_for_owner,
+    fetch_owner_profile_for_docuseal,
     save_docuseal_submission_for_lease,
 )
 from app.services.docuseal_signing import (
@@ -50,14 +51,28 @@ def start_docuseal_signing_for_owner_lease(
     if not tenant_phone and detail.get("tenant_phone"):
         tenant_phone = str(detail["tenant_phone"]).strip() or None
 
+    le = (landlord_email or "").strip() or None
+    ln = (landlord_name or "").strip() or None
+    if not le:
+        auto_email, auto_name = fetch_owner_profile_for_docuseal(owner_id)
+        le = auto_email
+        if auto_name and not ln:
+            ln = auto_name
+
+    te = str(tenant_email).strip()
+    if le and te.lower() == le.lower():
+        # Same person as tenant + landlord — single-party submission
+        le = None
+        ln = None
+
     raw = request_lease_pdf_signing(
         pdf_bytes,
         submission_name=submission_name,
-        tenant_email=tenant_email,
+        tenant_email=te,
         tenant_name=tenant_name,
         tenant_phone=tenant_phone,
-        landlord_email=landlord_email,
-        landlord_name=landlord_name,
+        landlord_email=le,
+        landlord_name=ln,
         send_email=send_email,
         send_sms=send_sms,
         completed_redirect_url=completed_redirect_url,
@@ -69,6 +84,9 @@ def start_docuseal_signing_for_owner_lease(
         raise RuntimeError("DocuSeal response missing submission id")
 
     out = normalize_docuseal_submission_response(raw)
+    embeds = out.get("docuseal_submitter_embeds")
+    if not isinstance(embeds, dict):
+        embeds = {}
 
     if not save_docuseal_submission_for_lease(
         lease_id,
@@ -78,13 +96,15 @@ def start_docuseal_signing_for_owner_lease(
         submission_slug=(raw.get("slug") or out.get("docuseal_submission_slug")),
         shared_link=out.get("docuseal_shared_link"),
         signing_url=out.get("docuseal_signing_url"),
+        submitter_embeds={str(k): str(v) for k, v in embeds.items() if v},
     ):
         raise RuntimeError("Could not persist DocuSeal submission id on lease")
 
     out["lease_id"] = lease_id
     out["message"] = (
-        "Use `docuseal_signing_url` (or each submitter `embed_src`) in a WhatsApp message so the "
-        "tenant can sign. When everyone has signed, the webhook stores the PDF in "
-        "`docuseal_combined_document_url` on the lease."
+        "Landlord can tap **Sign as landlord** in the app (embed URL). "
+        "Share **docuseal_signing_url** with the tenant for WhatsApp. "
+        "Each party fills **Agreement Date** and signature in DocuSeal. "
+        "When fully signed, the webhook stores the PDF — **View PDF** shows the signed file."
     )
     return out
