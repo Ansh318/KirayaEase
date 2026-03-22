@@ -1,12 +1,21 @@
-from fastapi import FastAPI, HTTPException, Header, Request, Query
-from app.api.v1 import auth, onboarding, agent_chat, leases, docuseal
-from app.services.onboarding_services import UserService
-from app.db.migrations import ensure_runtime_migrations
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
+
+from app.api.v1 import auth, onboarding, agent_chat, leases, docuseal
+from app.db.migrations import ensure_runtime_migrations
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    ensure_runtime_migrations()
+    yield
+
+
+app = FastAPI(lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,10 +38,6 @@ app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")
 # app.include_router(agent_chat.router)
 # DATABASE_URL = os.getenv("DATABASE_URL")
 # razorpay_service = RazorpayPaymentService()
-
-@app.on_event("startup")
-def _startup_migrations() -> None:
-    ensure_runtime_migrations()
 
 @app.get("/")
 def health_check():
