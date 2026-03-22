@@ -3,7 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdfrx/pdfrx.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui';
 import '../config/api_config.dart';
 import 'lease_agreement_wizard_page.dart';
@@ -416,6 +418,75 @@ class _LeaseCardState extends State<_LeaseCard> {
                                 ),
                               ),
                             ],
+                            if (lease.docusealStatus != null ||
+                                (lease.docusealSigningUrl != null &&
+                                    lease.docusealSigningUrl!.trim().isNotEmpty) ||
+                                (lease.docusealCombinedDocumentUrl != null &&
+                                    lease.docusealCombinedDocumentUrl!.trim().isNotEmpty)) ...[
+                              const SizedBox(height: 20),
+                              const Text(
+                                'E-signature (DocuSeal)',
+                                style: TextStyle(
+                                  color: Color(0xFF1A1A1A),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              if (lease.docusealStatus != null &&
+                                  lease.docusealStatus!.trim().isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Text(
+                                    'Status: ${lease.docusealStatus}',
+                                    style: const TextStyle(
+                                      color: Color(0xFF4D5F73),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              if (lease.docusealSignedAt != null &&
+                                  lease.docusealSignedAt!.trim().isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Text(
+                                    'Completed: ${lease.docusealSignedAt}',
+                                    style: const TextStyle(
+                                      color: Color(0xFF4D5F73),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              if (lease.docusealSigningUrl != null &&
+                                  lease.docusealSigningUrl!.trim().isNotEmpty) ...[
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => _shareDocusealLink(context, lease),
+                                    icon: const Icon(Icons.share_outlined),
+                                    label: const Text('Share signing link'),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                              ],
+                              if (lease.docusealCombinedDocumentUrl != null &&
+                                  lease.docusealCombinedDocumentUrl!.trim().isNotEmpty)
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _openSignedDocExternally(
+                                      context,
+                                      lease.docusealCombinedDocumentUrl!.trim(),
+                                    ),
+                                    icon: const Icon(Icons.verified_outlined),
+                                    label: const Text('Open signed lease'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF1AAE9F),
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ],
                         ),
                       ),
@@ -625,6 +696,41 @@ class _LeaseCardState extends State<_LeaseCard> {
       ),
     );
   }
+}
+
+Future<void> _openSignedDocExternally(BuildContext context, String url) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final u = Uri.tryParse(url);
+  if (u == null || !(u.hasScheme && (u.scheme == 'http' || u.scheme == 'https'))) {
+    messenger.showSnackBar(const SnackBar(content: Text('Invalid signed document URL.')));
+    return;
+  }
+  try {
+    final ok = await launchUrl(u, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      messenger.showSnackBar(const SnackBar(content: Text('Could not open link.')));
+    }
+  } catch (_) {
+    if (context.mounted) {
+      messenger.showSnackBar(const SnackBar(content: Text('Could not open link.')));
+    }
+  }
+}
+
+Future<void> _shareDocusealLink(BuildContext context, _Lease lease) async {
+  final url = lease.docusealSigningUrl?.trim() ?? '';
+  if (url.isEmpty) return;
+  final box = context.findRenderObject() as RenderBox?;
+  Rect? shareOrigin;
+  if (box != null && box.hasSize) {
+    final o = box.localToGlobal(Offset.zero);
+    shareOrigin = Rect.fromLTWH(o.dx, o.dy, box.size.width, box.size.height);
+  }
+  await Share.share(
+    'Please review and sign the lease: $url',
+    subject: 'Lease signature — ${lease.title}',
+    sharePositionOrigin: shareOrigin,
+  );
 }
 
 /// Fetches the lease PDF with auth and shows it in an in-app popup viewer.
@@ -862,6 +968,10 @@ class _Lease {
   final String? propertyAddress;
   final Map<String, dynamic>? rawData;
   final String? pdfSource;
+  final String? docusealStatus;
+  final String? docusealSigningUrl;
+  final String? docusealCombinedDocumentUrl;
+  final String? docusealSignedAt;
 
   _Lease({
     required this.id,
@@ -878,6 +988,10 @@ class _Lease {
     this.propertyAddress,
     this.rawData,
     this.pdfSource,
+    this.docusealStatus,
+    this.docusealSigningUrl,
+    this.docusealCombinedDocumentUrl,
+    this.docusealSignedAt,
   });
 
   /// Build from API response (leases by owner endpoint).
@@ -917,6 +1031,10 @@ class _Lease {
       propertyAddress: propertyAddress,
       rawData: map,
       pdfSource: map['pdf_url']?.toString(),
+      docusealStatus: map['docuseal_status']?.toString(),
+      docusealSigningUrl: map['docuseal_signing_url']?.toString(),
+      docusealCombinedDocumentUrl: map['docuseal_combined_document_url']?.toString(),
+      docusealSignedAt: map['docuseal_signed_at']?.toString(),
     );
   }
 }

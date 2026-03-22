@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Header, Request, Query
-from app.api.v1 import auth, onboarding, agent_chat, leases
+from app.api.v1 import auth, onboarding, agent_chat, leases, docuseal
 from app.services.onboarding_services import UserService
 from app.db.migrations import ensure_runtime_migrations
 
@@ -18,6 +18,7 @@ app.include_router(auth.router)
 app.include_router(onboarding.router)
 app.include_router(agent_chat.router)
 app.include_router(leases.router)
+app.include_router(docuseal.router)
 
 # Serve uploaded PDFs (dev/simple prod). For durable storage, switch to S3/GCS.
 _uploads_dir = os.path.abspath(os.path.join(os.getcwd(), "uploads"))

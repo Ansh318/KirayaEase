@@ -9,6 +9,7 @@ from app.agents.lease.lease_tools import (
     open_lease_agreement_widget,
     prepare_lease_draft,
     save_generated_lease_agreement,
+    send_lease_for_signature_docuseal,
     store_lease,
 )
 from app.agents.onboarding.onboard_tools import invite_tenant
@@ -37,6 +38,7 @@ def get_all_tools():
         generate_lease_agreement,
         save_generated_lease_agreement,
         finalize_lease_creation,
+        send_lease_for_signature_docuseal,
         # Portfolio
         get_my_properties,
         get_my_leases,

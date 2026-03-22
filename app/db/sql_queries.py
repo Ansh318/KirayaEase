@@ -188,6 +188,13 @@ SELECT
   l.due_day,
   l.status AS lease_status,
   l.created_at AS lease_created_at,
+  l.docuseal_submission_id,
+  l.docuseal_status,
+  l.docuseal_signed_at,
+  l.docuseal_combined_document_url,
+  l.docuseal_submission_slug,
+  l.docuseal_shared_link,
+  l.docuseal_signing_url,
   p.name AS property_name,
   p.tenant_name AS property_tenant_name,
   p.tenant_phone,
@@ -216,6 +223,13 @@ SELECT
   l.due_day,
   l.status AS lease_status,
   l.created_at AS lease_created_at,
+  l.docuseal_submission_id,
+  l.docuseal_status,
+  l.docuseal_signed_at,
+  l.docuseal_combined_document_url,
+  l.docuseal_submission_slug,
+  l.docuseal_shared_link,
+  l.docuseal_signing_url,
   p.name AS property_name,
   p.tenant_name AS property_tenant_name,
   p.tenant_phone,
@@ -479,6 +493,39 @@ FROM leases l
 JOIN properties p ON p.id = l.property_id
 WHERE l.id = %s AND p.owner_id = %s
 LIMIT 1;
+"""
+
+
+# =========================
+# DocuSeal (e-sign) — lease signing
+# =========================
+
+UPDATE_LEASE_DOCUSEAL_SUBMISSION_FOR_OWNER = """
+UPDATE leases l
+SET
+  docuseal_submission_id = %s,
+  docuseal_status = %s,
+  docuseal_signed_at = NULL,
+  docuseal_combined_document_url = NULL,
+  docuseal_submission_slug = %s,
+  docuseal_shared_link = %s,
+  docuseal_signing_url = %s
+FROM properties p
+WHERE l.id = %s
+  AND l.property_id = p.id
+  AND p.owner_id = %s
+RETURNING l.id;
+"""
+
+
+UPDATE_LEASE_DOCUSEAL_FROM_WEBHOOK = """
+UPDATE leases
+SET
+  docuseal_status = %s,
+  docuseal_signed_at = COALESCE(%s::timestamptz, docuseal_signed_at),
+  docuseal_combined_document_url = COALESCE(%s, docuseal_combined_document_url)
+WHERE docuseal_submission_id = %s
+RETURNING id;
 """
 
 

@@ -23,6 +23,7 @@ STATE_INJECTION: Dict[str, Dict[str, str]] = {
     "finalize_lease_creation": {"owner_id": "user_id"},
     "generate_lease_agreement": {"owner_id": "user_id"},
     "save_generated_lease_agreement": {"owner_id": "user_id"},
+    "send_lease_for_signature_docuseal": {"owner_id": "user_id", "lease_id": "lease_id"},
     "remember_user_fact": {"user_id": "user_id"},
 }
 

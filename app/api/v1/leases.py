@@ -28,6 +28,8 @@ from app.schemas.lease_write import (
     LeaseDraftPatchBody,
     LeaseWriteBody,
 )
+from app.schemas.docuseal import DocusealSigningRequest
+from app.services.docuseal_flow import start_docuseal_signing_for_owner_lease
 
 router = APIRouter()
 
@@ -447,6 +449,41 @@ def finalize_pending_lease_draft(request: Request, authorization: str = Header(.
             raise HTTPException(status_code=404, detail=msg)
         raise HTTPException(status_code=400, detail=msg)
     return detail
+
+
+@router.post("/leases/{lease_id}/docuseal/submission")
+def post_lease_docuseal_submission(
+    lease_id: int,
+    body: DocusealSigningRequest = Body(...),
+    authorization: str = Header(...),
+):
+    """
+    Send the stored lease PDF to DocuSeal for e-signature (POST /submissions/pdf).
+
+    Requires `DOCUSEAL_API_KEY` on the server. Configure webhook URL to this app's
+    `POST /webhooks/docuseal` (optionally `?secret=...` if `DOCUSEAL_WEBHOOK_SECRET` is set).
+    """
+    owner_id = _require_owner_id(authorization)
+    try:
+        return start_docuseal_signing_for_owner_lease(
+            owner_id=owner_id,
+            lease_id=lease_id,
+            tenant_email=body.tenant_email.strip(),
+            tenant_name=(body.tenant_name or "").strip() or None,
+            tenant_phone=(body.tenant_phone or "").strip() or None,
+            landlord_email=(body.landlord_email or "").strip() or None,
+            landlord_name=(body.landlord_name or "").strip() or None,
+            send_email=body.send_email,
+            send_sms=body.send_sms,
+            shared_link=body.shared_link,
+            completed_redirect_url=(body.completed_redirect_url or "").strip() or None,
+        )
+    except ValueError as e:
+        msg = str(e)
+        code = 404 if "not found" in msg.lower() else 400
+        raise HTTPException(status_code=code, detail=msg)
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @router.get("/leases/{lease_id}")

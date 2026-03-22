@@ -91,5 +91,47 @@ def ensure_runtime_migrations() -> None:
                     );
                     """
                 )
+                cur.execute(
+                    """
+                    ALTER TABLE leases
+                    ADD COLUMN IF NOT EXISTS docuseal_submission_id BIGINT;
+                    """
+                )
+                cur.execute(
+                    """
+                    ALTER TABLE leases
+                    ADD COLUMN IF NOT EXISTS docuseal_status TEXT;
+                    """
+                )
+                cur.execute(
+                    """
+                    ALTER TABLE leases
+                    ADD COLUMN IF NOT EXISTS docuseal_signed_at TIMESTAMPTZ;
+                    """
+                )
+                cur.execute(
+                    """
+                    ALTER TABLE leases
+                    ADD COLUMN IF NOT EXISTS docuseal_combined_document_url TEXT;
+                    """
+                )
+                cur.execute(
+                    """
+                    ALTER TABLE leases
+                    ADD COLUMN IF NOT EXISTS docuseal_submission_slug TEXT;
+                    """
+                )
+                cur.execute(
+                    """
+                    ALTER TABLE leases
+                    ADD COLUMN IF NOT EXISTS docuseal_shared_link BOOLEAN;
+                    """
+                )
+                cur.execute(
+                    """
+                    ALTER TABLE leases
+                    ADD COLUMN IF NOT EXISTS docuseal_signing_url TEXT;
+                    """
+                )
     finally:
         conn.close()

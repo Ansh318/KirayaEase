@@ -5,7 +5,11 @@ from langchain_core.tools import tool
 from pydantic import ValidationError
 
 from app.agents.lease.talk2lease import TalkToLeaseRAG
-from app.core.client_actions import OPEN_LEASE_AGREEMENT_PREVIEW, OPEN_LEASE_AGREEMENT_WIDGET
+from app.core.client_actions import (
+    OPEN_DOCUSEAL_SIGNING,
+    OPEN_LEASE_AGREEMENT_PREVIEW,
+    OPEN_LEASE_AGREEMENT_WIDGET,
+)
 from app.core.modelConfig import ModelConfigManager
 from app.db.vector_db_lease import LeaseDocumentProcessor
 from app.services.lease_extractor import extract_from_pdf, read_pdf_text
@@ -21,6 +25,7 @@ from app.services.lease_services import (
     generate_and_store_lease_agreement_preview,
 )
 from app.services.user_lease_draft_store import get_lease_draft, save_lease_draft
+from app.services.docuseal_flow import start_docuseal_signing_for_owner_lease
 import json
 
 
@@ -450,6 +455,55 @@ def save_generated_lease_agreement(
         "property_name": detail.get("property_name"),
         "summary": detail,
         "message": "Lease saved with full agreement text and PDF.",
+    }
+
+
+@tool
+def send_lease_for_signature_docuseal(
+    owner_id: int,
+    lease_id: int,
+    tenant_email: str,
+    tenant_name: Optional[str] = None,
+    tenant_phone: Optional[str] = None,
+    landlord_email: Optional[str] = None,
+    landlord_name: Optional[str] = None,
+    send_email: bool = True,
+    send_sms: bool = False,
+    shared_link: bool = True,
+) -> dict:
+    """After a lease is saved with a PDF: start DocuSeal e-signing (DocuSeal `POST /submissions/pdf`). Requires **tenant_email**; optional **landlord_email** for two-party order. Returns **docuseal** (id, slug, schema, fields, submitters, shared_link, …) plus **docuseal_signing_url** for WhatsApp. Server needs **DOCUSEAL_API_KEY**; webhook `POST /webhooks/docuseal`."""
+    try:
+        out = start_docuseal_signing_for_owner_lease(
+            owner_id=int(owner_id),
+            lease_id=int(lease_id),
+            tenant_email=str(tenant_email).strip(),
+            tenant_name=(tenant_name or "").strip() or None,
+            tenant_phone=(tenant_phone or "").strip() or None,
+            landlord_email=(landlord_email or "").strip() or None,
+            landlord_name=(landlord_name or "").strip() or None,
+            send_email=bool(send_email),
+            send_sms=bool(send_sms),
+            shared_link=bool(shared_link),
+            completed_redirect_url=None,
+        )
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    except RuntimeError as e:
+        return {"status": "error", "message": str(e)}
+    return {
+        "status": "success",
+        **out,
+        "client_action": OPEN_DOCUSEAL_SIGNING,
+        "client_action_payload": {
+            "lease_id": int(lease_id),
+            "submitters": out.get("submitters"),
+            "docuseal_signing_url": out.get("docuseal_signing_url"),
+            "docuseal": out.get("docuseal"),
+        },
+        "message": (
+            "DocuSeal signing started. Share **docuseal_signing_url** (or submitter **embed_src**) via WhatsApp. "
+            "When fully signed, the webhook saves the PDF URL on the lease for the app to show."
+        ),
     }
 
 

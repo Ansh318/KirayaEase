@@ -182,6 +182,26 @@ Connecting to industry-leading fintech and verification APIs for a seamless rent
     - Extract Lease Details(POST/extract-lease)
     - AI Assistant(POST/chatbot)
 
+### DocuSeal (lease e-sign)
+
+After a lease PDF is stored (`lease_files`), landlords can start signing via DocuSeal’s [Create submission from PDF](https://www.docuseal.com/docs/api#create-a-submission-from-pdf) API.
+
+**Heroku / env**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DOCUSEAL_API_KEY` | Yes | DocuSeal API token (`X-Auth-Token`) |
+| `DOCUSEAL_API_BASE` | No | Default `https://api.docuseal.com` (EU: `https://api.docuseal.eu`) |
+| `DOCUSEAL_WEBHOOK_SECRET` | No | If set, webhooks must pass the same value as query `?secret=...` or header `X-KirayaEase-Webhook-Secret` |
+| `DOCUSEAL_SUBMISSION_SHARED_LINK` | No | Default `true` — request `shared_link` on `POST /submissions/pdf` so DocuSeal returns shareable `embed_src` links (e.g. WhatsApp) |
+
+**HTTP**
+
+- `POST /leases/{lease_id}/docuseal/submission` — authenticated landlord; body includes `tenant_email` and optional `landlord_email` for two-party signing.
+- `POST /webhooks/docuseal` — paste into DocuSeal webhook settings (public URL on your app).
+
+**Agent tool:** `send_lease_for_signature_docuseal` (after `lease_id` exists and PDF is saved).
+
 ## Contributing
 
 Ansh Agarwal
