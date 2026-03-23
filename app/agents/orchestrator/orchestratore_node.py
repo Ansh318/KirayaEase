@@ -14,5 +14,19 @@ def orchestrator_node(state: AgentState):
     messages = state.get("messages", [])
     system_prompt = build_system_prompt(state)
     full_messages = [SystemMessage(content=system_prompt), *messages]
+    print(
+        "[AGENT][ORCHESTRATOR] "
+        f"invoke llm | messages={len(messages)} | user_id={state.get('user_id')} "
+        f"| scope={state.get('scope')} | lease_id={state.get('lease_id')}"
+    )
     response = llm_with_tools.invoke(full_messages)
+    tool_calls = getattr(response, "tool_calls", None) or []
+    if tool_calls:
+        names = [tc.get("name") for tc in tool_calls]
+        print(f"[AGENT][ORCHESTRATOR] tool_calls={names}")
+    else:
+        content = getattr(response, "content", "")
+        text = content if isinstance(content, str) else str(content)
+        preview = text if len(text) <= 220 else text[:217] + "..."
+        print(f"[AGENT][ORCHESTRATOR] final_response={preview!r}")
     return {"messages": [response]}

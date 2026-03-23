@@ -141,6 +141,12 @@ def agent_chat(
         memory_summary=mem or None,
         response_language=response_language_instruction(message, preferred_language),
     )
+    msg_preview = message if len(message) <= 220 else message[:217] + "..."
+    print(
+        "[AGENT][CHAT_IN] "
+        f"user_id={uid} session_id={session_id or '-'} scope={scope} property_id={property_id} lease_id={lease_id} "
+        f"role={role or '-'} message={msg_preview!r}"
+    )
     result = build_graph().invoke(state)
     # Frontend expects "response" with the assistant reply text
     messages = result.get("messages") or []
@@ -155,6 +161,13 @@ def agent_chat(
                 )
     if response_text:
         append_exchange(thread_key, uid if uid else None, message, response_text)
+    rt_preview = response_text if len(response_text) <= 220 else response_text[:217] + "..."
+    print(
+        "[AGENT][CHAT_OUT] "
+        f"user_id={uid} action={result.get('client_action')} "
+        f"payment_order_id={result.get('payment_order_id')} "
+        f"response={rt_preview!r}"
+    )
     return {
         "response": response_text,
         "action": result.get("client_action"),

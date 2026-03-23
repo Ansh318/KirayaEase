@@ -8,6 +8,17 @@ from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from app.core.state import AgentState
 from app.agents.insights.chart_spec import build_chart_spec
 
+
+def _short(obj: Any, limit: int = 800) -> str:
+    """Compact log serializer for tool args/results."""
+    try:
+        s = json.dumps(obj, default=str)
+    except Exception:
+        s = str(obj)
+    if len(s) > limit:
+        return s[: limit - 3] + "..."
+    return s
+
 # Map: tool_name -> { param_name: state_key } for injection (state_key value is injected into param_name)
 STATE_INJECTION: Dict[str, Dict[str, str]] = {
     "store_lease": {"owner_id": "user_id"},
@@ -59,16 +70,23 @@ def create_tool_node(tools: List[Any]):
         last_message = state["messages"][-1]
         if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
             return {"messages": []}
+        print(
+            f"[AGENT][TOOL_NODE] entering tool node | tool_calls={len(last_message.tool_calls)} "
+            f"| user_id={state.get('user_id')} | scope={state.get('scope')} "
+            f"| lease_id={state.get('lease_id')} | property_id={state.get('property_id')}"
+        )
         tool_messages: List[BaseMessage] = []
         state_updates: Dict[str, Any] = {}
         for tc in last_message.tool_calls:
             name = tc["name"]
             args = dict(tc.get("args") or {})
             args = _inject_state(name, args, state)
+            print(f"[AGENT][TOOL_CALL] name={name} args={_short(args)}")
             tool = name_to_tool.get(name)
             if tool:
                 try:
                     result = tool.invoke(args)
+                    print(f"[AGENT][TOOL_RESULT] name={name} result={_short(result)}")
                     if isinstance(result, dict):
                         # Allow tools to write back into graph state (so the agent can continue conversationally)
                         for k in ("extracted_data", "lease_id", "property_id", "query_result", "uploaded_lease_path"):
@@ -94,12 +112,16 @@ def create_tool_node(tools: List[Any]):
                     else:
                         content = result if isinstance(result, str) else str(result)
                 except Exception as e:
+                    print(f"[AGENT][TOOL_ERROR] name={name} error={e}")
                     content = json.dumps({"error": str(e)})
             else:
+                print(f"[AGENT][TOOL_ERROR] name={name} error=Unknown tool")
                 content = json.dumps({"error": f"Unknown tool: {name}"})
             tool_messages.append(
                 ToolMessage(content=content, tool_call_id=tc["id"])
             )
+        if state_updates:
+            print(f"[AGENT][TOOL_NODE] state_updates={_short(state_updates)}")
         return {"messages": tool_messages, **state_updates}
 
     return tool_node
