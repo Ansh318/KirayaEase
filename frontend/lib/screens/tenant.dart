@@ -11,6 +11,7 @@ import 'package:http_parser/http_parser.dart';
 import '../config/api_config.dart';
 import '../route_observer.dart';
 import '../services/lease_store.dart';
+import 'docuseal_signing_webview_page.dart';
 import 'lease_agreement_wizard_page.dart';
 // import '../widgets/ai_assistant.dart';
 
@@ -79,6 +80,28 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
         .replaceAll('â', "'")
         .replaceAll('â', '"')
         .replaceAll('â', '"');
+  }
+
+  String? _pickDocusealLandlordUrl(Map<String, dynamic> payload) {
+    final embedsRaw = payload['docuseal_submitter_embeds'];
+    if (embedsRaw is Map) {
+      final landlord = embedsRaw['Landlord'] ?? embedsRaw['landlord'];
+      if (landlord != null && landlord.toString().trim().isNotEmpty) {
+        return landlord.toString().trim();
+      }
+    }
+    final submitters = payload['submitters'];
+    if (submitters is List) {
+      for (final s in submitters) {
+        if (s is Map) {
+          final role = (s['role'] ?? '').toString().trim().toLowerCase();
+          final embed = (s['embed_src'] ?? '').toString().trim();
+          if (role == 'landlord' && embed.isNotEmpty) return embed;
+        }
+      }
+    }
+    final fallback = (payload['docuseal_signing_url'] ?? '').toString().trim();
+    return fallback.isEmpty ? null : fallback;
   }
 
   @override
@@ -630,6 +653,27 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                   builder: (_) => const LeaseAgreementWizardPage(startOnPreview: true),
                 ),
               );
+            } else if (clientAction == 'open_docuseal_signing') {
+              final payload = (data['action_payload'] ?? data['client_action_payload']);
+              if (payload is Map<String, dynamic>) {
+                final url = _pickDocusealLandlordUrl(payload);
+                if (url != null && url.isNotEmpty) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => DocusealSigningWebViewPage(
+                        signingUrl: url,
+                        title: 'Sign as landlord',
+                      ),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('DocuSeal signing URL missing in response.'),
+                    ),
+                  );
+                }
+              }
             }
           });
         }
