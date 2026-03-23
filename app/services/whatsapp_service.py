@@ -118,6 +118,23 @@ def send_whatsapp_template(
         data = resp.json()
         if resp.status_code >= 400:
             return {"error": "graph_api", "status_code": resp.status_code, "body": data}
-        return {"ok": True, "body": data}
+        contacts = data.get("contacts") if isinstance(data, dict) else None
+        messages = data.get("messages") if isinstance(data, dict) else None
+        if not isinstance(contacts, list) or not contacts:
+            return {"error": "unexpected_success_response", "body": data}
+        if not isinstance(messages, list) or not messages:
+            return {"error": "unexpected_success_response", "body": data}
+        m0 = messages[0] if isinstance(messages[0], dict) else {}
+        message_id = m0.get("id")
+        message_status = (m0.get("message_status") or "").strip() or "accepted"
+        if not message_id:
+            return {"error": "unexpected_success_response", "body": data}
+        return {
+            "ok": True,
+            "queued": True,
+            "message_id": message_id,
+            "message_status": message_status,
+            "body": data,
+        }
     except requests.RequestException as e:
         return {"error": "request_failed", "detail": str(e)}

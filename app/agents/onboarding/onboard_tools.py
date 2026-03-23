@@ -2,25 +2,57 @@ from typing import Optional
 
 from langchain_core.tools import tool
 
-from app.services.rent_reminder_service import send_rent_reminder_for_lease
+from app.core.client_actions import OPEN_DOCUSEAL_SIGNING
+from app.services.docuseal_flow import start_docuseal_signing_for_owner_lease
 
 
 @tool
 def invite_tenant(landlord_user_id: int, lease_id: Optional[int] = None) -> dict:
     """
-    Send the tenant a WhatsApp message using the **kirayaeaseonboarding** template (same as rent
-    reminders: tenant name, amount, property, due date — filled from the database).
+    Onboard tenant by starting DocuSeal signing for the selected lease.
 
-    When the landlord has a **property selected** in the app, **lease_id** is injected automatically.
-    **Do not ask for the phone number** if this tool can run — use **get_my_leases** only if
-    lease_id is missing (portfolio context).
+    Uses saved lease/property data (tenant phone/name and owner profile). Do not ask for phone/email
+    if lease_id is available; ask only when the tool returns missing-data errors.
     """
     if lease_id is None:
         return {
             "status": "error",
             "message": (
                 "No lease selected. Ask the landlord to pick a property in the app header, "
-                "or call get_my_leases and use the right lease_id, then call invite_tenant again."
+                "or call get_my_leases and use the correct lease_id, then call invite_tenant again."
             ),
         }
-    return send_rent_reminder_for_lease(int(landlord_user_id), int(lease_id))
+    try:
+        out = start_docuseal_signing_for_owner_lease(
+            owner_id=int(landlord_user_id),
+            lease_id=int(lease_id),
+            tenant_email=None,
+            tenant_name=None,
+            tenant_phone=None,
+            landlord_email=None,
+            landlord_name=None,
+            send_email=True,
+            send_sms=False,
+            completed_redirect_url=None,
+            shared_link=True,
+        )
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    except RuntimeError as e:
+        return {"status": "error", "message": str(e)}
+    return {
+        "status": "success",
+        **out,
+        "client_action": OPEN_DOCUSEAL_SIGNING,
+        "client_action_payload": {
+            "lease_id": int(lease_id),
+            "submitters": out.get("submitters"),
+            "docuseal_signing_url": out.get("docuseal_signing_url"),
+            "docuseal_submitter_embeds": out.get("docuseal_submitter_embeds"),
+            "docuseal": out.get("docuseal"),
+        },
+        "message": (
+            "Tenant onboarding started with DocuSeal. Share docuseal_signing_url (or embed_src) "
+            "with the tenant. The lease card will show Signed when webhook completion arrives."
+        ),
+    }

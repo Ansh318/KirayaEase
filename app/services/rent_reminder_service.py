@@ -151,12 +151,15 @@ def send_rent_reminder_for_lease(
     )
     if result.get("ok"):
         return {
-            "status": "sent",
+            "status": "queued",
+            "delivery_note": "Accepted by WhatsApp API; handset delivery is asynchronous.",
             "lease_id": lease_id,
             "property_name": row.get("property_name"),
             "tenant_name": row.get("tenant_name"),
             "to": phone,
             "template": tpl,
+            "wa_message_id": result.get("message_id"),
+            "wa_message_status": result.get("message_status"),
             "template_variables": {
                 "tenant_name": body_parameters[0]["text"],
                 "amount": body_parameters[1]["text"],
