@@ -6,7 +6,11 @@ from pydantic import BaseModel, Field
 class DocusealSigningRequest(BaseModel):
     """Start DocuSeal e-sign for a lease PDF already stored in `lease_files`."""
 
-    tenant_email: str = Field(..., min_length=3, max_length=320)
+    tenant_email: Optional[str] = Field(
+        None,
+        max_length=320,
+        description="Optional; if omitted, server derives from tenant phone on file (synthetic email for DocuSeal).",
+    )
     tenant_name: Optional[str] = None
     tenant_phone: Optional[str] = Field(
         None,

@@ -462,7 +462,7 @@ def save_generated_lease_agreement(
 def send_lease_for_signature_docuseal(
     owner_id: int,
     lease_id: int,
-    tenant_email: str,
+    tenant_email: Optional[str] = None,
     tenant_name: Optional[str] = None,
     tenant_phone: Optional[str] = None,
     landlord_email: Optional[str] = None,
@@ -471,12 +471,13 @@ def send_lease_for_signature_docuseal(
     send_sms: bool = False,
     shared_link: bool = True,
 ) -> dict:
-    """After a lease is saved with a PDF: start DocuSeal e-signing (DocuSeal `POST /submissions/pdf`). Requires **tenant_email**; optional **landlord_email** for two-party order. Returns **docuseal** (id, slug, schema, fields, submitters, shared_link, …) plus **docuseal_signing_url** for WhatsApp. Server needs **DOCUSEAL_API_KEY**; webhook `POST /webhooks/docuseal`."""
+    """After a lease is saved with a PDF: start DocuSeal e-signing (DocuSeal `POST /submissions/pdf`). **tenant_email** is optional: if omitted, the server uses tenant phone on the property (synthetic DocuSeal email + shared links). Optional **landlord_email** for two-party order. Returns **docuseal** (id, slug, …) plus **docuseal_signing_url** for WhatsApp. Server needs **DOCUSEAL_API_KEY**; webhook `POST /webhooks/docuseal`."""
     try:
+        te = (tenant_email or "").strip() or None
         out = start_docuseal_signing_for_owner_lease(
             owner_id=int(owner_id),
             lease_id=int(lease_id),
-            tenant_email=str(tenant_email).strip(),
+            tenant_email=te,
             tenant_name=(tenant_name or "").strip() or None,
             tenant_phone=(tenant_phone or "").strip() or None,
             landlord_email=(landlord_email or "").strip() or None,

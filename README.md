@@ -194,6 +194,7 @@ After a lease PDF is stored (`lease_files`), landlords can start signing via Doc
 | `DOCUSEAL_API_BASE` | No | Default `https://api.docuseal.com` (EU: `https://api.docuseal.eu`) |
 | `DOCUSEAL_WEBHOOK_SECRET` | No | If set, webhooks must pass the same value as query `?secret=...` or header `X-KirayaEase-Webhook-Secret` |
 | `DOCUSEAL_SUBMISSION_SHARED_LINK` | No | Default `true` — request `shared_link` on `POST /submissions/pdf` so DocuSeal returns shareable `embed_src` links (e.g. WhatsApp) |
+| `DOCUSEAL_SYNTHETIC_EMAIL_DOMAIN` | No | When `tenant_email` is omitted, tenant submitter email is `t{phone_digits}@<domain>` (default `tenant-signing.invalid`) so DocuSeal can create a submitter from phone-only leases |
 
 **HTTP**
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, Optional
 
 from app.schemas.property_manager import PropertyManager
@@ -16,11 +17,34 @@ from app.services.docuseal_signing import (
 )
 
 
+def _resolve_tenant_email_for_docuseal(
+    detail: Dict[str, Any],
+    tenant_email: Optional[str],
+) -> tuple[str, bool]:
+    """
+    DocuSeal requires a tenant submitter email. If none is stored, derive a stable
+    synthetic address from tenant_phone so signing can proceed (shared_link / WhatsApp).
+    Returns (email, is_synthetic).
+    """
+    te = (tenant_email or "").strip()
+    if te:
+        return te, False
+    phone = (detail.get("tenant_phone") or "").strip()
+    digits = "".join(c for c in str(phone) if c.isdigit())
+    if len(digits) < 10:
+        raise ValueError(
+            "No tenant email on file and no valid tenant phone on the property. "
+            "Add tenant phone (or email once supported) in Properties, then try again."
+        )
+    domain = (os.getenv("DOCUSEAL_SYNTHETIC_EMAIL_DOMAIN") or "tenant-signing.invalid").strip()
+    return f"t{digits}@{domain}", True
+
+
 def start_docuseal_signing_for_owner_lease(
     *,
     owner_id: int,
     lease_id: int,
-    tenant_email: str,
+    tenant_email: Optional[str] = None,
     tenant_name: Optional[str] = None,
     tenant_phone: Optional[str] = None,
     landlord_email: Optional[str] = None,
@@ -59,11 +83,14 @@ def start_docuseal_signing_for_owner_lease(
         if auto_name and not ln:
             ln = auto_name
 
-    te = str(tenant_email).strip()
+    te, synthetic_email = _resolve_tenant_email_for_docuseal(dict(detail), tenant_email)
     if le and te.lower() == le.lower():
         # Same person as tenant + landlord — single-party submission
         le = None
         ln = None
+
+    # Avoid DocuSeal emailing a synthetic placeholder; shared_link + in-app/WhatsApp is enough.
+    effective_send_email = bool(send_email) and not synthetic_email
 
     raw = request_lease_pdf_signing(
         pdf_bytes,
@@ -73,7 +100,7 @@ def start_docuseal_signing_for_owner_lease(
         tenant_phone=tenant_phone,
         landlord_email=le,
         landlord_name=ln,
-        send_email=send_email,
+        send_email=effective_send_email,
         send_sms=send_sms,
         completed_redirect_url=completed_redirect_url,
         shared_link=shared_link,

@@ -468,7 +468,7 @@ def post_lease_docuseal_submission(
         return start_docuseal_signing_for_owner_lease(
             owner_id=owner_id,
             lease_id=lease_id,
-            tenant_email=body.tenant_email.strip(),
+            tenant_email=(body.tenant_email or "").strip() or None,
             tenant_name=(body.tenant_name or "").strip() or None,
             tenant_phone=(body.tenant_phone or "").strip() or None,
             landlord_email=(body.landlord_email or "").strip() or None,

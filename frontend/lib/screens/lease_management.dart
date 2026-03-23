@@ -593,7 +593,10 @@ class _LeaseCardState extends State<_LeaseCard> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _ActiveChip(active: isActive),
+                  _LeaseStatusChip(
+                    isLeaseSigned: lease.isDocusealFullySigned,
+                    isActive: isActive,
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -930,15 +933,49 @@ class _GlassPdfButton extends StatelessWidget {
   }
 }
 
-class _ActiveChip extends StatelessWidget {
-  final bool active;
-  const _ActiveChip({required this.active});
+/// Lease term (Active/Expired) plus e-sign completion when DocuSeal webhook has updated the lease.
+class _LeaseStatusChip extends StatelessWidget {
+  final bool isLeaseSigned;
+  final bool isActive;
+
+  const _LeaseStatusChip({
+    required this.isLeaseSigned,
+    required this.isActive,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final bg = active ? const Color(0xFFEAFBF4) : const Color(0xFFF4F5F8);
-    final fg = active ? const Color(0xFF0A8F60) : const Color(0xFF6D7480);
-    final label = active ? 'Active' : 'Expired';
+    if (isLeaseSigned) {
+      const fg = Color(0xFF1565C0);
+      const bg = Color(0xFFE8F4FD);
+      return Container(
+        constraints: const BoxConstraints(minHeight: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: fg.withOpacity(0.28)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.verified_rounded, size: 14, color: fg),
+            SizedBox(width: 6),
+            Text(
+              'Signed',
+              style: TextStyle(
+                color: fg,
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final bg = isActive ? const Color(0xFFEAFBF4) : const Color(0xFFF4F5F8);
+    final fg = isActive ? const Color(0xFF0A8F60) : const Color(0xFF6D7480);
+    final label = isActive ? 'Active' : 'Expired';
     return Container(
       constraints: const BoxConstraints(minHeight: 28),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -951,8 +988,8 @@ class _ActiveChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            active ? Icons.brightness_1 : Icons.schedule_rounded,
-            size: active ? 8 : 12,
+            isActive ? Icons.brightness_1 : Icons.schedule_rounded,
+            size: isActive ? 8 : 12,
             color: fg,
           ),
           const SizedBox(width: 6),
@@ -1039,6 +1076,14 @@ class _Lease {
     final st = (docusealStatus ?? '').toLowerCase();
     if (st == 'signed' || st == 'declined' || st == 'expired') return false;
     return true;
+  }
+
+  /// DocuSeal webhook marked completed, or combined signed PDF URL is present.
+  bool get isDocusealFullySigned {
+    final st = (docusealStatus ?? '').toLowerCase().trim();
+    if (st == 'signed') return true;
+    final u = docusealCombinedDocumentUrl?.trim() ?? '';
+    return u.isNotEmpty;
   }
 
   _Lease({
