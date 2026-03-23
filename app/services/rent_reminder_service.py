@@ -19,10 +19,7 @@ def _conn():
 
 def default_rent_template_name() -> str:
     """Meta utility template for rent reminders (body: tenant_name, amount, property_name, due_date)."""
-    return (
-        os.getenv("WHATSAPP_RENT_REMINDER_TEMPLATE", "kirayaeaseonboarding").strip()
-        or "kirayaeaseonboarding"
-    )
+    return "kirayaeaseonboarding"
 
 
 def rent_reminder_template_language() -> str:
