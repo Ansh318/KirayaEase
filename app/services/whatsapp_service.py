@@ -51,15 +51,27 @@ def normalize_whatsapp_e164(raw: str) -> str:
     return s
 
 
+def _truncate_param_text(text: str, max_len: int = 1024) -> str:
+    """WhatsApp body parameter text max length (safety)."""
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 1] + "…"
+
+
 def send_whatsapp_template(
     to_number: str,
     template_name: str,
     *,
     language_code: str = "en_US",
     graph_version: Optional[str] = None,
+    body_parameters: Optional[list[dict[str, str]]] = None,
 ) -> Dict[str, Any]:
     """
     POST /{phone-number-id}/messages with a WhatsApp template payload.
+
+    For templates with body variables, pass ``body_parameters`` as a list of dicts,
+    each with required ``text`` and optional ``parameter_name`` (for Meta *named*
+    body variables). Omit ``parameter_name`` for purely positional templates.
     """
     token = _whatsapp_token()
     phone_number_id = _phone_number_id()
@@ -88,6 +100,19 @@ def send_whatsapp_template(
             "language": {"code": language_code},
         },
     }
+    if body_parameters:
+        plist: list[Dict[str, Any]] = []
+        for p in body_parameters:
+            raw_text = str(p.get("text", ""))
+            entry: Dict[str, Any] = {
+                "type": "text",
+                "text": _truncate_param_text(raw_text),
+            }
+            pname = (p.get("parameter_name") or "").strip()
+            if pname:
+                entry["parameter_name"] = pname
+            plist.append(entry)
+        payload["template"]["components"] = [{"type": "body", "parameters": plist}]
     try:
         resp = requests.post(url, headers=headers, json=payload, timeout=30)
         data = resp.json()

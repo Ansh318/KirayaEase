@@ -25,7 +25,7 @@ def send_rent_reminder_whatsapp(
     lease_id: int,
     template_name: str | None = None,
 ) -> dict:
-    """Send a WhatsApp rent reminder to the tenant for this lease. ALWAYS try this first when the user asks to remind the tenant - the number may already be on file. If it returns 'No tenant WhatsApp on file', ask for the number and use set_tenant_whatsapp_phone, then call this again. When one property is selected, lease_id is injected; otherwise use get_my_leases to pick lease_id. Optional template_name overrides the default (hello_world)."""
+    """Send a WhatsApp rent reminder to the tenant for this lease. Uses Meta template ``kirayaeaseonboarding`` with body vars filled from the DB (tenant name, rent amount, property name, next due date). ALWAYS try this first when the user asks to remind the tenant - the number may already be on file. If it returns 'No tenant WhatsApp on file', ask for the number and use set_tenant_whatsapp_phone, then call this again. When one property is selected, lease_id is injected; otherwise use get_my_leases to pick lease_id. Optional template_name overrides the default."""
     return send_rent_reminder_for_lease(
         landlord_user_id,
         lease_id,

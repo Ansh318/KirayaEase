@@ -202,6 +202,19 @@ After a lease PDF is stored (`lease_files`), landlords can start signing via Doc
 
 **Agent tool:** `send_lease_for_signature_docuseal` (after `lease_id` exists and PDF is saved).
 
+### WhatsApp (rent reminders)
+
+Rent reminders use the Meta template **`kirayaeaseonboarding`** with body variables filled from Postgres: **`tenant_name`**, **`amount`** (monthly rent digits only; template adds ₹), **`property_name`**, **`due_date`** (next due on `due_day`).
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WHATSAPP_PAT_TOKEN` / `PHONE_ID` | Yes for sends | Meta Cloud API token and phone number ID |
+| `WHATSAPP_RENT_REMINDER_TEMPLATE` | `kirayaeaseonboarding` | Override template name |
+| `WHATSAPP_RENT_REMINDER_LANG` | `en` | Must match approved template language in Meta |
+| `WHATSAPP_RENT_REMINDER_BODY_STYLE` | `named` | `named` = `parameter_name` per variable; use `positional` if Graph API expects ordered params only |
+
+**Agent tool:** `send_rent_reminder_whatsapp` (tenant WhatsApp on `properties.tenant_phone`).
+
 ## Contributing
 
 Ansh Agarwal

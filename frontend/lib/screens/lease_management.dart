@@ -121,20 +121,6 @@ class _LeasePageState extends State<LeasePage> {
                   },
           ),
           IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            tooltip: 'Add lease (quick form)',
-            onPressed: _loading
-                ? null
-                : () async {
-                    final ok = await Navigator.of(context).push<bool>(
-                      MaterialPageRoute(
-                        builder: (_) => const LeaseEditorPage(),
-                      ),
-                    );
-                    if (ok == true && mounted) _fetchLeasesFromApi();
-                  },
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loading ? null : _fetchLeasesFromApi,
           ),

@@ -490,6 +490,7 @@ SELECT
   p.id AS property_id,
   p.owner_id,
   p.name AS property_name,
+  p.tenant_name,
   p.tenant_phone
 FROM leases l
 JOIN properties p ON p.id = l.property_id
