@@ -102,7 +102,7 @@ def send_rent_reminder_template_graph(
         "type": "template",
         "template": {
             "name": template_name,
-            "language": {"code": language_code},
+            "language": {"code": "en"},
             "components": [
                 {
                     "type": "body",
