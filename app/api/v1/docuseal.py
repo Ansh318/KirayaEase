@@ -20,13 +20,29 @@ router = APIRouter(tags=["docuseal"])
 
 
 def _verify_webhook_optional(request: Request) -> None:
+    # Preferred: DOCUSEAL_WEBHOOK_SECRET with ?secret=... or X-KirayaEase-Webhook-Secret
     secret = (os.getenv("DOCUSEAL_WEBHOOK_SECRET") or "").strip()
-    if not secret:
+    # Backward-compatible alt naming:
+    #   DOCUSEAL_WEBHOOK_KEY=<query/header key>, DOCUSEAL_WEBHOOK_VALUE=<expected value>
+    alt_key = (os.getenv("DOCUSEAL_WEBHOOK_KEY") or "").strip()
+    alt_val = (os.getenv("DOCUSEAL_WEBHOOK_VALUE") or "").strip()
+
+    if not secret and not (alt_key and alt_val):
         return
-    q = (request.query_params.get("secret") or "").strip()
-    hdr = (request.headers.get("X-KirayaEase-Webhook-Secret") or "").strip()
-    if q == secret or hdr == secret:
+
+    # Canonical secret path
+    q_secret = (request.query_params.get("secret") or "").strip()
+    h_secret = (request.headers.get("X-KirayaEase-Webhook-Secret") or "").strip()
+    if secret and (q_secret == secret or h_secret == secret):
         return
+
+    # Alternate key/value path: allow either query param with given key, or header with same key.
+    if alt_key and alt_val:
+        q_alt = (request.query_params.get(alt_key) or "").strip()
+        h_alt = (request.headers.get(alt_key) or "").strip()
+        if q_alt == alt_val or h_alt == alt_val:
+            return
+
     raise HTTPException(status_code=401, detail="Invalid webhook secret")
 
 
