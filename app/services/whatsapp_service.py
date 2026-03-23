@@ -107,10 +107,10 @@ def send_rent_reminder_template_graph(
                 {
                     "type": "body",
                     "parameters": [
-                        {"type": "text", "text": _truncate_param_text(str(tenant_name))},
-                        {"type": "text", "text": _truncate_param_text(str(amount))},
-                        {"type": "text", "text": _truncate_param_text(str(property_name))},
-                        {"type": "text", "text": _truncate_param_text(str(due_date))},
+                        {"type": "text", "text": _truncate_param_text(str(tenant_name)), "parameter_name": "tenant_name"},
+                        {"type": "text", "text": _truncate_param_text(str(amount)), "parameter_name": "amount"},
+                        {"type": "text", "text": _truncate_param_text(str(property_name)), "parameter_name": "property_name"},
+                        {"type": "text", "text": _truncate_param_text(str(due_date)), "parameter_name": "due_date"},
                     ],
                 }
             ],
