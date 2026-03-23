@@ -69,7 +69,7 @@ def send_rent_reminder_template_graph(
     property_name: str,
     due_date: str,
     template_name: str = "kirayaeaseonboarding",
-    language_code: str = "en_US",
+    language_code: str = "en",
     graph_version: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
