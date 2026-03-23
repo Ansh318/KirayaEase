@@ -1,10 +1,13 @@
 """WhatsApp Cloud API (Meta) — send template messages. Credentials from env."""
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, Dict, Optional
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_GRAPH_VERSION = "v24.0"
 # Heroku: WHATSAPP_PAT_TOKEN + PHONE_ID. Legacy fallbacks supported.
@@ -56,6 +59,108 @@ def _truncate_param_text(text: str, max_len: int = 1024) -> str:
     if len(text) <= max_len:
         return text
     return text[: max_len - 1] + "…"
+
+
+def send_rent_reminder_template_graph(
+    phone: str,
+    *,
+    tenant_name: str,
+    amount: str,
+    property_name: str,
+    due_date: str,
+    template_name: str = "kirayaeaseonboarding",
+    language_code: str = "en_US",
+    graph_version: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Send the approved **kirayaeaseonboarding** rent reminder template using the same JSON shape
+    as Meta's Cloud API examples (positional body parameters only).
+
+    Credentials: ``WHATSAPP_PAT_TOKEN`` (or ``WHATSAPP_TOKEN``) + ``PHONE_ID`` (or ``WHATSAPP_PHONE_NUMBER_ID``).
+    """
+    token = _whatsapp_token()
+    phone_number_id = _phone_number_id()
+    if not token or not phone_number_id:
+        return {
+            "error": "missing_config",
+            "detail": "Set WHATSAPP_PAT_TOKEN and PHONE_ID (or legacy WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID).",
+        }
+
+    to_digits = normalize_whatsapp_e164(phone)
+    if not to_digits:
+        return {"error": "invalid_to", "detail": "Phone number is empty after normalization."}
+
+    ver = graph_version or os.getenv("WHATSAPP_GRAPH_VERSION") or DEFAULT_GRAPH_VERSION
+    url = f"https://graph.facebook.com/{ver}/{phone_number_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    payload: Dict[str, Any] = {
+        "messaging_product": "whatsapp",
+        "to": to_digits,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": language_code},
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": _truncate_param_text(str(tenant_name))},
+                        {"type": "text", "text": _truncate_param_text(str(amount))},
+                        {"type": "text", "text": _truncate_param_text(str(property_name))},
+                        {"type": "text", "text": _truncate_param_text(str(due_date))},
+                    ],
+                }
+            ],
+        },
+    }
+
+    try:
+        logger.info(
+            "WhatsApp rent reminder POST graph_version=%s phone_number_id=%s to=%s template=%s lang=%s",
+            ver,
+            phone_number_id,
+            to_digits,
+            template_name,
+            language_code,
+        )
+        resp = requests.post(url, headers=headers, json=payload, timeout=30)
+        try:
+            data = resp.json()
+        except Exception:
+            data = {"raw": (resp.text or "")[:4000]}
+        logger.info(
+            "WhatsApp rent reminder response status=%s body=%s",
+            resp.status_code,
+            data,
+        )
+        if resp.status_code >= 400:
+            return {"error": "graph_api", "status_code": resp.status_code, "body": data}
+        if not isinstance(data, dict):
+            return {"error": "invalid_json", "body": data}
+        contacts = data.get("contacts")
+        messages = data.get("messages")
+        if not isinstance(contacts, list) or not contacts:
+            return {"error": "unexpected_success_response", "body": data}
+        if not isinstance(messages, list) or not messages:
+            return {"error": "unexpected_success_response", "body": data}
+        m0 = messages[0] if isinstance(messages[0], dict) else {}
+        message_id = m0.get("id")
+        message_status = (m0.get("message_status") or "").strip() or "accepted"
+        if not message_id:
+            return {"error": "unexpected_success_response", "body": data}
+        return {
+            "ok": True,
+            "queued": True,
+            "message_id": message_id,
+            "message_status": message_status,
+            "body": data,
+        }
+    except requests.RequestException as e:
+        logger.exception("WhatsApp rent reminder request failed: %s", e)
+        return {"error": "request_failed", "detail": str(e)}
 
 
 def send_whatsapp_template(

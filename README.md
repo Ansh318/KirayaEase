@@ -205,14 +205,12 @@ After a lease PDF is stored (`lease_files`), landlords can start signing via Doc
 
 ### WhatsApp (rent reminders)
 
-Rent reminders use the Meta template **`kirayaeaseonboarding`** with body variables filled from Postgres: **`tenant_name`**, **`amount`** (monthly rent digits only; template adds ₹), **`property_name`**, **`due_date`** (next due on `due_day`).
+Rent reminders use the Meta template **`kirayaeaseonboarding`** (hardcoded) with **`en_US`** language and **positional** body parameters: **`tenant_name`**, **`amount`** (monthly rent digits only; template adds ₹), **`property_name`**, **`due_date`** (next due on `due_day`). Values come from Postgres.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `WHATSAPP_PAT_TOKEN` / `PHONE_ID` | Yes for sends | Meta Cloud API token and phone number ID |
-| `WHATSAPP_RENT_REMINDER_TEMPLATE` | `kirayaeaseonboarding` | Override template name |
-| `WHATSAPP_RENT_REMINDER_LANG` | `en` | Must match approved template language in Meta |
-| `WHATSAPP_RENT_REMINDER_BODY_STYLE` | `named` | `named` = `parameter_name` per variable; use `positional` if Graph API expects ordered params only |
+| `WHATSAPP_GRAPH_VERSION` | `v24.0` | Graph API version (optional override) |
 
 **Agent tool:** `send_rent_reminder_whatsapp` (tenant WhatsApp on `properties.tenant_phone`).
 
