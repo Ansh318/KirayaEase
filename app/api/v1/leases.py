@@ -207,8 +207,11 @@ async def extract_lease_content(
                         pass
                     agent_response = (
                         f"Lease stored successfully. Property: {name}, Lease ID: {lease_id}. "
-                        f"Rent: ₹{data.get('monthly_rent', 'N/A')}/month. "
-                        "You can ask questions about this lease or view it in Leases."
+                        f"Rent: ₹{data.get('monthly_rent', 'N/A')}/month.\n\n"
+                        "You can ask questions about this lease or open **Settings → Properties** to view it.\n\n"
+                        "**Next step:** To get it signed, tell me to **send for signature** or **onboard the tenant** "
+                        "(DocuSeal — I’ll need the tenant’s **email**). You can also pick this lease in the "
+                        "property selector above, then ask the same."
                     )
         if agent_response is None:
             if missing:

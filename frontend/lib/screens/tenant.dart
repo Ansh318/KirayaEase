@@ -806,15 +806,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
         _selectedFilePath = path;
         _selectedFileName = picked.name;
       });
-
-      // Show file selected message
-      setState(() {
-        messages.add({
-          "sender": "user",
-          "text": picked.name,
-          "timestamp": DateTime.now()
-        });
-      });
+      // No chat bubble here — composer already shows the attachment; one bubble on send only.
       _scrollToBottom();
     } catch (e) {
       setState(() {
@@ -832,11 +824,11 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
     setState(() {
       _isUploadingFile = true;
       _isSendingMessage = true;
-      // Show only file (icon + name), not the query text
       messages.add({
         "sender": "user",
-        "text": "📄 $filename",
-        "timestamp": DateTime.now()
+        "type": "pdf_attachment",
+        "fileName": filename,
+        "timestamp": DateTime.now(),
       });
       _messageController.clear();
     });
@@ -1125,6 +1117,17 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
     );
   }
 
+  /// User bubble: PDF upload uses [type] + [fileName]; legacy messages used "📄 name".
+  String? _userPdfAttachmentName(Map<String, dynamic> msg) {
+    if (msg['type'] == 'pdf_attachment') {
+      final fn = msg['fileName'];
+      if (fn is String && fn.trim().isNotEmpty) return fn.trim();
+    }
+    final text = msg['text']?.toString() ?? '';
+    if (text.startsWith('📄 ')) return text.substring(2).trim();
+    return null;
+  }
+
   Widget _buildChatView() {
     return ListView.builder(
       controller: _scrollController,
@@ -1134,6 +1137,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
       itemBuilder: (context, index) {
         final message = messages[index];
         final isUser = message["sender"] == "user";
+        final pdfAttachName = isUser ? _userPdfAttachmentName(message) : null;
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
@@ -1242,27 +1246,27 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                 ),
               ],
               if (isUser) ...[
-                // User: Light gray rounded bubble
                 Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      message["text"],
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: Color(0xFF1A1A1A),
-                        height: 1.4,
-                        // Don't specify fontFamily to use system default which supports emojis
-                      ),
-                    ),
-                  ),
+                  child: pdfAttachName != null
+                      ? _PdfAttachmentChip(fileName: pdfAttachName)
+                      : Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F5F5),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            message["text"]?.toString() ?? '',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: Color(0xFF1A1A1A),
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 8),
                 // User: Teal circular avatar with white person outline
@@ -1674,6 +1678,105 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
           BottomNavigationBarItem(
               icon: Icon(Icons.settings), label: 'Settings'),
           BottomNavigationBarItem(icon: Icon(Icons.logout), label: 'Sign Out'),
+        ],
+      ),
+    );
+  }
+}
+
+/// Styled chip for a sent PDF (matches app teal + clear PDF affordance).
+class _PdfAttachmentChip extends StatelessWidget {
+  final String fileName;
+
+  const _PdfAttachmentChip({required this.fileName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 280),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFF7FCFB),
+            Color(0xFFEEF8F6),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF1AAE9F).withValues(alpha: 0.28),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1AAE9F).withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFE53935),
+                  Color(0xFFC62828),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0xFFE53935).withValues(alpha: 0.35),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.picture_as_pdf_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'PDF',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                    color: Color(0xFF167D60),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  fileName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A),
+                    height: 1.25,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
