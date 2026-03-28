@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -930,18 +931,48 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
     }
   }
 
+  /// Backend sometimes returns placeholder first names (e.g. "Test"); prefer real prefs.
+  static bool _looksLikePlaceholderDisplayName(String s) {
+    final t = s.trim().toLowerCase();
+    if (t.isEmpty) return true;
+    const placeholders = {'test', 'user', 'demo', 'placeholder'};
+    return placeholders.contains(t);
+  }
+
+  static String _resolveDisplayFirstName(
+    String apiFirst,
+    String apiFull,
+    String fallback,
+  ) {
+    if (!_looksLikePlaceholderDisplayName(apiFirst)) return apiFirst.trim();
+    if (apiFull.isNotEmpty) {
+      final parts =
+          apiFull.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+      if (parts.isNotEmpty) {
+        final first = parts.first;
+        if (!_looksLikePlaceholderDisplayName(first)) return first;
+      }
+    }
+    return fallback;
+  }
+
   Future<void> fetchUserName() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final sessionToken = prefs.getString('session_token');
+      // Login stores `session_id`; keep `session_token` fallback for older installs.
+      final sessionToken =
+          prefs.getString('session_id') ?? prefs.getString('session_token');
       final onboardingFirstName = prefs.getString('onboarding_first_name');
       final savedDisplayName = prefs.getString('user_name');
-      final fallbackName = (onboardingFirstName != null &&
+      var fallbackName = (onboardingFirstName != null &&
               onboardingFirstName.trim().isNotEmpty)
           ? onboardingFirstName.trim()
           : ((savedDisplayName != null && savedDisplayName.trim().isNotEmpty)
               ? savedDisplayName.trim().split(' ').first
               : "User");
+      if (_looksLikePlaceholderDisplayName(fallbackName)) {
+        fallbackName = 'User';
+      }
 
       // Show local profile name immediately; backend can overwrite with fresher value.
       setState(() {
@@ -966,9 +997,11 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
         final data = _decodeJsonMap(response);
         final apiFirstName = (data["first_name"] ?? "").toString().trim();
         final apiName = (data["name"] ?? "").toString().trim();
-        final resolvedName = apiFirstName.isNotEmpty
-            ? apiFirstName
-            : (apiName.isNotEmpty ? apiName.split(' ').first : fallbackName);
+        final resolvedName = _resolveDisplayFirstName(
+          apiFirstName,
+          apiName,
+          fallbackName,
+        );
 
         setState(() {
           userName = resolvedName;
@@ -1033,33 +1066,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                 height: 1.2,
               ),
             ),
-            const SizedBox(height: 12),
-            // Subtitle
-            Text(
-              _userRole == 'landlord'
-                  ? 'Your AI copilot — type below or use Settings → Properties to add units'
-                  : 'Your AI-powered rental assistant',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF6B6B6B),
-              ),
-            ),
-            if (_userRole == 'landlord' && _landlordLeaseCount > 0) ...[
-              const SizedBox(height: 14),
-              const Text(
-                'Tip: Use the property row at the top to pick one lease, then ask to send for signature, send a rent reminder, or mark rent paid.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF8A8A8A),
-                  height: 1.35,
-                ),
-              ),
-            ],
-            const SizedBox(height: 60),
+            const SizedBox(height: 48),
             // Action buttons - 2x2 grid
             Row(
               children: [
@@ -1287,6 +1294,23 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
       backgroundColor: Colors.transparent,
       builder: (_) => const AddPaymentModal(),
     );
+  }
+
+  /// Bottom nav **Home** — back to greeting + quick actions (clears in-memory chat only).
+  void _resetToHomeDashboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      messages.clear();
+      _messageController.clear();
+      _selectedFilePath = null;
+      _selectedFileName = null;
+      _isSendingMessage = false;
+      _isUploadingFile = false;
+      _sessionId = DateTime.now().millisecondsSinceEpoch.toString();
+    });
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
   }
 
   Future<void> _signOut() async {
@@ -1621,6 +1645,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
       ),
     ),
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
         backgroundColor: Colors.white,
         elevation: 0,
         selectedItemColor: Colors.black,
@@ -1629,6 +1654,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
         onTap: (index) async {
           switch (index) {
             case 0:
+              _resetToHomeDashboard();
               break;
             // case 1: Payments – commented out
             // _openAddPaymentSheet();
@@ -2186,6 +2212,21 @@ class _AddPaymentModalState extends State<AddPaymentModal> {
   }
 }
 
+String _formatInsightAmount(double v) {
+  if (v == v.roundToDouble()) {
+    return NumberFormat.currency(
+      locale: 'en_US',
+      symbol: r'$',
+      decimalDigits: 0,
+    ).format(v);
+  }
+  return NumberFormat.currency(
+    locale: 'en_US',
+    symbol: r'$',
+    decimalDigits: 2,
+  ).format(v);
+}
+
 /// Renders a small line or bar chart for insight (text2sql) results.
 class _InsightChart extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -2207,6 +2248,15 @@ class _InsightChart extends StatelessWidget {
       return double.tryParse(e.toString()) ?? 0.0;
     }).toList();
     final maxY = valueNumbers.isEmpty ? 1.0 : (valueNumbers.reduce((a, b) => a > b ? a : b) * 1.1).clamp(1.0, double.infinity);
+    final yTickInterval = maxY <= 0 ? 1.0 : (maxY / 4).clamp(1.0, double.infinity);
+    const barGradient = LinearGradient(
+      begin: Alignment.bottomCenter,
+      end: Alignment.topCenter,
+      colors: [
+        Color(0xFFC8EFE8),
+        Color(0xFF8FD9CC),
+      ],
+    );
     const teal = Color(0xFF1AAE9F);
 
     Widget chart;
@@ -2218,65 +2268,141 @@ class _InsightChart extends StatelessWidget {
           barRods: [
             BarChartRodData(
               toY: valueNumbers[i],
-              color: teal,
-              width: 16,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+              gradient: barGradient,
+              width: 22,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
             ),
           ],
-          showingTooltipIndicators: [0],
         ),
       );
-      chart = SizedBox(
-        height: 200,
-        child: BarChart(
-          BarChartData(
-            alignment: BarChartAlignment.spaceAround,
-            maxY: maxY,
-            barGroups: barGroups,
-            barTouchData: BarTouchData(enabled: true),
-            titlesData: FlTitlesData(
-              show: true,
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    final i = value.toInt();
-                    if (i >= 0 && i < labelStrings.length) {
-                      final s = labelStrings[i];
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          s.length > 8 ? "${s.substring(0, 7)}…" : s,
-                          style: const TextStyle(
-                            color: Color(0xFF6B6B6B),
-                            fontSize: 10,
-                          ),
+      chart = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 200,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.center,
+                groupsSpace: 28,
+                minY: 0,
+                maxY: maxY,
+                barGroups: barGroups,
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    tooltipRoundedRadius: 10,
+                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    tooltipMargin: 8,
+                    maxContentWidth: 160,
+                    fitInsideHorizontally: true,
+                    fitInsideVertically: true,
+                    tooltipHorizontalAlignment: FLHorizontalAlignment.center,
+                    tooltipBorder: const BorderSide(
+                      color: Color(0xFFB8E0D8),
+                      width: 1,
+                    ),
+                    getTooltipColor: (_) => const Color(0xFFEAF8F5),
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      final idx = group.x.toInt();
+                      if (idx < 0 || idx >= valueNumbers.length) {
+                        return null;
+                      }
+                      return BarTooltipItem(
+                        _formatInsightAmount(valueNumbers[idx]),
+                        const TextStyle(
+                          color: Color(0xFF1F6F62),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
                         ),
                       );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                  reservedSize: 28,
-                  interval: 1,
+                    },
+                  ),
                 ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        final i = value.toInt();
+                        if (i >= 0 && i < labelStrings.length) {
+                          final s = labelStrings[i];
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              s.length > 10 ? "${s.substring(0, 9)}…" : s,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Color(0xFF5C7A75),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                      reservedSize: 30,
+                      interval: 1,
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 40,
+                      interval: yTickInterval,
+                      getTitlesWidget: (value, meta) {
+                        if (value < 0 || value > maxY * 1.02) {
+                          return const SizedBox.shrink();
+                        }
+                        return Text(
+                          value >= 1000
+                              ? "${(value / 1000).round()}k"
+                              : value.round().toString(),
+                          style: const TextStyle(
+                            color: Color(0xFF7A908C),
+                            fontSize: 10,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: yTickInterval,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: const Color(0xFFE3F0ED),
+                    strokeWidth: 1,
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
               ),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 36,
-                  getTitlesWidget: (value, meta) => Text(
-                    value >= 1000 ? "${(value / 1000).toStringAsFixed(0)}k" : value.toStringAsFixed(0),
-                    style: const TextStyle(color: Color(0xFF6B6B6B), fontSize: 10),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: List.generate(
+              labelStrings.length,
+              (i) => Expanded(
+                child: Text(
+                  _formatInsightAmount(valueNumbers[i]),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2D8A7A),
                   ),
                 ),
               ),
-              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             ),
-            gridData: const FlGridData(show: false),
-            borderData: FlBorderData(show: false),
           ),
-        ),
+        ],
       );
     } else {
       final spots = List.generate(
@@ -2372,6 +2498,8 @@ class _InsightChart extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF1A1A1A),
                 ),
+                maxLines: 4,
+                softWrap: true,
               ),
             ),
           chart,

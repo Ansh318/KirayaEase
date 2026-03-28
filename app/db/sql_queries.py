@@ -27,6 +27,7 @@ GET_USER_FROM_SESSION = """
 SELECT user_id
 FROM sessions
 WHERE session_id = %s
+  AND expires_at > NOW()
 ORDER BY created_at DESC
 LIMIT 1;
 """

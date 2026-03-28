@@ -12,6 +12,13 @@ from jose import jwt, jwk
 # Load environment variables
 load_dotenv()
 
+# How long DB sessions stay valid (login required again after this). Override with SESSION_EXPIRY_DAYS (1–365).
+try:
+    _raw_days = int(os.getenv("SESSION_EXPIRY_DAYS", "30"))
+except ValueError:
+    _raw_days = 30
+SESSION_EXPIRY_DAYS = max(1, min(_raw_days, 365))
+
 from app.db.sql_queries import (
     CREATE_USER,
     FETCH_USER,
@@ -62,7 +69,7 @@ class AuthManager:
 
     def create_login_session(self, user_id):
         session_id = str(uuid.uuid4())
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_EXPIRY_DAYS)
 
         conn = self._get_connection()
         cursor = conn.cursor()

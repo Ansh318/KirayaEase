@@ -76,8 +76,10 @@ class _LoginPageState extends State<LoginPage> {
 
       final prefs = await SharedPreferences.getInstance();
 
-      // 3️⃣ Store session
-      await prefs.setString('session_id', data['session_id'] as String);
+      // 3️⃣ Store session (both keys so all screens agree on the token)
+      final sid = data['session_id'] as String;
+      await prefs.setString('session_id', sid);
+      await prefs.setString('session_token', sid);
       await prefs.setString('user_email', data['email'] as String? ?? '');
 
       if (!mounted) return;
@@ -150,7 +152,9 @@ class _LoginPageState extends State<LoginPage> {
 
       final prefs = await SharedPreferences.getInstance();
 
-      await prefs.setString('session_id', data['session_id'] as String);
+      final sid = data['session_id'] as String;
+      await prefs.setString('session_id', sid);
+      await prefs.setString('session_token', sid);
       await prefs.setString('user_email', data['email'] as String? ?? '');
 
       if (!mounted) return;
