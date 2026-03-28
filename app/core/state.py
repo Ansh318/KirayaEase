@@ -21,6 +21,7 @@ class AgentState(TypedDict, total=False):
     property_id: Optional[int]   # None = portfolio (all properties)
     scope: str                   # "portfolio" | "property"
     property_context: Optional[Dict[str, Any]]  # selected property summary for context
+    landlord_lease_count: Optional[int]  # from client; guides "what's next" copy when 0 vs has leases
 
     # -------------------------
     # Conversation

@@ -195,11 +195,10 @@ After a lease PDF is stored (`lease_files`), landlords can start signing via Doc
 | `DOCUSEAL_WEBHOOK_SECRET` | No | If set, webhooks must pass the same value as query `?secret=...` or header `X-KirayaEase-Webhook-Secret` |
 | `DOCUSEAL_WEBHOOK_KEY` + `DOCUSEAL_WEBHOOK_VALUE` | No | Alternate webhook auth mode: request must include query/header named by `DOCUSEAL_WEBHOOK_KEY` with value `DOCUSEAL_WEBHOOK_VALUE` |
 | `DOCUSEAL_SUBMISSION_SHARED_LINK` | No | Default `true` — request `shared_link` on `POST /submissions/pdf` so DocuSeal returns shareable `embed_src` links (e.g. WhatsApp) |
-| `DOCUSEAL_SYNTHETIC_EMAIL_DOMAIN` | No | When `tenant_email` is omitted, tenant submitter email is `t{phone_digits}@<domain>` (default `tenant-signing.invalid`) so DocuSeal can create a submitter from phone-only leases |
 
 **HTTP**
 
-- `POST /leases/{lease_id}/docuseal/submission` — authenticated landlord; body includes `tenant_email` and optional `landlord_email` for two-party signing.
+- `POST /leases/{lease_id}/docuseal/submission` — authenticated landlord; body requires `tenant_email` and optional `landlord_email` for two-party signing.
 - `POST /webhooks/docuseal` — paste into DocuSeal webhook settings (public URL on your app).
 
 **Agent tool:** `send_lease_for_signature_docuseal` (after `lease_id` exists and PDF is saved).

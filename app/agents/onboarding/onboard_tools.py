@@ -7,12 +7,15 @@ from app.services.docuseal_flow import start_docuseal_signing_for_owner_lease
 
 
 @tool
-def invite_tenant(landlord_user_id: int, lease_id: Optional[int] = None) -> dict:
+def invite_tenant(
+    landlord_user_id: int,
+    lease_id: Optional[int] = None,
+    tenant_email: Optional[str] = None,
+) -> dict:
     """
     Onboard tenant by starting DocuSeal signing for the selected lease.
 
-    Uses saved lease/property data (tenant phone/name and owner profile). Do not ask for phone/email
-    if lease_id is available; ask only when the tool returns missing-data errors.
+    Uses saved lease/property data plus required tenant email.
     """
     if lease_id is None:
         return {
@@ -22,17 +25,21 @@ def invite_tenant(landlord_user_id: int, lease_id: Optional[int] = None) -> dict
                 "or call get_my_leases and use the correct lease_id, then call invite_tenant again."
             ),
         }
+    te = (tenant_email or "").strip()
+    if not te:
+        return {
+            "status": "error",
+            "message": "tenant_email is required to start DocuSeal signing.",
+        }
     try:
         out = start_docuseal_signing_for_owner_lease(
             owner_id=int(landlord_user_id),
             lease_id=int(lease_id),
-            tenant_email=None,
+            tenant_email=te,
             tenant_name=None,
-            tenant_phone=None,
             landlord_email=None,
             landlord_name=None,
             send_email=True,
-            send_sms=False,
             completed_redirect_url=None,
             shared_link=True,
         )

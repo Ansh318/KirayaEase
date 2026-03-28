@@ -51,6 +51,7 @@ def build_initial_state(
     prior_messages: Optional[List[Any]] = None,
     memory_summary: Optional[str] = None,
     response_language: Optional[str] = None,
+    landlord_lease_count: Optional[int] = None,
 ):
     session_token = (authorization or "").replace("Bearer ", "").strip() or session_id
     profile = _get_profile(session_token)
@@ -89,6 +90,11 @@ def build_initial_state(
         state["lease_id"] = state["property_id"]
     if api_public_base_url:
         state["api_public_base_url"] = str(api_public_base_url).rstrip("/")
+    if landlord_lease_count is not None:
+        try:
+            state["landlord_lease_count"] = int(landlord_lease_count)
+        except (TypeError, ValueError):
+            pass
     return state
 
 
@@ -106,6 +112,13 @@ def agent_chat(
     role = body.get("user_role")
     preferred_language = body.get("language") or body.get("preferred_language")
     lease_id = body.get("lease_id")
+    raw_lease_count = body.get("landlord_lease_count")
+    landlord_lease_count: int | None = None
+    if raw_lease_count is not None:
+        try:
+            landlord_lease_count = int(raw_lease_count)
+        except (TypeError, ValueError):
+            landlord_lease_count = None
     if lease_id is not None:
         try:
             lease_id = int(lease_id)
@@ -140,6 +153,7 @@ def agent_chat(
         prior_messages=prior,
         memory_summary=mem or None,
         response_language=response_language_instruction(message, preferred_language),
+        landlord_lease_count=landlord_lease_count,
     )
     msg_preview = message if len(message) <= 220 else message[:217] + "..."
     print(

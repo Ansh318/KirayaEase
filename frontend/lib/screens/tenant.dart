@@ -11,6 +11,7 @@ import 'package:http_parser/http_parser.dart';
 import '../config/api_config.dart';
 import '../route_observer.dart';
 import '../services/lease_store.dart';
+import '../widgets/landlord_home_coach.dart';
 import 'docuseal_signing_webview_page.dart';
 import 'lease_agreement_wizard_page.dart';
 // import '../widgets/ai_assistant.dart';
@@ -46,6 +47,13 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
   String? _activePropertyId;
   List<_PropertyContextOption> _propertyContexts = const [];
   bool isLoading = true;
+  bool _landlordEmptyPortfolioBannerDismissed = false;
+
+  static const _kLandlordEmptyBannerPrefsKey =
+      'kirayaease_landlord_workflow_banner_dismissed';
+
+  int get _landlordLeaseCount =>
+      _propertyContexts.where((c) => c.scope == 'property').length;
 
   // Chat state
   final List<Map<String, dynamic>> messages = [];
@@ -195,6 +203,8 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
     final role = (prefs.getString('user_role') ?? 'tenant').toLowerCase();
     final savedScope = prefs.getString('active_scope');
     final savedPropertyId = prefs.getString('active_property_id');
+    final emptyBannerDismissed =
+        prefs.getBool(_kLandlordEmptyBannerPrefsKey) == true;
 
     List<_PropertyContextOption> contexts = const [];
     if (role == 'landlord') {
@@ -203,6 +213,7 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
 
     if (!mounted) return;
     setState(() {
+      _landlordEmptyPortfolioBannerDismissed = emptyBannerDismissed;
       _userRole = role == 'landlord' ? 'landlord' : 'tenant';
       if (_userRole == 'landlord') {
         _propertyContexts = contexts;
@@ -221,6 +232,24 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
         _propertyContexts = const [];
       }
     });
+    if (role == 'landlord') {
+      _scheduleLandlordHomeCoach();
+    }
+  }
+
+  void _scheduleLandlordHomeCoach() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await showLandlordHomeCoachIfNeeded(context);
+    });
+  }
+
+  Future<void> _dismissLandlordEmptyPortfolioBanner() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kLandlordEmptyBannerPrefsKey, true);
+    if (mounted) {
+      setState(() => _landlordEmptyPortfolioBannerDismissed = true);
+    }
   }
 
   /// Fetches context options from the leases API so the list reflects current leases.
@@ -574,6 +603,9 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
         "active_scope": _activeScope,
         "property_context": propertyContext,
       };
+      if (_userRole == 'landlord') {
+        body['landlord_lease_count'] = _landlordLeaseCount;
+      }
       if (_activeScope == 'property' && _activePropertyId != null) {
         // Context selector id is the lease_id (one entry per lease)
         body["lease_id"] = int.tryParse(_activePropertyId!);
@@ -1003,15 +1035,30 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
             ),
             const SizedBox(height: 12),
             // Subtitle
-            const Text(
-              'Your AI-powered rental assistant',
+            Text(
+              _userRole == 'landlord'
+                  ? 'Your AI copilot — type below or use Settings → Properties to add units'
+                  : 'Your AI-powered rental assistant',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
                 color: Color(0xFF6B6B6B),
               ),
             ),
+            if (_userRole == 'landlord' && _landlordLeaseCount > 0) ...[
+              const SizedBox(height: 14),
+              const Text(
+                'Tip: Use the property row at the top to pick one lease, then ask to send for signature, send a rent reminder, or mark rent paid.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF8A8A8A),
+                  height: 1.35,
+                ),
+              ),
+            ],
             const SizedBox(height: 60),
             // Action buttons - 2x2 grid
             Row(
@@ -1355,6 +1402,51 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                 ],
               ),
             ),
+            if (_userRole == 'landlord' &&
+                _landlordLeaseCount == 0 &&
+                !_landlordEmptyPortfolioBannerDismissed)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                child: Material(
+                  color: const Color(0xFFF2FAF9),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.lightbulb_outline_rounded,
+                          size: 20,
+                          color: Color(0xFF167D60),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Start here: open Settings → Properties to add your first property or lease. You can also attach a PDF with the clip icon or type “create a lease”.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.35,
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                          color: const Color(0xFF6B6B6B),
+                          onPressed: _dismissLandlordEmptyPortfolioBanner,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             // Chat interface
             Expanded(
               child: messages.isEmpty ? _buildInitialState() : _buildChatView(),
@@ -1423,7 +1515,9 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                         decoration: InputDecoration(
                           hintText: _selectedFileName != null
                               ? 'Ask about this lease...'
-                              : 'How may I assist you?',
+                              : _userRole == 'landlord'
+                                  ? 'e.g. create a lease, my leases, rent reminder…'
+                                  : 'How may I assist you?',
                           hintStyle: const TextStyle(
                             color: Color(0xFF9B9B9B),
                             fontSize: 16,

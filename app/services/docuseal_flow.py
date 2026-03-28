@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any, Dict, Optional
 
 from app.schemas.property_manager import PropertyManager
@@ -16,41 +15,15 @@ from app.services.docuseal_signing import (
     request_lease_pdf_signing,
 )
 
-
-def _resolve_tenant_email_for_docuseal(
-    detail: Dict[str, Any],
-    tenant_email: Optional[str],
-) -> tuple[str, bool]:
-    """
-    DocuSeal requires a tenant submitter email. If none is stored, derive a stable
-    synthetic address from tenant_phone so signing can proceed (shared_link / WhatsApp).
-    Returns (email, is_synthetic).
-    """
-    te = (tenant_email or "").strip()
-    if te:
-        return te, False
-    phone = (detail.get("tenant_phone") or "").strip()
-    digits = "".join(c for c in str(phone) if c.isdigit())
-    if len(digits) < 10:
-        raise ValueError(
-            "No tenant email on file and no valid tenant phone on the property. "
-            "Add tenant phone (or email once supported) in Properties, then try again."
-        )
-    domain = (os.getenv("DOCUSEAL_SYNTHETIC_EMAIL_DOMAIN") or "tenant-signing.invalid").strip()
-    return f"t{digits}@{domain}", True
-
-
 def start_docuseal_signing_for_owner_lease(
     *,
     owner_id: int,
     lease_id: int,
-    tenant_email: Optional[str] = None,
+    tenant_email: str,
     tenant_name: Optional[str] = None,
-    tenant_phone: Optional[str] = None,
     landlord_email: Optional[str] = None,
     landlord_name: Optional[str] = None,
     send_email: bool = True,
-    send_sms: bool = False,
     completed_redirect_url: Optional[str] = None,
     shared_link: Optional[bool] = None,
 ) -> Dict[str, Any]:
@@ -72,9 +45,6 @@ def start_docuseal_signing_for_owner_lease(
     if not tenant_name and detail.get("property_tenant_name"):
         tenant_name = str(detail["property_tenant_name"]).strip() or None
 
-    if not tenant_phone and detail.get("tenant_phone"):
-        tenant_phone = str(detail["tenant_phone"]).strip() or None
-
     le = (landlord_email or "").strip() or None
     ln = (landlord_name or "").strip() or None
     if not le:
@@ -83,25 +53,22 @@ def start_docuseal_signing_for_owner_lease(
         if auto_name and not ln:
             ln = auto_name
 
-    te, synthetic_email = _resolve_tenant_email_for_docuseal(dict(detail), tenant_email)
+    te = (tenant_email or "").strip()
+    if not te:
+        raise ValueError("tenant_email is required for DocuSeal signing.")
     if le and te.lower() == le.lower():
         # Same person as tenant + landlord — single-party submission
         le = None
         ln = None
-
-    # Avoid DocuSeal emailing a synthetic placeholder; shared_link + in-app/WhatsApp is enough.
-    effective_send_email = bool(send_email) and not synthetic_email
 
     raw = request_lease_pdf_signing(
         pdf_bytes,
         submission_name=submission_name,
         tenant_email=te,
         tenant_name=tenant_name,
-        tenant_phone=tenant_phone,
         landlord_email=le,
         landlord_name=ln,
-        send_email=effective_send_email,
-        send_sms=send_sms,
+        send_email=bool(send_email),
         completed_redirect_url=completed_redirect_url,
         shared_link=shared_link,
     )

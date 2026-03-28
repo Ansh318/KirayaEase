@@ -8,7 +8,7 @@ from app.services.user_agent_memory_store import append_memory_fact
 
 @tool
 def remember_user_fact(user_id: int, fact: str) -> dict:
-    """Persist a short, stable fact about this user (preferences, timezone, how they name properties, reminders they asked you to remember). Use when they explicitly ask to remember something or share long-lived context. Do not store secrets or full lease terms — summarize."""
+    """Persist a short, stable fact about this user (preferences, timezone, how they name properties, reminders they asked you to remember). Use when they explicitly ask to remember something or share long-lived context. Do not store secrets or full lease terms — summarize. Do NOT store tenant names, phone numbers, emails, addresses, rent amounts, lease dates, or lease IDs (the DB is source of truth; use tools to look those up)."""
     ok = append_memory_fact(int(user_id), fact)
     if not ok:
         return {

@@ -468,13 +468,11 @@ def post_lease_docuseal_submission(
         return start_docuseal_signing_for_owner_lease(
             owner_id=owner_id,
             lease_id=lease_id,
-            tenant_email=(body.tenant_email or "").strip() or None,
+            tenant_email=body.tenant_email.strip(),
             tenant_name=(body.tenant_name or "").strip() or None,
-            tenant_phone=(body.tenant_phone or "").strip() or None,
             landlord_email=(body.landlord_email or "").strip() or None,
             landlord_name=(body.landlord_name or "").strip() or None,
             send_email=body.send_email,
-            send_sms=body.send_sms,
             shared_link=body.shared_link,
             completed_redirect_url=(body.completed_redirect_url or "").strip() or None,
         )

@@ -28,6 +28,19 @@ from app.services.user_lease_draft_store import get_lease_draft, save_lease_draf
 from app.services.docuseal_flow import start_docuseal_signing_for_owner_lease
 import json
 
+# Re-fetched from DB after writes — same columns as get_my_leases. Model must prefer this over chat/extracted_data.
+_AUTHORITATIVE_LEASE_HINT = (
+    "Use authoritative_lease_record for tenant name, phone, rent, dates, and address when summarizing this save. "
+    "Do not substitute values from extracted_data or earlier messages."
+)
+
+
+def _authoritative_lease_record(owner_id: int, lease_id: int | None) -> dict | None:
+    if lease_id is None:
+        return None
+    row = PropertyManager().get_lease_detail_for_owner(int(lease_id), int(owner_id))
+    return row if row else None
+
 
 @tool
 def store_lease(owner_id: int, pdf_path: str) -> dict:
@@ -107,11 +120,14 @@ def store_lease(owner_id: int, pdf_path: str) -> dict:
     except Exception:
         pass
 
+    auth = _authoritative_lease_record(owner_id, lease_id)
     return {
         "status": "success",
         "property_id": property_id,
         "lease_id": lease_id,
         "extracted_data": data,
+        "authoritative_lease_record": auth,
+        "facts_summary_hint": _AUTHORITATIVE_LEASE_HINT,
     }
 
 
@@ -183,10 +199,19 @@ def add_lease(
         lock_in_period=lock_in_period,
         due_day=due_day,
     )
+    lid = created.get("id")
+    pm = PropertyManager()
+    prop = pm.get_property(int(property_id)) if property_id else {}
+    oid = prop.get("owner_id")
+    auth = None
+    if oid is not None and lid is not None:
+        auth = _authoritative_lease_record(int(oid), int(lid))
     return {
-        "lease_id": created.get("id"),
+        "lease_id": lid,
         "lease": created,
         "status": "success",
+        "authoritative_lease_record": auth,
+        "facts_summary_hint": _AUTHORITATIVE_LEASE_HINT,
     }
 
 
@@ -448,12 +473,16 @@ def save_generated_lease_agreement(
         detail = finalize_generated_lease_agreement(int(owner_id), public_base_url=base)
     except ValueError as e:
         return {"status": "error", "message": str(e)}
+    lid = detail.get("lease_id")
+    auth = _authoritative_lease_record(int(owner_id), int(lid) if lid is not None else None) or detail
     return {
         "status": "success",
-        "lease_id": detail.get("lease_id"),
+        "lease_id": lid,
         "property_id": detail.get("property_id"),
         "property_name": detail.get("property_name"),
         "summary": detail,
+        "authoritative_lease_record": auth,
+        "facts_summary_hint": _AUTHORITATIVE_LEASE_HINT,
         "message": "Lease saved with full agreement text and PDF.",
     }
 
@@ -462,28 +491,24 @@ def save_generated_lease_agreement(
 def send_lease_for_signature_docuseal(
     owner_id: int,
     lease_id: int,
-    tenant_email: Optional[str] = None,
+    tenant_email: str,
     tenant_name: Optional[str] = None,
-    tenant_phone: Optional[str] = None,
     landlord_email: Optional[str] = None,
     landlord_name: Optional[str] = None,
     send_email: bool = True,
-    send_sms: bool = False,
     shared_link: bool = True,
 ) -> dict:
-    """After a lease is saved with a PDF: start DocuSeal e-signing (DocuSeal `POST /submissions/pdf`). **tenant_email** is optional: if omitted, the server uses tenant phone on the property (synthetic DocuSeal email + shared links). Optional **landlord_email** for two-party order. Returns **docuseal** (id, slug, …) plus **docuseal_signing_url** for WhatsApp. Server needs **DOCUSEAL_API_KEY**; webhook `POST /webhooks/docuseal`."""
+    """After a lease is saved with a PDF: start DocuSeal e-signing (DocuSeal `POST /submissions/pdf`). Requires **tenant_email**. Optional **landlord_email** for two-party order. Returns **docuseal** (id, slug, …) plus **docuseal_signing_url** for WhatsApp. Server needs **DOCUSEAL_API_KEY**; webhook `POST /webhooks/docuseal`."""
     try:
-        te = (tenant_email or "").strip() or None
+        te = (tenant_email or "").strip()
         out = start_docuseal_signing_for_owner_lease(
             owner_id=int(owner_id),
             lease_id=int(lease_id),
             tenant_email=te,
             tenant_name=(tenant_name or "").strip() or None,
-            tenant_phone=(tenant_phone or "").strip() or None,
             landlord_email=(landlord_email or "").strip() or None,
             landlord_name=(landlord_name or "").strip() or None,
             send_email=bool(send_email),
-            send_sms=bool(send_sms),
             shared_link=bool(shared_link),
             completed_redirect_url=None,
         )
@@ -520,12 +545,16 @@ def finalize_lease_creation(
         detail = finalize_stored_lease_draft(int(owner_id), public_base_url=base)
     except ValueError as e:
         return {"status": "error", "message": str(e)}
+    lid = detail.get("lease_id")
+    auth = _authoritative_lease_record(int(owner_id), int(lid) if lid is not None else None) or detail
     return {
         "status": "success",
-        "lease_id": detail.get("lease_id"),
+        "lease_id": lid,
         "property_id": detail.get("property_id"),
         "property_name": detail.get("property_name"),
         "summary": detail,
+        "authoritative_lease_record": auth,
+        "facts_summary_hint": _AUTHORITATIVE_LEASE_HINT,
         "message": (
             "Lease **saved** to the portfolio. They can open **Properties** to view the PDF. "
             "Edits **before** creation should already be done; only minor post-create fixes use edit + Save there."

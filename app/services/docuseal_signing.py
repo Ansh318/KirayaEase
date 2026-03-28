@@ -103,7 +103,6 @@ def build_submitters(
     *,
     tenant_email: str,
     tenant_name: Optional[str],
-    tenant_phone: Optional[str],
     landlord_email: Optional[str],
     landlord_name: Optional[str],
 ) -> Tuple[List[Dict[str, Any]], bool, bool]:
@@ -129,9 +128,6 @@ def build_submitters(
         }
         if tenant_name and str(tenant_name).strip():
             st["name"] = str(tenant_name).strip()
-        tp = (tenant_phone or "").strip()
-        if tp:
-            st["phone"] = tp
         submitters.append(st)
 
     if not submitters:
@@ -191,11 +187,9 @@ def request_lease_pdf_signing(
     submission_name: str,
     tenant_email: str,
     tenant_name: Optional[str] = None,
-    tenant_phone: Optional[str] = None,
     landlord_email: Optional[str] = None,
     landlord_name: Optional[str] = None,
     send_email: bool = True,
-    send_sms: bool = False,
     completed_redirect_url: Optional[str] = None,
     shared_link: Optional[bool] = None,
 ) -> Dict[str, Any]:
@@ -204,7 +198,6 @@ def request_lease_pdf_signing(
     submitters, inc_l, inc_t = build_submitters(
         tenant_email=tenant_email,
         tenant_name=tenant_name,
-        tenant_phone=tenant_phone,
         landlord_email=landlord_email,
         landlord_name=landlord_name,
     )
@@ -221,7 +214,6 @@ def request_lease_pdf_signing(
         submitters=submitters,
         fields=fields,
         send_email=send_email,
-        send_sms=send_sms,
         order="preserved",
         completed_redirect_url=completed_redirect_url,
         shared_link=sl,
