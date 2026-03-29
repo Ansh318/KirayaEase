@@ -490,7 +490,9 @@ class _LeaseCardState extends State<_LeaseCard> {
                                 const SizedBox(height: 8),
                               ],
                               if (lease.docusealCombinedDocumentUrl != null &&
-                                  lease.docusealCombinedDocumentUrl!.trim().isNotEmpty)
+                                  lease.docusealCombinedDocumentUrl!.trim().isNotEmpty &&
+                                  !_looksLikeDocusealAuditUrl(
+                                      lease.docusealCombinedDocumentUrl!.trim()))
                                 SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
@@ -723,6 +725,16 @@ class _LeaseCardState extends State<_LeaseCard> {
 
 Future<void> _openSignedDocExternally(BuildContext context, String url) async {
   final messenger = ScaffoldMessenger.of(context);
+  if (_looksLikeDocusealAuditUrl(url)) {
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Stored link points to the signing audit, not the lease. View Lease uses your uploaded PDF until DocuSeal sends the combined agreement.',
+        ),
+      ),
+    );
+    return;
+  }
   final u = Uri.tryParse(url);
   if (u == null || !(u.hasScheme && (u.scheme == 'http' || u.scheme == 'https'))) {
     messenger.showSnackBar(const SnackBar(content: Text('Invalid signed document URL.')));
@@ -766,9 +778,20 @@ bool _bytesLookLikePdf(List<int> bytes) {
 
 /// Fetches the lease PDF with auth and shows it in an in-app popup viewer.
 /// When DocuSeal has finished, prefers the **signed** combined PDF URL.
+/// Legacy bug: backend used to fall back to DocuSeal `audit_log_url` — not the signed agreement.
+bool _looksLikeDocusealAuditUrl(String url) {
+  final u = url.toLowerCase();
+  return u.contains('audit') || u.contains('audit_log');
+}
+
 Future<void> _openPdfInApp(BuildContext context, _Lease lease) async {
   final messenger = ScaffoldMessenger.of(context);
-  final signedUrl = lease.docusealCombinedDocumentUrl?.trim();
+  var signedUrl = lease.docusealCombinedDocumentUrl?.trim();
+  if (signedUrl != null &&
+      signedUrl.isNotEmpty &&
+      _looksLikeDocusealAuditUrl(signedUrl)) {
+    signedUrl = null;
+  }
   if (signedUrl != null && signedUrl.isNotEmpty) {
     try {
       final suri = Uri.tryParse(signedUrl);

@@ -1,5 +1,4 @@
 """Orchestrator node: LLM with tools, routes to tool node or end."""
-import re
 
 from langchain_core.messages import SystemMessage
 
@@ -23,27 +22,6 @@ def orchestrator_node(state: AgentState):
     )
     response = llm_with_tools.invoke(full_messages)
     tool_calls = getattr(response, "tool_calls", None) or []
-    # Hard safety: if landlord sends a phone number in property/lease context, force DocuSeal tool call.
-    # This prevents "action claimed but no tool called" hallucinations on signing flows.
-    if not tool_calls and messages:
-        last_user = str(getattr(messages[-1], "content", "") or "").strip()
-        looks_like_phone = bool(re.fullmatch(r"\+?\d[\d\-\s]{8,}\d", last_user))
-        has_lease_ctx = state.get("scope") == "property" and state.get("lease_id") is not None
-        if looks_like_phone and has_lease_ctx:
-            print(
-                "[AGENT][ORCHESTRATOR] fallback forcing tool call: "
-                "send_lease_for_signature_docuseal (phone-like user message)"
-            )
-            force_prompt = SystemMessage(
-                content=(
-                    "The user just provided a tenant phone number in a selected lease context. "
-                    "You MUST call tool send_lease_for_signature_docuseal now. "
-                    "Pass tenant_phone from the user message. Use lease_id/owner_id from injected state. "
-                    "Do not provide a normal text-only answer."
-                )
-            )
-            response = llm_with_tools.invoke([SystemMessage(content=system_prompt), force_prompt, *messages])
-            tool_calls = getattr(response, "tool_calls", None) or []
     if tool_calls:
         names = [tc.get("name") for tc in tool_calls]
         print(f"[AGENT][ORCHESTRATOR] tool_calls={names}")

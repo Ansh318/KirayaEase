@@ -149,23 +149,50 @@ def parse_docuseal_webhook(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
 
     def _pick_signed_url() -> Optional[str]:
-        if isinstance(sub, dict):
-            u = sub.get("combined_document_url") or sub.get("audit_log_url")
-            if u:
-                return str(u)
-            docs = sub.get("documents")
-            if isinstance(docs, list):
-                for d in docs:
-                    if isinstance(d, dict) and d.get("url"):
-                        return str(d["url"])
-        u = data.get("combined_document_url") or data.get("audit_log_url")
-        if u:
-            return str(u)
-        docs = data.get("documents")
-        if isinstance(docs, list):
+        """
+        URL for the fully executed lease PDF only.
+
+        Do **not** fall back to audit_log_url — that is a separate certificate/audit PDF, not the
+        signed agreement. DocuSeal may omit combined_document_url briefly; in that case return None
+        so we do not overwrite a good URL with the wrong document type.
+        """
+
+        def _doc_urls(container: dict) -> list:
+            out: list = []
+            docs = container.get("documents")
+            if not isinstance(docs, list):
+                return out
             for d in docs:
-                if isinstance(d, dict) and d.get("url"):
-                    return str(d["url"])
+                if not isinstance(d, dict):
+                    continue
+                url = d.get("url") or d.get("preview_url")
+                if not url:
+                    continue
+                s = str(url).strip()
+                if not s:
+                    continue
+                # Skip obvious audit/certificate entries when the API lists multiple blobs
+                low = s.lower()
+                if "audit" in low or "audit_log" in low:
+                    continue
+                out.append(s)
+            return out
+
+        if isinstance(sub, dict):
+            u = sub.get("combined_document_url")
+            if u:
+                s = str(u).strip()
+                if s:
+                    return s
+            for s in _doc_urls(sub):
+                return s
+        u = data.get("combined_document_url")
+        if u:
+            s = str(u).strip()
+            if s:
+                return s
+        for s in _doc_urls(data):
+            return s
         return None
 
     combined = _pick_signed_url()

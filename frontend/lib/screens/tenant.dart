@@ -82,13 +82,21 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
   }
 
   String _sanitizeAiText(String text) {
-    return text
+    var t = text
         .replaceAll('â¹', '₹')
         .replaceAll('Â₹', '₹')
         .replaceAll('â', '-')
         .replaceAll('â', "'")
         .replaceAll('â', '"')
         .replaceAll('â', '"');
+    // `[label](url)` → label only — assistant URLs are often unusable in-app (embeds, auth, etc.).
+    t = t.replaceAllMapped(
+      RegExp(r'\[([^\]]+)\]\([^)]*\)'),
+      (m) => m.group(1) ?? '',
+    );
+    // Angle-bracket autolinks `<https://...>` → remove URL entirely
+    t = t.replaceAll(RegExp(r'<https?://[^>\s]+>'), '');
+    return t;
   }
 
   String? _pickDocusealLandlordUrl(Map<String, dynamic> payload) {
@@ -1203,11 +1211,20 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                         child: MarkdownBody(
                           data: _sanitizeAiText(message["text"]?.toString() ?? ''),
                           shrinkWrap: true,
+                          onTapLink: (text, href, title) {
+                            // No-op: avoid broken / non-launchable assistant URLs in WebView.
+                          },
                           styleSheet: MarkdownStyleSheet(
                             p: const TextStyle(
                               fontSize: 15,
                               color: Color(0xFF1A1A1A),
                               height: 1.45,
+                            ),
+                            a: const TextStyle(
+                              fontSize: 15,
+                              color: Color(0xFF1A1A1A),
+                              height: 1.45,
+                              decoration: TextDecoration.none,
                             ),
                             strong: const TextStyle(
                               fontWeight: FontWeight.w700,
@@ -1693,27 +1710,27 @@ class _PdfAttachmentChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 280),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      constraints: const BoxConstraints(maxWidth: 240),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
             Color(0xFFF7FCFB),
-            Color(0xFFEEF8F6),
+            Color(0xFFEEF6FC),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: const Color(0xFF1AAE9F).withValues(alpha: 0.28),
-          width: 1.2,
+          color: const Color(0xFF1A6FD4).withValues(alpha: 0.22),
+          width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1AAE9F).withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: const Color(0xFF1A6FD4).withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -1721,55 +1738,55 @@ class _PdfAttachmentChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(9),
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFFE53935),
-                  Color(0xFFC62828),
+                  Color(0xFF42A5F5),
+                  Color(0xFF1565C0),
                 ],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Color(0xFFE53935).withValues(alpha: 0.35),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
+                  color: const Color(0xFF1976D2).withValues(alpha: 0.28),
+                  blurRadius: 5,
+                  offset: const Offset(0, 1),
                 ),
               ],
             ),
             child: const Icon(
               Icons.picture_as_pdf_rounded,
               color: Colors.white,
-              size: 26,
+              size: 19,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'PDF',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                    color: Color(0xFF167D60),
+                    letterSpacing: 0.35,
+                    color: Colors.blue.shade800,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   fileName,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF1A1A1A),
-                    height: 1.25,
+                    height: 1.2,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,

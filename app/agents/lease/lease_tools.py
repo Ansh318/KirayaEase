@@ -498,7 +498,7 @@ def send_lease_for_signature_docuseal(
     send_email: bool = True,
     shared_link: bool = True,
 ) -> dict:
-    """After a lease is saved with a PDF: start DocuSeal e-signing (DocuSeal `POST /submissions/pdf`). Requires **tenant_email**. Optional **landlord_email** for two-party order. Returns **docuseal** (id, slug, …) plus **docuseal_signing_url** for WhatsApp. Server needs **DOCUSEAL_API_KEY**; webhook `POST /webhooks/docuseal`."""
+    """After a lease is saved with a PDF: start DocuSeal e-signing (DocuSeal `POST /submissions/pdf`). Requires **tenant_email** only (do not collect phone for signing). Optional **landlord_email** for two-party order. Returns **docuseal** (id, slug, …) plus URLs/embeds to share with the tenant. Server needs **DOCUSEAL_API_KEY**; webhook `POST /webhooks/docuseal`."""
     try:
         te = (tenant_email or "").strip()
         out = start_docuseal_signing_for_owner_lease(
@@ -528,7 +528,7 @@ def send_lease_for_signature_docuseal(
             "docuseal": out.get("docuseal"),
         },
         "message": (
-            "DocuSeal signing started. Share **docuseal_signing_url** (or submitter **embed_src**) via WhatsApp. "
+            "DocuSeal signing started. Share **docuseal_signing_url** (or submitter **embed_src**) with the tenant. "
             "When fully signed, the webhook saves the PDF URL on the lease for the app to show."
         ),
     }

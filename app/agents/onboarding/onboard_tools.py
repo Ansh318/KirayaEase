@@ -15,7 +15,7 @@ def invite_tenant(
     """
     Onboard tenant by starting DocuSeal signing for the selected lease.
 
-    Uses saved lease/property data plus required tenant email.
+    Requires **tenant_email** only — never ask for phone for this flow.
     """
     if lease_id is None:
         return {
