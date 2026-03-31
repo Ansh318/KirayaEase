@@ -83,12 +83,13 @@ INSERT INTO properties (
     name,
     tenant_name,
     tenant_phone,
+    tenant_email,
     address_line1,
     city,
     state,
     postal_code
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 RETURNING id;
 """
 
@@ -200,6 +201,7 @@ SELECT
   p.name AS property_name,
   p.tenant_name AS property_tenant_name,
   p.tenant_phone,
+  p.tenant_email,
   p.address_line1,
   p.city,
   p.state,
@@ -236,6 +238,7 @@ SELECT
   p.name AS property_name,
   p.tenant_name AS property_tenant_name,
   p.tenant_phone,
+  p.tenant_email,
   p.address_line1,
   p.city,
   p.state,
@@ -253,6 +256,7 @@ SET
   name = %s,
   tenant_name = %s,
   tenant_phone = %s,
+  tenant_email = %s,
   address_line1 = %s,
   city = %s,
   state = %s,

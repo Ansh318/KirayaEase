@@ -28,18 +28,48 @@ def _strip_code_fences(text: str) -> str:
     return "\n".join(lines).strip()
 
 
+def _replace_bracket_placeholders(
+    text: str,
+    *,
+    landlord_name: Optional[str],
+    landlord_email: Optional[str],
+    tenant_name: Optional[str],
+    tenant_email: Optional[str],
+    property_name: Optional[str],
+) -> str:
+    """Replace common [Placeholder] tokens if model leaves template tags behind."""
+    out = text or ""
+    replacements = {
+        "LandlordName": (landlord_name or "").strip() or "Landlord",
+        "LandlordEmail": (landlord_email or "").strip() or "N/A",
+        "TenantName": (tenant_name or "").strip() or "Tenant",
+        "TenantEmail": (tenant_email or "").strip() or "N/A",
+        "PropertyName": (property_name or "").strip() or "Property",
+    }
+    for key, value in replacements.items():
+        out = out.replace(f"[{key}]", value)
+        out = out.replace(f"{{{key}}}", value)
+        out = out.replace(f"<{key}>", value)
+    return out
+
+
 def generate_lease_agreement_text(
     lease_body: LeaseWriteBody,
     reference_prompt: Optional[str] = None,
+    *,
+    landlord_name: Optional[str] = None,
+    landlord_email: Optional[str] = None,
 ) -> str:
     """
     Produce plain-text lease agreement from structured facts + default template + optional customization.
     """
     llm = ModelConfigManager("gpt-4o-mini", 0.2, 3).model()
     facts = lease_body.model_dump(mode="json")
+    facts["landlord_name"] = (landlord_name or "").strip() or None
+    facts["landlord_email"] = (landlord_email or "").strip() or None
     system = """You draft residential lease agreements as plain text only (no markdown code fences).
 Use clear section headings (ALL CAPS or numbered sections).
-You must incorporate the FACTS accurately (names, dates, rent, deposit, due day, address).
+You must incorporate the FACTS accurately (landlord/tenant names, dates, rent, deposit, due day, address).
 Include a short disclaimer that this is not legal advice.
 Use INR for currency. Be thorough but avoid repeating the same clause twice."""
 
@@ -74,6 +104,14 @@ Use INR for currency. Be thorough but avoid repeating the same clause twice."""
     text = _strip_code_fences(
         resp.content if isinstance(resp.content, str) else str(resp.content or "")
     )
+    text = _replace_bracket_placeholders(
+        text,
+        landlord_name=landlord_name,
+        landlord_email=landlord_email,
+        tenant_name=lease_body.tenant_name,
+        tenant_email=lease_body.tenant_email,
+        property_name=lease_body.property_name,
+    )
     if len(text) > _MAX_OUTPUT_CHARS:
         text = text[:_MAX_OUTPUT_CHARS] + "\n\n[Document truncated for maximum length.]"
     if len(text.strip()) < 200:
@@ -84,6 +122,14 @@ Use INR for currency. Be thorough but avoid repeating the same clause twice."""
 def generate_from_lease_dict(
     lease_fields: dict,
     reference_prompt: Optional[str] = None,
+    *,
+    landlord_name: Optional[str] = None,
+    landlord_email: Optional[str] = None,
 ) -> str:
     body = LeaseWriteBody.model_validate(lease_fields)
-    return generate_lease_agreement_text(body, reference_prompt=reference_prompt)
+    return generate_lease_agreement_text(
+        body,
+        reference_prompt=reference_prompt,
+        landlord_name=landlord_name,
+        landlord_email=landlord_email,
+    )

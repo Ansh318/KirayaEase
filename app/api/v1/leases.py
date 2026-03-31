@@ -157,6 +157,7 @@ async def extract_lease_content(
                 name=name,
                 tenant_name=data.get("tenant_name"),
                 tenant_phone=data.get("tenant_phone"),
+                tenant_email=data.get("tenant_email"),
                 address_line1=data.get("address_line1"),
                 city=data.get("city"),
                 state=data.get("state"),

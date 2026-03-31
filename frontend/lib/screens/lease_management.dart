@@ -107,8 +107,8 @@ class _LeasePageState extends State<LeasePage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.auto_awesome),
-            tooltip: 'New lease (AI agreement)',
+            icon: const Icon(Icons.add),
+            tooltip: 'Add lease',
             onPressed: _loading
                 ? null
                 : () async {
@@ -700,8 +700,10 @@ class _LeaseCardState extends State<_LeaseCard> {
                       _PropertyRow('Landlord Email', lease.landlordEmail!),
                     if (lease.tenantName != null)
                       _PropertyRow('Tenant', lease.tenantName!),
+                    if (lease.tenantEmail != null)
+                      _PropertyRow('Tenant email', lease.tenantEmail!),
                     if (lease.tenantPhone != null)
-                      _PropertyRow('Tenant Phone', lease.tenantPhone!),
+                      _PropertyRow('Tenant WhatsApp', lease.tenantPhone!),
                     if (lease.propertyAddress != null && lease.propertyAddress != lease.title)
                       _PropertyRow('Property Address', lease.propertyAddress!),
                     if (lease.rawData?['postal_code'] != null)
@@ -1083,6 +1085,7 @@ class _Lease {
   final String? landlordPhone;
   final String? landlordEmail;
   final String? tenantName;
+  final String? tenantEmail;
   final String? tenantPhone;
   final String? propertyAddress;
   final Map<String, dynamic>? rawData;
@@ -1120,6 +1123,7 @@ class _Lease {
     this.landlordPhone,
     this.landlordEmail,
     this.tenantName,
+    this.tenantEmail,
     this.tenantPhone,
     this.propertyAddress,
     this.rawData,
@@ -1182,6 +1186,7 @@ class _Lease {
       landlordPhone: null,
       landlordEmail: null,
       tenantName: map['property_tenant_name']?.toString(),
+      tenantEmail: map['tenant_email']?.toString(),
       tenantPhone: map['tenant_phone']?.toString(),
       propertyAddress: propertyAddress,
       rawData: map,

@@ -3,6 +3,7 @@ from typing import Optional
 from langchain_core.tools import tool
 
 from app.core.client_actions import OPEN_DOCUSEAL_SIGNING
+from app.schemas.property_manager import PropertyManager
 from app.services.docuseal_flow import start_docuseal_signing_for_owner_lease
 
 
@@ -27,9 +28,17 @@ def invite_tenant(
         }
     te = (tenant_email or "").strip()
     if not te:
+        pm = PropertyManager()
+        detail = pm.get_lease_detail_for_owner(int(lease_id), int(landlord_user_id))
+        if detail:
+            te = (detail.get("tenant_email") or "").strip()
+    if not te:
         return {
             "status": "error",
-            "message": "tenant_email is required to start DocuSeal signing.",
+            "message": (
+                "tenant_email is required for DocuSeal. Add the tenant's email in Properties / lease form, "
+                "or pass tenant_email to this tool."
+            ),
         }
     try:
         out = start_docuseal_signing_for_owner_lease(

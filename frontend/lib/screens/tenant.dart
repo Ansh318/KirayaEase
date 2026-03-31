@@ -303,6 +303,8 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
               'id': propertyId,
               'name': map['property_name'],
               'tenant_name': map['property_tenant_name'],
+              'tenant_email': map['tenant_email'],
+              'tenant_phone': map['tenant_phone'],
               'address_line1': map['address_line1'],
               'city': map['city'],
               'state': map['state'],
@@ -379,6 +381,8 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
       "name": data['name']?.toString(),
       "property_name": data['name']?.toString(),
       "tenant_name": data['tenant_name']?.toString(),
+      "tenant_email": data['tenant_email']?.toString(),
+      "tenant_phone": data['tenant_phone']?.toString(),
       "address_line1": data['address_line1']?.toString(),
       "city": data['city']?.toString(),
       "state": data['state']?.toString(),
@@ -762,6 +766,21 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
     _sendMessage();
   }
 
+  void _startTenantOnboardingFlow() {
+    final selectedLeaseId = _activeScope == 'property' ? _activePropertyId : null;
+    if (selectedLeaseId != null && selectedLeaseId.trim().isNotEmpty) {
+      _sendQuickMessage(
+        'Onboard tenant for the currently selected property/lease. '
+        'First confirm this is the correct lease, then collect/confirm tenant email and initiate DocuSeal signing.',
+      );
+      return;
+    }
+    _sendQuickMessage(
+      'I want to onboard a tenant. First ask me which property/lease to use, '
+      'then proceed with tenant email and DocuSeal signing.',
+    );
+  }
+
   Future<void> _openUpcomingDuesSheet() async {
     final prefs = await SharedPreferences.getInstance();
     final sessionToken = prefs.getString('session_id');
@@ -1092,9 +1111,9 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
                   children: [
                     Expanded(
                       child: _ActionButton(
-                        icon: Icons.calendar_today_outlined,
-                        label: 'Insights Report',
-                        onTap: () => _sendQuickMessage('Insights Report'),
+                        icon: Icons.person_add_alt_1_outlined,
+                        label: 'Onboard Tenant',
+                        onTap: _startTenantOnboardingFlow,
                       ),
                     ),
                     const SizedBox(width: 12),

@@ -55,7 +55,14 @@ def start_docuseal_signing_for_owner_lease(
 
     te = (tenant_email or "").strip()
     if not te:
-        raise ValueError("tenant_email is required for DocuSeal signing.")
+        db_email = (detail.get("tenant_email") or "").strip()
+        if db_email:
+            te = db_email
+    if not te:
+        raise ValueError(
+            "tenant_email is required for DocuSeal signing. Add the tenant's email on the property "
+            "or pass tenant_email when starting signing."
+        )
     if le and te.lower() == le.lower():
         # Same person as tenant + landlord — single-party submission
         le = None

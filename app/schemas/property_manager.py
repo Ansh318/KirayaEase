@@ -45,6 +45,15 @@ class PropertyManager:
                 out[k] = v.isoformat()
         return out
 
+    @staticmethod
+    def _normalize_tenant_email(value: Optional[str]) -> Optional[str]:
+        if not value or not str(value).strip():
+            return None
+        s = str(value).strip().lower()
+        if "@" not in s or len(s) > 320:
+            return None
+        return s
+
     # ---------- Properties ----------
     def add_property(
         self,
@@ -53,22 +62,34 @@ class PropertyManager:
         name: str,
         tenant_name: Optional[str] = None,
         tenant_phone: Optional[str] = None,
+        tenant_email: Optional[str] = None,
         address_line1: Optional[str] = None,
         city: Optional[str] = None,
         state: Optional[str] = None,
         postal_code: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Insert a property. Schema: owner_id, name, tenant_name, tenant_phone, address_line1, city, state, postal_code."""
+        """Insert a property. tenant_phone = WhatsApp; tenant_email = DocuSeal / signing."""
         phone_norm: Optional[str] = None
         if tenant_phone and str(tenant_phone).strip():
             phone_norm = normalize_whatsapp_e164(str(tenant_phone))
             if len(phone_norm) < 10:
                 phone_norm = None
+        email_norm = self._normalize_tenant_email(tenant_email)
         with self._conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     ADD_PROPERTY,
-                    (owner_id, name, tenant_name, phone_norm, address_line1, city, state, postal_code),
+                    (
+                        owner_id,
+                        name,
+                        tenant_name,
+                        phone_norm,
+                        email_norm,
+                        address_line1,
+                        city,
+                        state,
+                        postal_code,
+                    ),
                 )
                 row = cur.fetchone()
                 property_id = row[0] if row else None
@@ -171,6 +192,7 @@ class PropertyManager:
         name: str,
         tenant_name: Optional[str] = None,
         tenant_phone: Optional[str] = None,
+        tenant_email: Optional[str] = None,
         address_line1: Optional[str] = None,
         city: Optional[str] = None,
         state: Optional[str] = None,
@@ -181,6 +203,7 @@ class PropertyManager:
             phone_norm = normalize_whatsapp_e164(str(tenant_phone))
             if len(phone_norm) < 10:
                 phone_norm = None
+        email_norm = self._normalize_tenant_email(tenant_email)
         with self._conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -189,6 +212,7 @@ class PropertyManager:
                         name,
                         tenant_name,
                         phone_norm,
+                        email_norm,
                         address_line1,
                         city,
                         state,

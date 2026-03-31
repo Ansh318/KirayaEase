@@ -46,6 +46,12 @@ def ensure_runtime_migrations() -> None:
                 )
                 cur.execute(
                     """
+                    ALTER TABLE properties
+                    ADD COLUMN IF NOT EXISTS tenant_email TEXT;
+                    """
+                )
+                cur.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS user_lease_drafts (
                       user_id     BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
                       draft_json  JSONB NOT NULL,

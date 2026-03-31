@@ -24,6 +24,7 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _tenantNameCtrl;
+  late final TextEditingController _tenantEmailCtrl;
   late final TextEditingController _tenantPhoneCtrl;
   late final TextEditingController _addrCtrl;
   late final TextEditingController _cityCtrl;
@@ -46,6 +47,7 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
     final m = widget.initialRow;
     _nameCtrl = TextEditingController(text: m?['property_name']?.toString() ?? '');
     _tenantNameCtrl = TextEditingController(text: m?['property_tenant_name']?.toString() ?? '');
+    _tenantEmailCtrl = TextEditingController(text: m?['tenant_email']?.toString() ?? '');
     _tenantPhoneCtrl = TextEditingController(text: m?['tenant_phone']?.toString() ?? '');
     _addrCtrl = TextEditingController(text: m?['address_line1']?.toString() ?? '');
     _cityCtrl = TextEditingController(text: m?['city']?.toString() ?? '');
@@ -74,6 +76,7 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
   void dispose() {
     _nameCtrl.dispose();
     _tenantNameCtrl.dispose();
+    _tenantEmailCtrl.dispose();
     _tenantPhoneCtrl.dispose();
     _addrCtrl.dispose();
     _cityCtrl.dispose();
@@ -121,6 +124,7 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
     final body = <String, dynamic>{
       'property_name': _nameCtrl.text.trim(),
       'tenant_name': _nullIfEmpty(_tenantNameCtrl.text),
+      'tenant_email': _nullIfEmpty(_tenantEmailCtrl.text),
       'tenant_phone': _nullIfEmpty(_tenantPhoneCtrl.text),
       'address_line1': _nullIfEmpty(_addrCtrl.text),
       'city': _nullIfEmpty(_cityCtrl.text),
@@ -228,7 +232,13 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
             const SizedBox(height: 16),
             const _SectionTitle('Tenant'),
             _field(_tenantNameCtrl, 'Tenant name'),
-            _field(_tenantPhoneCtrl, 'Tenant WhatsApp', hint: 'e.g. 9876543210'),
+            _field(
+              _tenantEmailCtrl,
+              'Tenant email',
+              hint: 'For DocuSeal signing',
+              email: true,
+            ),
+            _field(_tenantPhoneCtrl, 'Tenant WhatsApp', hint: 'e.g. 9876543210 — rent reminders'),
             const SizedBox(height: 16),
             const _SectionTitle('Lease'),
             _field(_startCtrl, 'Lease start', hint: 'YYYY-MM-DD', required: true),
@@ -260,13 +270,16 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
     String label, {
     String? hint,
     bool required = false,
+    bool email = false,
     TextInputType? keyboard,
   }) {
+    final effectiveKeyboard = keyboard ?? (email ? TextInputType.emailAddress : null);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: c,
-        keyboardType: keyboard,
+        keyboardType: effectiveKeyboard,
+        autocorrect: !email,
         inputFormatters: keyboard == TextInputType.number
             ? [FilteringTextInputFormatter.digitsOnly]
             : null,
@@ -277,12 +290,16 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
           fillColor: Colors.white,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        validator: required
-            ? (v) {
-                if (v == null || v.trim().isEmpty) return 'Required';
-                return null;
-              }
-            : null,
+        validator: (v) {
+          if (required && (v == null || v.trim().isEmpty)) return 'Required';
+          if (email) {
+            final t = v?.trim() ?? '';
+            if (t.isNotEmpty && (t.length < 5 || !t.contains('@'))) {
+              return 'Enter a valid email';
+            }
+          }
+          return null;
+        },
       ),
     );
   }

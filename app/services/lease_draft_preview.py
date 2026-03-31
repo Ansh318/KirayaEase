@@ -24,8 +24,10 @@ def format_lease_draft_preview(body: LeaseWriteBody) -> str:
     ]
     if body.tenant_name:
         lines.append(f"- Tenant: {body.tenant_name}")
+    if body.tenant_email:
+        lines.append(f"- Tenant email: {body.tenant_email}")
     if body.tenant_phone:
-        lines.append(f"- Tenant phone: {body.tenant_phone}")
+        lines.append(f"- Tenant phone (WhatsApp): {body.tenant_phone}")
     addr = ", ".join(
         p
         for p in [body.address_line1, body.city, body.state, body.postal_code]
@@ -56,8 +58,10 @@ def format_partial_lease_draft_preview(merged: Dict[str, Any]) -> str:
     ]
     if merged.get("tenant_name"):
         lines.append(f"- Tenant: {_fmt_cell(merged.get('tenant_name'))}")
+    if merged.get("tenant_email"):
+        lines.append(f"- Tenant email: {_fmt_cell(merged.get('tenant_email'))}")
     if merged.get("tenant_phone"):
-        lines.append(f"- Tenant phone: {_fmt_cell(merged.get('tenant_phone'))}")
+        lines.append(f"- Tenant phone (WhatsApp): {_fmt_cell(merged.get('tenant_phone'))}")
     addr = ", ".join(
         p
         for p in [

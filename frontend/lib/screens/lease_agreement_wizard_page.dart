@@ -19,11 +19,19 @@ class LeaseAgreementWizardPage extends StatefulWidget {
 }
 
 class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
+  static const _ink = Color(0xFF1A1A1A);
+  static const _muted = Color(0xFF6B6B6B);
+  static const _teal = Color(0xFF1AAE9F);
+  static const _tealSoft = Color(0xFFE8F7F5);
+  static const _surface = Color(0xFFFFFFFF);
+  static const _pageBg = Color(0xFFF4F6F8);
+
   final _formKey = GlobalKey<FormState>();
   final _refPromptCtrl = TextEditingController();
 
   late final TextEditingController _nameCtrl;
   late final TextEditingController _tenantNameCtrl;
+  late final TextEditingController _tenantEmailCtrl;
   late final TextEditingController _tenantPhoneCtrl;
   late final TextEditingController _addrCtrl;
   late final TextEditingController _cityCtrl;
@@ -40,11 +48,36 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
   String? _agreementText;
   String? _error;
 
+  OutlineInputBorder _fieldBorder(Color c, [double w = 1]) => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: c, width: w),
+      );
+
+  InputDecoration _decoration(String label, {String? hint}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      floatingLabelBehavior: FloatingLabelBehavior.auto,
+      filled: true,
+      fillColor: _surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: _fieldBorder(const Color(0xFFE2E8E4)),
+      enabledBorder: _fieldBorder(const Color(0xFFE2E8E4)),
+      focusedBorder: _fieldBorder(_teal, 1.5),
+      errorBorder: _fieldBorder(Colors.red.shade300),
+      focusedErrorBorder: _fieldBorder(Colors.red.shade400, 1.5),
+      labelStyle: const TextStyle(color: _muted, fontWeight: FontWeight.w500, fontSize: 14),
+      floatingLabelStyle: const TextStyle(color: _teal, fontWeight: FontWeight.w600, fontSize: 13),
+      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController();
     _tenantNameCtrl = TextEditingController();
+    _tenantEmailCtrl = TextEditingController();
     _tenantPhoneCtrl = TextEditingController();
     _addrCtrl = TextEditingController();
     _cityCtrl = TextEditingController();
@@ -66,6 +99,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
     _refPromptCtrl.dispose();
     _nameCtrl.dispose();
     _tenantNameCtrl.dispose();
+    _tenantEmailCtrl.dispose();
     _tenantPhoneCtrl.dispose();
     _addrCtrl.dispose();
     _cityCtrl.dispose();
@@ -93,6 +127,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
     return {
       'property_name': _nameCtrl.text.trim(),
       'tenant_name': _tenantNameCtrl.text.trim().isEmpty ? null : _tenantNameCtrl.text.trim(),
+      'tenant_email': _tenantEmailCtrl.text.trim().isEmpty ? null : _tenantEmailCtrl.text.trim(),
       'tenant_phone': _tenantPhoneCtrl.text.trim().isEmpty ? null : _tenantPhoneCtrl.text.trim(),
       'address_line1': _addrCtrl.text.trim().isEmpty ? null : _addrCtrl.text.trim(),
       'city': _cityCtrl.text.trim().isEmpty ? null : _cityCtrl.text.trim(),
@@ -273,14 +308,15 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
     final showPreview = _agreementText != null && _agreementText!.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F8),
+      backgroundColor: _pageBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF7F7F8),
+        backgroundColor: _pageBg,
         elevation: 0,
-        foregroundColor: Colors.black,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: _ink,
         title: const Text(
           'Lease agreement',
-          style: TextStyle(fontWeight: FontWeight.w800),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: -0.2),
         ),
         actions: [
           if (showPreview)
@@ -290,15 +326,137 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
                   : () {
                       setState(() => _agreementText = null);
                     },
-              child: const Text('Edit form'),
+              child: const Text('Edit form', style: TextStyle(fontWeight: FontWeight.w600)),
             ),
         ],
       ),
       body: _busy && !showPreview && _error == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: _teal))
           : showPreview
               ? _buildPreview()
               : _buildForm(),
+    );
+  }
+
+  Widget _buildIntroCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: _tealSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _teal.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.edit_note_rounded, size: 22, color: _teal.shade700),
+              const SizedBox(width: 8),
+              Text(
+                'How it works',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  color: _teal.shade800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _introBullet('Enter lease details'),
+          _introBullet('We’ll generate a ready-to-sign lease for you.'),
+          _introBullet('Add any special terms (optional)'),
+        ],
+      ),
+    );
+  }
+
+  Widget _introBullet(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 6),
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: _teal,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: _teal.withValues(alpha: 0.35),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.4,
+                color: _ink,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionCard({required IconData icon, required String title, required List<Widget> children}) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: const Color(0xFFE8ECEA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _tealSoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 20, color: _teal.shade700),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  letterSpacing: -0.2,
+                  color: _ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
     );
   }
 
@@ -306,61 +464,117 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
     return Form(
       key: _formKey,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 36),
         children: [
           if (_error != null) ...[
             MaterialBanner(
               content: Text(_error!),
-              backgroundColor: Colors.orange.shade100,
+              backgroundColor: Colors.orange.shade50,
               actions: [
                 TextButton(onPressed: () => setState(() => _error = null), child: const Text('Dismiss')),
               ],
             ),
             const SizedBox(height: 12),
           ],
-          const Text(
-            'Enter lease details. Optional: add a reference prompt to customize clauses (or leave blank for the default template).',
-            style: TextStyle(color: Colors.black54, height: 1.35),
-          ),
+          _buildIntroCard(),
           const SizedBox(height: 20),
-          const _Sec('Property'),
-          _tf(_nameCtrl, 'Property name', required: true),
-          _tf(_addrCtrl, 'Address line'),
-          _tf(_cityCtrl, 'City'),
-          _tf(_stateCtrl, 'State'),
-          _tf(_pinCtrl, 'Postal code'),
-          const SizedBox(height: 16),
-          const _Sec('Tenant'),
-          _tf(_tenantNameCtrl, 'Tenant name'),
-          _tf(_tenantPhoneCtrl, 'Tenant phone / WhatsApp'),
-          const SizedBox(height: 16),
-          const _Sec('Lease'),
-          _tf(_startCtrl, 'Lease start (YYYY-MM-DD)', required: true),
-          _tf(_endCtrl, 'Lease end (YYYY-MM-DD)', required: true),
-          _tf(_rentCtrl, 'Monthly rent (₹)', num: true, required: true),
-          _tf(_depositCtrl, 'Security deposit (₹)', num: true),
-          _tf(_lockInCtrl, 'Lock-in (months)', num: true),
-          _tf(_dueDayCtrl, 'Rent due day (1–31)', num: true, required: true),
-          const SizedBox(height: 16),
-          const _Sec('Reference prompt (optional)'),
-          TextFormField(
-            controller: _refPromptCtrl,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              hintText: 'e.g. Include pet policy, no subletting, 2 months notice…',
-              border: OutlineInputBorder(),
-              filled: true,
-              fillColor: Colors.white,
-            ),
+          _sectionCard(
+            icon: Icons.apartment_rounded,
+            title: 'Property',
+            children: [
+              _tf(_nameCtrl, 'Property name', required: true),
+              _tf(_addrCtrl, 'Address line'),
+              _tf(_cityCtrl, 'City'),
+              _tf(_stateCtrl, 'State'),
+              _tf(_pinCtrl, 'Postal code'),
+            ],
           ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _busy ? null : _generate,
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF1AAE9F),
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          _sectionCard(
+            icon: Icons.person_outline_rounded,
+            title: 'Tenant',
+            children: [
+              _tf(_tenantNameCtrl, 'Tenant name'),
+              _tf(
+                _tenantEmailCtrl,
+                'Tenant email',
+                hint: 'For DocuSeal signing',
+                email: true,
+              ),
+              _tf(
+                _tenantPhoneCtrl,
+                'Tenant WhatsApp',
+                hint: 'Optional — rent reminders',
+              ),
+            ],
+          ),
+          _sectionCard(
+            icon: Icons.calendar_month_rounded,
+            title: 'Lease',
+            children: [
+              _tf(_startCtrl, 'Lease start', hint: 'YYYY-MM-DD', required: true),
+              _tf(_endCtrl, 'Lease end', hint: 'YYYY-MM-DD', required: true),
+              _tf(_rentCtrl, 'Monthly rent', hint: '₹', num: true, required: true),
+              _tf(_depositCtrl, 'Security deposit', hint: '₹', num: true),
+              _tf(_lockInCtrl, 'Lock-in period', hint: 'Months', num: true),
+              _tf(_dueDayCtrl, 'Rent due day', hint: '1–31', num: true, required: true),
+            ],
+          ),
+          _sectionCard(
+            icon: Icons.notes_rounded,
+            title: 'Additional information',
+            children: [
+              TextFormField(
+                controller: _refPromptCtrl,
+                maxLines: 4,
+                decoration: _decoration(
+                  'Optional notes for the agreement',
+                  hint: 'e.g. pet policy, no subletting, notice period…',
+                ).copyWith(
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Material(
+            elevation: 0,
+            borderRadius: BorderRadius.circular(14),
+            shadowColor: _teal.withValues(alpha: 0.45),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1AAE9F), Color(0xFF158F7A)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _teal.withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  onPressed: _busy ? null : _generate,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    shadowColor: Colors.transparent,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text(
+                    'Generate agreement',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, letterSpacing: 0.2),
+                  ),
+                ),
+              ),
             ),
-            child: const Text('Generate agreement'),
           ),
         ],
       ),
@@ -374,7 +588,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
         if (_error != null)
           MaterialBanner(
             content: Text(_error!),
-            backgroundColor: Colors.orange.shade100,
+            backgroundColor: Colors.orange.shade50,
             actions: [
               TextButton(onPressed: () => setState(() => _error = null), child: const Text('Dismiss')),
             ],
@@ -392,8 +606,15 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE8ECEA)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: SingleChildScrollView(
               child: SelectableText(
@@ -410,6 +631,10 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: _busy ? null : () => setState(() => _agreementText = null),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                   child: const Text('Back'),
                 ),
               ),
@@ -419,8 +644,9 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
                 child: FilledButton(
                   onPressed: _busy ? null : _save,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1AAE9F),
+                    backgroundColor: _teal,
                     padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _busy
                       ? const SizedBox(
@@ -428,7 +654,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
                           height: 22,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Save lease'),
+                      : const Text('Save lease', style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -443,37 +669,36 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
     String label, {
     bool required = false,
     bool num = false,
+    bool email = false,
+    String? hint,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: c,
-        keyboardType: num ? TextInputType.number : TextInputType.text,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-          filled: true,
-          fillColor: Colors.white,
-        ),
-        validator: required
-            ? (v) {
-                if (v == null || v.trim().isEmpty) return 'Required';
-                return null;
-              }
-            : null,
+        keyboardType: num
+            ? TextInputType.number
+            : email
+                ? TextInputType.emailAddress
+                : TextInputType.text,
+        autocorrect: !email,
+        decoration: _decoration(label, hint: hint),
+        validator: (v) {
+          if (required && (v == null || v.trim().isEmpty)) return 'Required';
+          if (email) {
+            final t = v?.trim() ?? '';
+            if (t.isNotEmpty && (t.length < 5 || !t.contains('@'))) {
+              return 'Enter a valid email';
+            }
+          }
+          return null;
+        },
       ),
     );
   }
 }
 
-class _Sec extends StatelessWidget {
-  final String t;
-  const _Sec(this.t);
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 4),
-      child: Text(t, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-    );
-  }
+extension on Color {
+  Color get shade700 => Color.lerp(this, Colors.black, 0.12)!;
+  Color get shade800 => Color.lerp(this, Colors.black, 0.2)!;
 }

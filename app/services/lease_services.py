@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from app.db.sql_queries import (
     GET_USER_FROM_SESSION,
+    GET_USER_BY_ID,
     GET_LEASES_BY_OWNER,
     GET_RENT_CONFIRMATIONS_BY_OWNER,
     GET_CONFIRMED_LEASE_MONTHS_BY_OWNER,
@@ -36,6 +37,28 @@ def _serialize_lease_detail_row(detail: dict) -> dict:
     return out
 
 
+def _owner_identity(user_id: int) -> dict:
+    """Return landlord identity fields for agreement generation."""
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        return {}
+    with psycopg2.connect(database_url) as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(GET_USER_BY_ID, (int(user_id),))
+            row = cur.fetchone()
+    if not row:
+        return {}
+    d = dict(row)
+    first = (d.get("first_name") or "").strip()
+    last = (d.get("last_name") or "").strip()
+    full_name = " ".join(p for p in [first, last] if p).strip()
+    email = (d.get("email") or "").strip() or None
+    return {
+        "landlord_name": full_name or None,
+        "landlord_email": email,
+    }
+
+
 def create_lease_manual_from_body(
     user_id: int,
     body: LeaseWriteBody,
@@ -55,6 +78,7 @@ def create_lease_manual_from_body(
         name=body.property_name.strip(),
         tenant_name=body.tenant_name.strip() if body.tenant_name else None,
         tenant_phone=body.tenant_phone.strip() if body.tenant_phone else None,
+        tenant_email=body.tenant_email.strip() if body.tenant_email else None,
         address_line1=body.address_line1.strip() if body.address_line1 else None,
         city=body.city.strip() if body.city else None,
         state=body.state.strip() if body.state else None,
@@ -135,6 +159,7 @@ def create_lease_from_generated_agreement(
         name=body.property_name.strip(),
         tenant_name=body.tenant_name.strip() if body.tenant_name else None,
         tenant_phone=body.tenant_phone.strip() if body.tenant_phone else None,
+        tenant_email=body.tenant_email.strip() if body.tenant_email else None,
         address_line1=body.address_line1.strip() if body.address_line1 else None,
         city=body.city.strip() if body.city else None,
         state=body.state.strip() if body.state else None,
@@ -178,7 +203,13 @@ def generate_and_store_lease_agreement_preview(
     from app.services.lease_agreement_llm import generate_lease_agreement_text
     from app.services.lease_generated_preview_store import save_agreement_preview
 
-    text = generate_lease_agreement_text(body, reference_prompt=reference_prompt)
+    owner = _owner_identity(int(user_id))
+    text = generate_lease_agreement_text(
+        body,
+        reference_prompt=reference_prompt,
+        landlord_name=owner.get("landlord_name"),
+        landlord_email=owner.get("landlord_email"),
+    )
     ok = save_agreement_preview(
         int(user_id),
         agreement_text=text,
@@ -432,6 +463,7 @@ class LeaseService:
                 name=body.property_name.strip(),
                 tenant_name=body.tenant_name.strip() if body.tenant_name else None,
                 tenant_phone=body.tenant_phone.strip() if body.tenant_phone else None,
+                tenant_email=body.tenant_email.strip() if body.tenant_email else None,
                 address_line1=body.address_line1.strip() if body.address_line1 else None,
                 city=body.city.strip() if body.city else None,
                 state=body.state.strip() if body.state else None,

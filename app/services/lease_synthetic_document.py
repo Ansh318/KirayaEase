@@ -24,6 +24,8 @@ def render_lease_document_text(body: LeaseWriteBody) -> str:
     lines.extend(["", "TENANT"])
     if body.tenant_name:
         lines.append(f"Name: {body.tenant_name}")
+    if body.tenant_email:
+        lines.append(f"Email (e-sign): {body.tenant_email}")
     if body.tenant_phone:
         lines.append(f"Contact (WhatsApp / phone): {body.tenant_phone}")
     lines.extend(
@@ -106,8 +108,10 @@ def render_lease_pdf_bytes(body: LeaseWriteBody) -> bytes:
     story.append(Paragraph(esc("Tenant"), h2))
     if body.tenant_name:
         story.append(Paragraph(esc(f"Name: {body.tenant_name}"), normal))
+    if body.tenant_email:
+        story.append(Paragraph(esc(f"Email: {body.tenant_email}"), normal))
     if body.tenant_phone:
-        story.append(Paragraph(esc(f"Phone: {body.tenant_phone}"), normal))
+        story.append(Paragraph(esc(f"WhatsApp / phone: {body.tenant_phone}"), normal))
 
     story.append(Paragraph(esc("Terms"), h2))
     story.append(

@@ -93,6 +93,7 @@ def store_lease(owner_id: int, pdf_path: str) -> dict:
         name=name,
         tenant_name=tenant_name,
         tenant_phone=data.get("tenant_phone"),
+        tenant_email=data.get("tenant_email"),
         address_line1=address_line1,
         city=city,
         state=state,
@@ -154,17 +155,19 @@ def create_property(
     name: str,
     tenant_name: str | None = None,
     tenant_phone: str | None = None,
+    tenant_email: str | None = None,
     address_line1: str | None = None,
     city: str | None = None,
     state: str | None = None,
     postal_code: str | None = None,
 ) -> dict:
-    """Create a property record in the database. name = property name (e.g. 'Maple Apartments #302'). tenant_phone optional (digits / +91)."""
+    """Create a property record. tenant_phone = WhatsApp; tenant_email = signing (DocuSeal)."""
     created = PropertyManager().add_property(
         owner_id=owner_id,
         name=name,
         tenant_name=tenant_name,
         tenant_phone=tenant_phone,
+        tenant_email=tenant_email,
         address_line1=address_line1,
         city=city,
         state=state,
@@ -224,6 +227,7 @@ def _lease_patch_from_tool_args(
     due_day: Optional[int] = None,
     tenant_name: Optional[str] = None,
     tenant_phone: Optional[str] = None,
+    tenant_email: Optional[str] = None,
     address_line1: Optional[str] = None,
     city: Optional[str] = None,
     state: Optional[str] = None,
@@ -247,6 +251,8 @@ def _lease_patch_from_tool_args(
         patch["tenant_name"] = str(tenant_name).strip()
     if tenant_phone is not None and str(tenant_phone).strip():
         patch["tenant_phone"] = str(tenant_phone).strip()
+    if tenant_email is not None and str(tenant_email).strip():
+        patch["tenant_email"] = str(tenant_email).strip()
     if address_line1 is not None and str(address_line1).strip():
         patch["address_line1"] = str(address_line1).strip()
     if city is not None and str(city).strip():
@@ -320,6 +326,7 @@ def prepare_lease_draft(
     due_day: Optional[int] = None,
     tenant_name: Optional[str] = None,
     tenant_phone: Optional[str] = None,
+    tenant_email: Optional[str] = None,
     address_line1: Optional[str] = None,
     city: Optional[str] = None,
     state: Optional[str] = None,
@@ -343,6 +350,7 @@ def prepare_lease_draft(
         due_day=due_day,
         tenant_name=tenant_name,
         tenant_phone=tenant_phone,
+        tenant_email=tenant_email,
         address_line1=address_line1,
         city=city,
         state=state,
@@ -491,20 +499,20 @@ def save_generated_lease_agreement(
 def send_lease_for_signature_docuseal(
     owner_id: int,
     lease_id: int,
-    tenant_email: str,
+    tenant_email: Optional[str] = None,
     tenant_name: Optional[str] = None,
     landlord_email: Optional[str] = None,
     landlord_name: Optional[str] = None,
     send_email: bool = True,
     shared_link: bool = True,
 ) -> dict:
-    """After a lease is saved with a PDF: start DocuSeal e-signing (DocuSeal `POST /submissions/pdf`). Requires **tenant_email** only (do not collect phone for signing). Optional **landlord_email** for two-party order. Returns **docuseal** (id, slug, …) plus URLs/embeds to share with the tenant. Server needs **DOCUSEAL_API_KEY**; webhook `POST /webhooks/docuseal`."""
+    """Start DocuSeal on the saved lease PDF. **tenant_email** may be omitted if already stored on the property."""
     try:
         te = (tenant_email or "").strip()
         out = start_docuseal_signing_for_owner_lease(
             owner_id=int(owner_id),
             lease_id=int(lease_id),
-            tenant_email=te,
+            tenant_email=te or "",
             tenant_name=(tenant_name or "").strip() or None,
             landlord_email=(landlord_email or "").strip() or None,
             landlord_name=(landlord_name or "").strip() or None,
