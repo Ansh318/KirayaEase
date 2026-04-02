@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -27,6 +28,9 @@ from app.db.sql_queries import (
 )
 
 APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
+
+logger = logging.getLogger(__name__)
+
 
 class AuthManager:
     def __init__(self):
@@ -80,9 +84,19 @@ class AuthManager:
         cursor.close()
         conn.close()
 
+        # Heroku stdout — visible in `heroku logs --tail` without log level config
+        print(
+            f"[auth] session_id={session_id} user_id={user_id}",
+            flush=True,
+        )
+        logger.info(
+            "login session_id=%s user_id=%s",
+            session_id,
+            user_id,
+        )
         return session_id
 
-        # -------------------------
+    # -------------------------
     # CHECK ONBOARDING
     # -------------------------
     def check_onboarding(self, user_id):
