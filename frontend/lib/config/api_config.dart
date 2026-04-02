@@ -29,4 +29,6 @@ class ApiConfig {
   static String get propertiesEndpoint => '$baseUrl/properties';
   static String get paymentsEndpoint => '$baseUrl/payments';
   static String get deleteAccountEndpoint => '$baseUrl/account';
+  static String get fcmTokenEndpoint => '$baseUrl/me/fcm-token';
+  static String get pushTestEndpoint => '$baseUrl/me/push-test';
 }

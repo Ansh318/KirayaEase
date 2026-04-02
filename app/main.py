@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.api.v1 import auth, onboarding, agent_chat, leases, docuseal
+from app.api.v1 import auth, onboarding, agent_chat, leases, docuseal, push
 from app.db.migrations import ensure_runtime_migrations
 
 
@@ -28,6 +28,7 @@ app.include_router(onboarding.router)
 app.include_router(agent_chat.router)
 app.include_router(leases.router)
 app.include_router(docuseal.router)
+app.include_router(push.router)
 
 # Serve uploaded PDFs (dev/simple prod). For durable storage, switch to S3/GCS.
 _uploads_dir = os.path.abspath(os.path.join(os.getcwd(), "uploads"))

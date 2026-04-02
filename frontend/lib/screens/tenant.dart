@@ -11,6 +11,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http_parser/http_parser.dart';
 import '../config/api_config.dart';
 import '../route_observer.dart';
+import '../services/ios_fcm_registration.dart';
 import '../services/lease_store.dart';
 import '../widgets/landlord_home_coach.dart';
 import 'docuseal_signing_webview_page.dart';
@@ -128,6 +129,9 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
     _sessionId = DateTime.now().millisecondsSinceEpoch.toString();
     _loadRoleAndContext();
     fetchUserName();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      IosFcmRegistration.registerIfIosAndLoggedIn();
+    });
 
     // Initialize Razorpay
     _razorpay = Razorpay()
@@ -566,8 +570,8 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
     }
   }
 
-  Future<void> _sendMessage() async {
-    final text = _messageController.text.trim();
+  Future<void> _sendMessage({String? overrideText, bool addUserBubble = true}) async {
+    final text = (overrideText ?? _messageController.text).trim();
 
     // If there's a file selected, upload it with the query
     if (_selectedFilePath != null) {
@@ -588,8 +592,9 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
     if (text.isEmpty || _isSendingMessage) return;
 
     setState(() {
-      messages
-          .add({"sender": "user", "text": text, "timestamp": DateTime.now()});
+      if (addUserBubble) {
+        messages.add({"sender": "user", "text": text, "timestamp": DateTime.now()});
+      }
       _messageController.clear();
       _isSendingMessage = true;
     });
@@ -761,9 +766,9 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
     });
   }
 
-  void _sendQuickMessage(String message) {
+  void _sendQuickMessage(String message, {bool addUserBubble = true}) {
     _messageController.text = message;
-    _sendMessage();
+    _sendMessage(addUserBubble: addUserBubble);
   }
 
   void _startTenantOnboardingFlow() {
@@ -772,12 +777,14 @@ class _TenantDashboardV2State extends State<TenantDashboardV2>
       _sendQuickMessage(
         'Onboard tenant for the currently selected property/lease. '
         'First confirm this is the correct lease, then collect/confirm tenant email and initiate DocuSeal signing.',
+        addUserBubble: false,
       );
       return;
     }
     _sendQuickMessage(
       'I want to onboard a tenant. First ask me which property/lease to use, '
       'then proceed with tenant email and DocuSeal signing.',
+      addUserBubble: false,
     );
   }
 
@@ -2681,25 +2688,36 @@ class _TypingDotsState extends State<_TypingDots>
       padding: const EdgeInsets.only(left: 24, bottom: 4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: List.generate(3, (i) {
-          return AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              final t = (_controller.value + i * 0.33) % 1.0;
-              final opacity =
-                  0.3 + 0.7 * (1 - (t - 0.5).abs() * 2).clamp(0.0, 1.0);
-              return Container(
-                margin: const EdgeInsets.only(right: 4),
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF1AAE9F).withOpacity(opacity),
-                ),
-              );
-            },
-          );
-        }),
+        children: [
+          ...List.generate(3, (i) {
+            return AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                final t = (_controller.value + i * 0.33) % 1.0;
+                final opacity =
+                    0.3 + 0.7 * (1 - (t - 0.5).abs() * 2).clamp(0.0, 1.0);
+                return Container(
+                  margin: const EdgeInsets.only(right: 4),
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF1AAE9F).withOpacity(opacity),
+                  ),
+                );
+              },
+            );
+          }),
+          const SizedBox(width: 6),
+          const Text(
+            'Thinking • identifying next steps',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF7B8A96),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -8,6 +8,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:crypto/crypto.dart';
 import '../config/api_config.dart';
+import '../services/ios_fcm_registration.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -84,6 +85,8 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
+      IosFcmRegistration.registerIfIosAndLoggedIn();
+
       // Existing user (already onboarded) → go straight to tenant/dashboard
       final onboarded = data['onboarded'] == true;
       if (onboarded) {
@@ -158,6 +161,8 @@ class _LoginPageState extends State<LoginPage> {
       await prefs.setString('user_email', data['email'] as String? ?? '');
 
       if (!mounted) return;
+
+      IosFcmRegistration.registerIfIosAndLoggedIn();
 
       final onboarded = data['onboarded'] == true;
       if (onboarded) {

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_mobile_options.dart';
+import 'firebase_messaging_background.dart';
 import 'route_observer.dart';
 import 'package:kirayaease_flutter/screens/lease_management.dart';
 import 'package:kirayaease_flutter/screens/payments_page.dart';
@@ -29,16 +32,8 @@ void main() async {
   try {
     if (Platform.isIOS) {
       debugPrint('Initializing Firebase for iOS...');
-      await Firebase.initializeApp(
-        options: const FirebaseOptions(
-          apiKey: 'AIzaSyC8-dW24xo6uAfOWuNKydB5rSFkxuIc6Ig',
-          appId: '1:902326938544:ios:b9c235c506bfb4e34e8475',
-          messagingSenderId: '902326938544',
-          projectId: 'kirayaease-26f1b',
-          storageBucket: 'kirayaease-26f1b.firebasestorage.app',
-          iosBundleId: 'com.kirayaease.app',
-        ),
-      );
+      await Firebase.initializeApp(options: kIosFirebaseOptions);
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       debugPrint('Firebase initialized successfully for iOS');
     } else {
       debugPrint('Initializing Firebase for other platform...');

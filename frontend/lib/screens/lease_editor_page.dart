@@ -53,8 +53,8 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
     _cityCtrl = TextEditingController(text: m?['city']?.toString() ?? '');
     _stateCtrl = TextEditingController(text: m?['state']?.toString() ?? '');
     _pinCtrl = TextEditingController(text: m?['postal_code']?.toString() ?? '');
-    _startCtrl = TextEditingController(text: _isoDate(m?['lease_start']));
-    _endCtrl = TextEditingController(text: _isoDate(m?['lease_end']));
+    _startCtrl = TextEditingController(text: _displayDate(m?['lease_start']));
+    _endCtrl = TextEditingController(text: _displayDate(m?['lease_end']));
     final rent = m?['monthly_rent'];
     _rentCtrl = TextEditingController(text: rent != null ? rent.toString() : '');
     final dep = m?['security_deposit'];
@@ -65,11 +65,33 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
     _dueDayCtrl = TextEditingController(text: dd != null ? dd.toString() : '1');
   }
 
-  static String _isoDate(dynamic v) {
+  static String _displayDate(dynamic v) {
     if (v == null) return '';
     final s = v.toString();
-    if (s.length >= 10) return s.substring(0, 10);
+    if (s.length >= 10) {
+      final iso = s.substring(0, 10);
+      final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(iso);
+      if (m != null) {
+        return '${m.group(3)}/${m.group(2)}/${m.group(1)}';
+      }
+    }
     return s;
+  }
+
+  String? _toIsoDate(String input) {
+    final t = input.trim();
+    final m = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$').firstMatch(t);
+    if (m == null) return null;
+    final day = int.tryParse(m.group(1)!);
+    final month = int.tryParse(m.group(2)!);
+    final year = int.tryParse(m.group(3)!);
+    if (day == null || month == null || year == null) return null;
+    final iso = '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+    final parsed = DateTime.tryParse(iso);
+    if (parsed == null || parsed.year != year || parsed.month != month || parsed.day != day) {
+      return null;
+    }
+    return iso;
   }
 
   @override
@@ -121,6 +143,14 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
 
     final depStr = _depositCtrl.text.trim();
     final liStr = _lockInCtrl.text.trim();
+    final leaseStartIso = _toIsoDate(_startCtrl.text);
+    final leaseEndIso = _toIsoDate(_endCtrl.text);
+    if (leaseStartIso == null || leaseEndIso == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Use date format DD/MM/YYYY.')),
+      );
+      return;
+    }
     final body = <String, dynamic>{
       'property_name': _nameCtrl.text.trim(),
       'tenant_name': _nullIfEmpty(_tenantNameCtrl.text),
@@ -130,8 +160,8 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
       'city': _nullIfEmpty(_cityCtrl.text),
       'state': _nullIfEmpty(_stateCtrl.text),
       'postal_code': _nullIfEmpty(_pinCtrl.text),
-      'lease_start': _startCtrl.text.trim(),
-      'lease_end': _endCtrl.text.trim(),
+      'lease_start': leaseStartIso,
+      'lease_end': leaseEndIso,
       'monthly_rent': rent,
       'due_day': dueDay,
     };
@@ -241,8 +271,8 @@ class _LeaseEditorPageState extends State<LeaseEditorPage> {
             _field(_tenantPhoneCtrl, 'Tenant WhatsApp', hint: 'e.g. 9876543210 — rent reminders'),
             const SizedBox(height: 16),
             const _SectionTitle('Lease'),
-            _field(_startCtrl, 'Lease start', hint: 'YYYY-MM-DD', required: true),
-            _field(_endCtrl, 'Lease end', hint: 'YYYY-MM-DD', required: true),
+            _field(_startCtrl, 'Lease start', hint: 'DD/MM/YYYY', required: true),
+            _field(_endCtrl, 'Lease end', hint: 'DD/MM/YYYY', required: true),
             _field(_rentCtrl, 'Monthly rent (₹)', keyboard: TextInputType.number, required: true),
             _field(_depositCtrl, 'Security deposit (₹)', keyboard: TextInputType.number),
             _field(_lockInCtrl, 'Lock-in (months)', keyboard: TextInputType.number),

@@ -145,5 +145,16 @@ def ensure_runtime_migrations() -> None:
                     ADD COLUMN IF NOT EXISTS docuseal_submitter_embeds JSONB;
                     """
                 )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS user_fcm_tokens (
+                      user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                      platform   TEXT NOT NULL DEFAULT 'ios',
+                      fcm_token  TEXT NOT NULL,
+                      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                      PRIMARY KEY (user_id, platform)
+                    );
+                    """
+                )
     finally:
         conn.close()

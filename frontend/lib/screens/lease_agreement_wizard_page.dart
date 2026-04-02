@@ -18,6 +18,8 @@ class LeaseAgreementWizardPage extends StatefulWidget {
   State<LeaseAgreementWizardPage> createState() => _LeaseAgreementWizardPageState();
 }
 
+enum _LeaseBusyKind { none, previewLoad, generating, saving }
+
 class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
   static const _ink = Color(0xFF1A1A1A);
   static const _muted = Color(0xFF6B6B6B);
@@ -45,8 +47,88 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
   late final TextEditingController _dueDayCtrl;
 
   bool _busy = false;
+  _LeaseBusyKind _leaseBusyKind = _LeaseBusyKind.none;
   String? _agreementText;
   String? _error;
+
+  String get _leaseBusyTitle {
+    switch (_leaseBusyKind) {
+      case _LeaseBusyKind.previewLoad:
+        return 'Loading preview...';
+      case _LeaseBusyKind.generating:
+      case _LeaseBusyKind.saving:
+        return 'Generating Lease Document...';
+      case _LeaseBusyKind.none:
+        return 'Please wait...';
+    }
+  }
+
+  void _setBusy(bool v, [_LeaseBusyKind kind = _LeaseBusyKind.none]) {
+    setState(() {
+      _busy = v;
+      _leaseBusyKind = v ? kind : _LeaseBusyKind.none;
+    });
+  }
+
+  Widget _buildSlickLeaseLoading() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 92,
+          height: 92,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _surface,
+            boxShadow: [
+              BoxShadow(
+                color: _teal.withValues(alpha: 0.22),
+                blurRadius: 28,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(color: _teal.withValues(alpha: 0.15), width: 1),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: _teal,
+              strokeCap: StrokeCap.round,
+            ),
+          ),
+        ),
+        const SizedBox(height: 28),
+        Text(
+          _leaseBusyTitle,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: _ink,
+            letterSpacing: -0.3,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'This may take a moment',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey.shade600,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+  }
 
   OutlineInputBorder _fieldBorder(Color c, [double w = 1]) => OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -119,7 +201,26 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
     return prefs.getString('session_id')?.trim();
   }
 
-  Map<String, dynamic> _leasePayload() {
+  String? _toIsoDate(String input) {
+    final t = input.trim();
+    final m = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$').firstMatch(t);
+    if (m == null) return null;
+    final day = int.tryParse(m.group(1)!);
+    final month = int.tryParse(m.group(2)!);
+    final year = int.tryParse(m.group(3)!);
+    if (day == null || month == null || year == null) return null;
+    final iso = '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+    final parsed = DateTime.tryParse(iso);
+    if (parsed == null || parsed.year != year || parsed.month != month || parsed.day != day) {
+      return null;
+    }
+    return iso;
+  }
+
+  Map<String, dynamic> _leasePayload({
+    required String leaseStartIso,
+    required String leaseEndIso,
+  }) {
     final rent = int.tryParse(_rentCtrl.text.trim()) ?? 0;
     final dueDay = int.tryParse(_dueDayCtrl.text.trim()) ?? 1;
     final depStr = _depositCtrl.text.trim();
@@ -133,8 +234,8 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
       'city': _cityCtrl.text.trim().isEmpty ? null : _cityCtrl.text.trim(),
       'state': _stateCtrl.text.trim().isEmpty ? null : _stateCtrl.text.trim(),
       'postal_code': _pinCtrl.text.trim().isEmpty ? null : _pinCtrl.text.trim(),
-      'lease_start': _startCtrl.text.trim(),
-      'lease_end': _endCtrl.text.trim(),
+      'lease_start': leaseStartIso,
+      'lease_end': leaseEndIso,
       'monthly_rent': rent,
       'due_day': dueDay,
       'security_deposit': depStr.isEmpty ? null : int.tryParse(depStr),
@@ -148,10 +249,8 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
       setState(() => _error = 'Please sign in again.');
       return;
     }
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+    setState(() => _error = null);
+    _setBusy(true, _LeaseBusyKind.previewLoad);
     try {
       final resp = await http.get(
         Uri.parse(ApiConfig.leaseAgreementPreviewEndpoint),
@@ -164,6 +263,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
         setState(() {
           _agreementText = text;
           _busy = false;
+          _leaseBusyKind = _LeaseBusyKind.none;
         });
         if (text == null || text.isEmpty) {
           setState(() => _error = 'No agreement text yet. Fill the form and tap Generate.');
@@ -171,6 +271,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
       } else {
         setState(() {
           _busy = false;
+          _leaseBusyKind = _LeaseBusyKind.none;
           _error = 'No preview available yet. Use the form and generate first.';
         });
       }
@@ -178,6 +279,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
       if (mounted) {
         setState(() {
           _busy = false;
+          _leaseBusyKind = _LeaseBusyKind.none;
           _error = 'Could not load preview.';
         });
       }
@@ -207,15 +309,24 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
       );
       return;
     }
+    final leaseStartIso = _toIsoDate(_startCtrl.text);
+    final leaseEndIso = _toIsoDate(_endCtrl.text);
+    if (leaseStartIso == null || leaseEndIso == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Use date format DD/MM/YYYY.')),
+      );
+      return;
+    }
 
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+    setState(() => _error = null);
+    _setBusy(true, _LeaseBusyKind.generating);
     try {
       final ref = _refPromptCtrl.text.trim();
       final body = <String, dynamic>{
-        'lease': _leasePayload(),
+        'lease': _leasePayload(
+          leaseStartIso: leaseStartIso,
+          leaseEndIso: leaseEndIso,
+        ),
         if (ref.isNotEmpty) 'reference_prompt': ref,
       };
       final resp = await http.post(
@@ -232,6 +343,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
         setState(() {
           _agreementText = data['agreement_text']?.toString();
           _busy = false;
+          _leaseBusyKind = _LeaseBusyKind.none;
         });
         if (_agreementText == null || _agreementText!.isEmpty) {
           setState(() => _error = 'Empty response from server.');
@@ -246,6 +358,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
         } catch (_) {}
         setState(() {
           _busy = false;
+          _leaseBusyKind = _LeaseBusyKind.none;
           _error = msg;
         });
       }
@@ -253,6 +366,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
       if (mounted) {
         setState(() {
           _busy = false;
+          _leaseBusyKind = _LeaseBusyKind.none;
           _error = 'Network error. Try again.';
         });
       }
@@ -267,7 +381,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
       );
       return;
     }
-    setState(() => _busy = true);
+    _setBusy(true, _LeaseBusyKind.saving);
     try {
       final resp = await http.post(
         Uri.parse(ApiConfig.leaseAgreementSaveEndpoint),
@@ -291,14 +405,20 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
           }
         } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-        setState(() => _busy = false);
+        setState(() {
+          _busy = false;
+          _leaseBusyKind = _LeaseBusyKind.none;
+        });
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Network error.')),
         );
-        setState(() => _busy = false);
+        setState(() {
+          _busy = false;
+          _leaseBusyKind = _LeaseBusyKind.none;
+        });
       }
     }
   }
@@ -330,10 +450,31 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
             ),
         ],
       ),
-      body: _busy && !showPreview && _error == null
-          ? const Center(child: CircularProgressIndicator(color: _teal))
-          : showPreview
-              ? _buildPreview()
+      body: showPreview
+          ? Stack(
+              children: [
+                _buildPreview(),
+                if (_busy)
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: const Color(0xFF0D1F1A).withValues(alpha: 0.32),
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: _buildSlickLeaseLoading(),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            )
+          : _busy && _error == null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: _buildSlickLeaseLoading(),
+                  ),
+                )
               : _buildForm(),
     );
   }
@@ -511,8 +652,8 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
             icon: Icons.calendar_month_rounded,
             title: 'Lease',
             children: [
-              _tf(_startCtrl, 'Lease start', hint: 'YYYY-MM-DD', required: true),
-              _tf(_endCtrl, 'Lease end', hint: 'YYYY-MM-DD', required: true),
+              _tf(_startCtrl, 'Lease start', hint: 'DD/MM/YYYY', required: true),
+              _tf(_endCtrl, 'Lease end', hint: 'DD/MM/YYYY', required: true),
               _tf(_rentCtrl, 'Monthly rent', hint: '₹', num: true, required: true),
               _tf(_depositCtrl, 'Security deposit', hint: '₹', num: true),
               _tf(_lockInCtrl, 'Lock-in period', hint: 'Months', num: true),
@@ -648,13 +789,7 @@ class _LeaseAgreementWizardPageState extends State<LeaseAgreementWizardPage> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: _busy
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Save lease', style: TextStyle(fontWeight: FontWeight.w700)),
+                  child: const Text('Save lease', style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ),
             ],

@@ -33,6 +33,22 @@ LIMIT 1;
 """
 
 
+UPSERT_USER_FCM_TOKEN = """
+INSERT INTO user_fcm_tokens (user_id, platform, fcm_token, updated_at)
+VALUES (%s, %s, %s, NOW())
+ON CONFLICT (user_id, platform)
+DO UPDATE SET fcm_token = EXCLUDED.fcm_token, updated_at = NOW();
+"""
+
+
+GET_USER_FCM_TOKEN = """
+SELECT fcm_token
+FROM user_fcm_tokens
+WHERE user_id = %s AND platform = %s
+LIMIT 1;
+"""
+
+
 CHECK_ONBOARDED = """
 SELECT onboarded
 FROM users
