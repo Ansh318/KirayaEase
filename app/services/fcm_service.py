@@ -69,7 +69,13 @@ def send_fcm_notification(
     """
     token = _access_token()
     if not token:
-        return False, "FCM not configured: set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS"
+        return (
+            False,
+            "FCM server credentials missing. On Heroku set FIREBASE_SERVICE_ACCOUNT_JSON to the "
+            "full JSON from Firebase Console → Project settings → Service accounts → Generate new private key "
+            "(single-line JSON: jq -c . serviceAccount.json). Optional: FIREBASE_PROJECT_ID=kirayaease-26f1b. "
+            "Locally you can use GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json instead.",
+        )
 
     project = _project_id()
     url = f"https://fcm.googleapis.com/v1/projects/{project}/messages:send"
@@ -102,6 +108,90 @@ def send_fcm_notification(
         )
     except httpx.HTTPError as e:
         logger.exception("FCM request failed: %s", e)
+        return False, str(e)
+
+    if resp.status_code == 200:
+        return True, "sent"
+
+    detail = resp.text[:500]
+    try:
+        err = resp.json()
+        detail = str(err.get("error", err))
+    except Exception:
+        pass
+    return False, f"FCM {resp.status_code}: {detail}"
+
+
+def send_landlord_push_v1(
+    *,
+    fcm_token: str,
+    title: str,
+    body: str,
+    data: Optional[Dict[str, str]] = None,
+    variant: str = "default",
+) -> Tuple[bool, str]:
+    """
+    FCM v1 with Android notification styling (teal accent) and iOS thread grouping.
+    `variant`: rent_due_soon | rent_overdue | payment_confirmed | lease_expiring
+    """
+    token = _access_token()
+    if not token:
+        return (
+            False,
+            "FCM server credentials missing (FIREBASE_SERVICE_ACCOUNT_JSON / GOOGLE_APPLICATION_CREDENTIALS).",
+        )
+
+    project = _project_id()
+    url = f"https://fcm.googleapis.com/v1/projects/{project}/messages:send"
+
+    android_priority = "high" if variant == "rent_overdue" else "normal"
+    lease_part = (data or {}).get("lease_id", "") if data else ""
+    thread = f"kirayaease-{variant}-{lease_part}"
+
+    str_data: Dict[str, str] = dict(data or {})
+    str_data["variant"] = variant
+
+    message: Dict[str, Any] = {
+        "token": fcm_token,
+        "notification": {"title": title, "body": body},
+        "data": str_data,
+        "android": {
+            "priority": android_priority,
+            "notification": {
+                "color": "#1AAE9F",
+                "sound": "default",
+                "default_vibrate_timings": True,
+                "visibility": "PUBLIC",
+            },
+        },
+        "apns": {
+            "headers": {
+                "apns-priority": "10",
+            },
+            "payload": {
+                "aps": {
+                    "sound": "default",
+                    "badge": 1,
+                    "thread-id": thread[:128],
+                }
+            },
+        },
+    }
+
+    payload = {"message": message}
+
+    try:
+        resp = httpx.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=30.0,
+        )
+    except httpx.HTTPError as e:
+        logger.exception("FCM landlord push failed: %s", e)
         return False, str(e)
 
     if resp.status_code == 200:

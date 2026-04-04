@@ -24,11 +24,11 @@ class IosFcmRegistration {
       },
       body: jsonEncode({'fcm_token': token, 'platform': 'ios'}),
     );
-    if (kDebugMode) {
-      debugPrint(
-        'FCM token register: ${resp.statusCode} ${resp.body.length > 120 ? "${resp.body.substring(0, 120)}..." : resp.body}',
-      );
-    }
+    // Always log (release too) — visible in Xcode device logs when /me/push-test says no token.
+    final snippet = resp.body.length > 160
+        ? '${resp.body.substring(0, 160)}...'
+        : resp.body;
+    debugPrint('[KirayaEase FCM] POST ${uri.path} -> ${resp.statusCode} $snippet');
   }
 
   static void _ensureTokenRefreshListener() {
@@ -65,9 +65,9 @@ class IosFcmRegistration {
     final ok = settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional;
     if (!ok) {
-      if (kDebugMode) {
-        debugPrint('FCM: notification permission not granted (${settings.authorizationStatus})');
-      }
+      debugPrint(
+        '[KirayaEase FCM] notification permission denied: ${settings.authorizationStatus}',
+      );
       return;
     }
 
@@ -79,7 +79,7 @@ class IosFcmRegistration {
 
     final token = await FirebaseMessaging.instance.getToken();
     if (token == null || token.isEmpty) {
-      if (kDebugMode) debugPrint('FCM: getToken() returned empty');
+      debugPrint('[KirayaEase FCM] getToken() returned empty (use physical device)');
       return;
     }
 

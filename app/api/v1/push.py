@@ -49,6 +49,10 @@ def register_fcm_token(
         with conn.cursor() as cur:
             cur.execute(UPSERT_USER_FCM_TOKEN, (user_id, platform, token))
         conn.commit()
+    print(
+        f"[push] fcm_token stored user_id={user_id} platform={platform} len={len(token)}",
+        flush=True,
+    )
     return {"status": "ok", "platform": platform}
 
 
@@ -79,7 +83,12 @@ def send_test_push_to_self(authorization: Optional[str] = Header(None)):
     if not fcm_token:
         raise HTTPException(
             status_code=400,
-            detail="No FCM token on file. Open the app on a device after login so it can register.",
+            detail=(
+                f"No FCM token for user_id={user_id}. "
+                "On a physical iPhone: rebuild the app, log in, allow notifications, "
+                "open the main chat dashboard once. Check Heroku for "
+                "`[push] fcm_token stored` after that."
+            ),
         )
 
     ok, msg = send_fcm_notification(

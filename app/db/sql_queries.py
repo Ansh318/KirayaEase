@@ -49,6 +49,68 @@ LIMIT 1;
 """
 
 
+GET_LANDLORD_FCM_TOKENS = """
+SELECT platform, fcm_token
+FROM user_fcm_tokens
+WHERE user_id = %s
+  AND TRIM(COALESCE(fcm_token, '')) != '';
+"""
+
+
+INSERT_PUSH_NOTIFICATION_LOG = """
+INSERT INTO push_notification_log (landlord_user_id, lease_id, notification_type, period_key)
+VALUES (%s, %s, %s, %s)
+ON CONFLICT (lease_id, notification_type, period_key) DO NOTHING
+RETURNING id;
+"""
+
+
+DELETE_PUSH_NOTIFICATION_LOG = """
+DELETE FROM push_notification_log WHERE id = %s;
+"""
+
+
+GET_LEASES_FOR_PUSH_SCHEDULER = """
+SELECT
+  l.id AS lease_id,
+  l.lease_start,
+  l.lease_end,
+  l.monthly_rent,
+  l.due_day,
+  l.status AS lease_status,
+  p.owner_id AS landlord_user_id,
+  p.name AS property_name,
+  COALESCE(NULLIF(TRIM(p.tenant_name), ''), 'Tenant') AS tenant_name
+FROM leases l
+JOIN properties p ON p.id = l.property_id
+WHERE (
+  l.status IS NULL
+  OR TRIM(l.status) = ''
+  OR LOWER(TRIM(l.status)) = 'active'
+);
+"""
+
+
+GET_CONFIRMED_RENT_MONTHS_ALL = """
+SELECT lease_id, month::date AS month
+FROM rent_confirmations
+WHERE status = 'confirmed';
+"""
+
+
+GET_LEASE_OWNER_AND_LABELS = """
+SELECT
+  p.owner_id AS landlord_user_id,
+  p.name AS property_name,
+  COALESCE(NULLIF(TRIM(p.tenant_name), ''), 'Tenant') AS tenant_name,
+  l.monthly_rent
+FROM leases l
+JOIN properties p ON p.id = l.property_id
+WHERE l.id = %s
+LIMIT 1;
+"""
+
+
 CHECK_ONBOARDED = """
 SELECT onboarded
 FROM users

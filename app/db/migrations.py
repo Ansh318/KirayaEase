@@ -156,5 +156,24 @@ def ensure_runtime_migrations() -> None:
                     );
                     """
                 )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS push_notification_log (
+                      id                 BIGSERIAL PRIMARY KEY,
+                      landlord_user_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                      lease_id           BIGINT NOT NULL REFERENCES leases(id) ON DELETE CASCADE,
+                      notification_type  TEXT NOT NULL,
+                      period_key         TEXT NOT NULL,
+                      created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                      UNIQUE (lease_id, notification_type, period_key)
+                    );
+                    """
+                )
+                cur.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_push_notification_log_landlord
+                    ON push_notification_log(landlord_user_id, created_at DESC);
+                    """
+                )
     finally:
         conn.close()
