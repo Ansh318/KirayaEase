@@ -9,6 +9,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:crypto/crypto.dart';
 import '../config/api_config.dart';
 import '../services/ios_fcm_registration.dart';
+import '../services/pre_signin_nudge_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -85,6 +86,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
+      await PreSigninNudgeService.onUserSignedIn();
       IosFcmRegistration.registerIfIosAndLoggedIn();
 
       // Existing user (already onboarded) → go straight to tenant/dashboard
@@ -162,6 +164,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
+      await PreSigninNudgeService.onUserSignedIn();
       IosFcmRegistration.registerIfIosAndLoggedIn();
 
       final onboarded = data['onboarded'] == true;

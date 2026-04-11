@@ -24,6 +24,8 @@ import 'screens/rent_reporting.dart';
 import 'screens/account.dart';
 import 'dart:io' show Platform;
 
+import 'services/pre_signin_nudge_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -51,7 +53,9 @@ void main() async {
       // Continue anyway - some features might still work
     }
   }
-  
+
+  await PreSigninNudgeService.syncOnLaunch();
+
   runApp(const KirayaEaseApp());
 }
 
