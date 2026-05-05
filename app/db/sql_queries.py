@@ -70,6 +70,30 @@ DELETE FROM push_notification_log WHERE id = %s;
 """
 
 
+INSERT_RENT_EMAIL_REMINDER_LOG = """
+INSERT INTO rent_email_reminder_log (
+  lease_id,
+  reminder_type,
+  period_key,
+  tenant_email,
+  status,
+  provider_message
+)
+VALUES (%s, %s, %s, %s, %s, %s)
+ON CONFLICT (lease_id, reminder_type, period_key) DO NOTHING
+RETURNING id;
+"""
+
+
+UPDATE_RENT_EMAIL_REMINDER_LOG_STATUS = """
+UPDATE rent_email_reminder_log
+SET status = %s,
+    provider_message = %s,
+    sent_at = CASE WHEN %s = 'sent' THEN NOW() ELSE sent_at END
+WHERE id = %s;
+"""
+
+
 GET_LEASES_FOR_PUSH_SCHEDULER = """
 SELECT
   l.id AS lease_id,
@@ -80,7 +104,8 @@ SELECT
   l.status AS lease_status,
   p.owner_id AS landlord_user_id,
   p.name AS property_name,
-  COALESCE(NULLIF(TRIM(p.tenant_name), ''), 'Tenant') AS tenant_name
+  COALESCE(NULLIF(TRIM(p.tenant_name), ''), 'Tenant') AS tenant_name,
+  NULLIF(TRIM(p.tenant_email), '') AS tenant_email
 FROM leases l
 JOIN properties p ON p.id = l.property_id
 WHERE (

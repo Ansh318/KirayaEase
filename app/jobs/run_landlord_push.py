@@ -28,9 +28,11 @@ def main() -> int:
 
     from app.db.migrations import ensure_runtime_migrations
     from app.services.landlord_push_scheduler import run_scheduled_landlord_pushes
+    from app.services.rent_email_scheduler import run_scheduled_rent_email_reminders
 
     ensure_runtime_migrations()
     run_scheduled_landlord_pushes()
+    run_scheduled_rent_email_reminders()
     return 0
 
 

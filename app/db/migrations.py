@@ -175,5 +175,27 @@ def ensure_runtime_migrations() -> None:
                     ON push_notification_log(landlord_user_id, created_at DESC);
                     """
                 )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS rent_email_reminder_log (
+                      id                BIGSERIAL PRIMARY KEY,
+                      lease_id          BIGINT NOT NULL REFERENCES leases(id) ON DELETE CASCADE,
+                      reminder_type     TEXT NOT NULL,
+                      period_key        TEXT NOT NULL,
+                      tenant_email      TEXT NOT NULL,
+                      status            TEXT NOT NULL DEFAULT 'claimed',
+                      provider_message  TEXT,
+                      created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                      sent_at           TIMESTAMPTZ,
+                      UNIQUE (lease_id, reminder_type, period_key)
+                    );
+                    """
+                )
+                cur.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_rent_email_reminder_log_lease_created
+                    ON rent_email_reminder_log(lease_id, created_at DESC);
+                    """
+                )
     finally:
         conn.close()
