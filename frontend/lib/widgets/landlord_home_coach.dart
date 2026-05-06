@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String kLandlordHomeCoachPrefsKey = 'kirayaease_landlord_home_coach_v1_done';
+const String kLandlordHomeCoachPrefsKeyBase =
+    'kirayaease_landlord_home_coach_v1_done';
 
 /// One-time multi-step “coach marks” style tour for the landlord Home tab.
 Future<void> showLandlordHomeCoachIfNeeded(BuildContext context) async {
   final prefs = await SharedPreferences.getInstance();
-  if (prefs.getBool(kLandlordHomeCoachPrefsKey) == true) return;
+  final email = (prefs.getString('user_email') ?? '').trim().toLowerCase();
+  final key = email.isEmpty
+      ? kLandlordHomeCoachPrefsKeyBase
+      : '${kLandlordHomeCoachPrefsKeyBase}_$email';
+  if (prefs.getBool(key) == true) return;
   if (!context.mounted) return;
 
   await showDialog<void>(
@@ -15,7 +20,7 @@ Future<void> showLandlordHomeCoachIfNeeded(BuildContext context) async {
     builder: (ctx) => const _LandlordCoachDialog(),
   );
 
-  await prefs.setBool(kLandlordHomeCoachPrefsKey, true);
+  await prefs.setBool(key, true);
 }
 
 class _LandlordCoachDialog extends StatefulWidget {

@@ -2,7 +2,10 @@
 import calendar
 from datetime import date, datetime
 import os
+import threading
+import time
 from typing import Optional
+import logging
 
 from fastapi import HTTPException
 import psycopg2
@@ -23,8 +26,12 @@ from app.services.lease_manual_assets import (
     persist_manual_lease_pdf_and_rag,
 )
 from app.services.lease_synthetic_document import render_lease_document_text
+from app.services.docuseal_flow import start_docuseal_signing_for_owner_lease
+from app.services.email_service import send_html_email
+from app.utils.templates import render_tenant_welcome_email_html
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 def _serialize_lease_detail_row(detail: dict) -> dict:
@@ -57,6 +64,91 @@ def _owner_identity(user_id: int) -> dict:
         "landlord_name": full_name or None,
         "landlord_email": email,
     }
+
+
+def _auto_docuseal_delay_seconds() -> int:
+    raw = (os.getenv("AUTO_DOCUSEAL_DELAY_SECONDS") or "120").strip()
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 120
+
+
+def _is_auto_docuseal_enabled() -> bool:
+    raw = (os.getenv("AUTO_DOCUSEAL_ON_LEASE_SUBMIT") or "true").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _kickoff_docuseal_delayed(owner_id: int, lease_id: int, tenant_email: str) -> None:
+    delay = _auto_docuseal_delay_seconds()
+
+    def _runner() -> None:
+        try:
+            if delay > 0:
+                time.sleep(delay)
+            start_docuseal_signing_for_owner_lease(
+                owner_id=int(owner_id),
+                lease_id=int(lease_id),
+                tenant_email=tenant_email.strip(),
+                tenant_name=None,
+                landlord_email=None,
+                landlord_name=None,
+                send_email=True,
+                completed_redirect_url=None,
+                shared_link=True,
+            )
+            logger.info(
+                "Auto DocuSeal started owner_id=%s lease_id=%s delay=%ss",
+                owner_id,
+                lease_id,
+                delay,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Auto DocuSeal failed owner_id=%s lease_id=%s: %s",
+                owner_id,
+                lease_id,
+                exc,
+            )
+
+    t = threading.Thread(target=_runner, daemon=True)
+    t.start()
+
+
+def _send_welcome_then_schedule_docuseal(owner_id: int, lease_id: int, detail: dict) -> None:
+    tenant_email = (detail.get("tenant_email") or "").strip()
+    if not tenant_email:
+        return
+
+    tenant_name = (detail.get("property_tenant_name") or "Tenant").strip() or "Tenant"
+    apt_name = (detail.get("property_name") or f"Lease {lease_id}").strip()
+    html_body = render_tenant_welcome_email_html(
+        tenant_name=tenant_name,
+        apt_name=apt_name,
+        email=tenant_email,
+    )
+    email_result = send_html_email(
+        to_email=tenant_email,
+        subject=f"Welcome to {apt_name} - lease signing link coming soon",
+        html_body=html_body,
+    )
+    if email_result.get("ok"):
+        logger.info(
+            "Tenant welcome email sent owner_id=%s lease_id=%s to=%s",
+            owner_id,
+            lease_id,
+            tenant_email,
+        )
+    else:
+        logger.warning(
+            "Tenant welcome email failed owner_id=%s lease_id=%s detail=%s",
+            owner_id,
+            lease_id,
+            email_result,
+        )
+
+    if _is_auto_docuseal_enabled():
+        _kickoff_docuseal_delayed(owner_id, lease_id, tenant_email)
 
 
 def create_lease_manual_from_body(
@@ -110,6 +202,7 @@ def create_lease_manual_from_body(
     detail = pm.get_lease_detail_for_owner(int(lid), user_id)
     if not detail:
         raise ValueError("Lease created but could not load detail")
+    _send_welcome_then_schedule_docuseal(user_id, int(lid), detail)
     return _serialize_lease_detail_row(detail)
 
 
@@ -191,6 +284,7 @@ def create_lease_from_generated_agreement(
     detail = pm.get_lease_detail_for_owner(int(lid), user_id)
     if not detail:
         raise ValueError("Lease created but could not load detail")
+    _send_welcome_then_schedule_docuseal(user_id, int(lid), detail)
     return _serialize_lease_detail_row(detail)
 
 

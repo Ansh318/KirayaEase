@@ -14,8 +14,6 @@ from app.services.docuseal_signing import (
     normalize_docuseal_submission_response,
     request_lease_pdf_signing,
 )
-from app.services.email_service import send_html_email
-from app.utils.templates import render_tenant_welcome_email_html
 
 def start_docuseal_signing_for_owner_lease(
     *,
@@ -103,26 +101,7 @@ def start_docuseal_signing_for_owner_lease(
     ):
         raise RuntimeError("Could not persist DocuSeal submission id on lease")
 
-    # Best-effort: warm tenant onboarding welcome email.
-    # Do not block DocuSeal onboarding if the email provider fails.
-    tenant_display_name = (tenant_name or detail.get("property_tenant_name") or "Tenant")
-    welcome_html = render_tenant_welcome_email_html(
-        tenant_name=tenant_display_name,
-        apt_name=prop_name,
-        email=te,
-    )
-    welcome_email_result = send_html_email(
-        to_email=te,
-        subject=f"Welcome to {prop_name} - lease signing link coming soon",
-        html_body=welcome_html,
-    )
-
     out["lease_id"] = lease_id
-    out["tenant_welcome_email"] = (
-        {"status": "sent", "provider": "smtp_custom_html"}
-        if welcome_email_result.get("ok")
-        else {"status": "skipped_or_failed", "detail": welcome_email_result}
-    )
     out["message"] = (
         "Landlord can tap **Sign as landlord** in the app (embed URL). "
         "Share **docuseal_signing_url** with the tenant for WhatsApp. "
