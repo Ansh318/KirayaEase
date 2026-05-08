@@ -115,10 +115,10 @@ def _kickoff_docuseal_delayed(owner_id: int, lease_id: int, tenant_email: str) -
     t.start()
 
 
-def _send_welcome_then_schedule_docuseal(owner_id: int, lease_id: int, detail: dict) -> None:
+def _send_tenant_welcome_email(owner_id: int, lease_id: int, detail: dict) -> dict:
     tenant_email = (detail.get("tenant_email") or "").strip()
     if not tenant_email:
-        return
+        return {"ok": False, "reason": "missing_tenant_email"}
 
     tenant_name = (detail.get("property_tenant_name") or "Tenant").strip() or "Tenant"
     apt_name = (detail.get("property_name") or f"Lease {lease_id}").strip()
@@ -146,9 +146,16 @@ def _send_welcome_then_schedule_docuseal(owner_id: int, lease_id: int, detail: d
             lease_id,
             email_result,
         )
+    return email_result
+
+
+def _send_welcome_then_schedule_docuseal(owner_id: int, lease_id: int, detail: dict) -> None:
+    _send_tenant_welcome_email(owner_id, lease_id, detail)
 
     if _is_auto_docuseal_enabled():
-        _kickoff_docuseal_delayed(owner_id, lease_id, tenant_email)
+        tenant_email = (detail.get("tenant_email") or "").strip()
+        if tenant_email:
+            _kickoff_docuseal_delayed(owner_id, lease_id, tenant_email)
 
 
 def trigger_post_submit_onboarding(owner_id: int, lease_id: int, detail: Optional[dict] = None) -> None:
@@ -166,6 +173,26 @@ def trigger_post_submit_onboarding(owner_id: int, lease_id: int, detail: Optiona
         )
         return
     _send_welcome_then_schedule_docuseal(int(owner_id), int(lease_id), row)
+
+
+def trigger_tenant_welcome_email(
+    owner_id: int,
+    lease_id: int,
+    *,
+    tenant_email: Optional[str] = None,
+) -> dict:
+    """
+    Send only the tenant welcome email for an existing lease.
+
+    Used by chat onboarding flow to send "ready to onboard" before immediate DocuSeal start.
+    """
+    row = PropertyManager().get_lease_detail_for_owner(int(lease_id), int(owner_id))
+    if not row:
+        return {"ok": False, "reason": "lease_not_found"}
+    te = (tenant_email or "").strip()
+    if te:
+        row["tenant_email"] = te
+    return _send_tenant_welcome_email(int(owner_id), int(lease_id), row)
 
 
 def create_lease_manual_from_body(

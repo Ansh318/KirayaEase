@@ -5,6 +5,7 @@ from langchain_core.tools import tool
 from app.core.client_actions import OPEN_DOCUSEAL_SIGNING
 from app.schemas.property_manager import PropertyManager
 from app.services.docuseal_flow import start_docuseal_signing_for_owner_lease
+from app.services.lease_services import trigger_tenant_welcome_email
 
 
 @tool
@@ -40,6 +41,11 @@ def invite_tenant(
                 "or pass tenant_email to this tool."
             ),
         }
+    welcome_email_result = trigger_tenant_welcome_email(
+        int(landlord_user_id),
+        int(lease_id),
+        tenant_email=te,
+    )
     try:
         out = start_docuseal_signing_for_owner_lease(
             owner_id=int(landlord_user_id),
@@ -59,6 +65,7 @@ def invite_tenant(
     return {
         "status": "success",
         **out,
+        "welcome_email": welcome_email_result,
         "client_action": OPEN_DOCUSEAL_SIGNING,
         "client_action_payload": {
             "lease_id": int(lease_id),
@@ -68,7 +75,8 @@ def invite_tenant(
             "docuseal": out.get("docuseal"),
         },
         "message": (
-            "Tenant onboarding started with DocuSeal. Share docuseal_signing_url (or embed_src) "
-            "with the tenant. The lease card will show Signed when webhook completion arrives."
+            "Welcome email sent (if tenant email is available), then tenant onboarding started with DocuSeal. "
+            "Share docuseal_signing_url (or embed_src) with the tenant. "
+            "The lease card will show Signed when webhook completion arrives."
         ),
     }
