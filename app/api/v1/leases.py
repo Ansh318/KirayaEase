@@ -21,6 +21,7 @@ from app.services.lease_services import (
     finalize_generated_lease_agreement,
     finalize_stored_lease_draft,
     generate_and_store_lease_agreement_preview,
+    trigger_post_submit_onboarding,
 )
 from app.services.user_lease_draft_store import get_lease_draft, save_lease_draft
 from app.schemas.lease_write import (
@@ -176,6 +177,7 @@ async def extract_lease_content(
                 )
                 lease_id = lease.get("id")
                 if lease_id:
+                    trigger_post_submit_onboarding(int(user_id), int(lease_id))
                     # Persist the PDF into Postgres (durable on Heroku) and expose a stable URL.
                     try:
                         conn = psycopg2.connect(os.getenv("DATABASE_URL"))

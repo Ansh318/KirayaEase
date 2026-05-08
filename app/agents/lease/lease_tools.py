@@ -23,6 +23,7 @@ from app.services.lease_services import (
     finalize_generated_lease_agreement,
     finalize_stored_lease_draft,
     generate_and_store_lease_agreement_preview,
+    trigger_post_submit_onboarding,
 )
 from app.services.user_lease_draft_store import get_lease_draft, save_lease_draft
 from app.services.docuseal_flow import start_docuseal_signing_for_owner_lease
@@ -113,6 +114,8 @@ def store_lease(owner_id: int, pdf_path: str) -> dict:
         due_day=int(due_day),
     )
     lease_id = lease.get("id")
+    if lease_id:
+        trigger_post_submit_onboarding(int(owner_id), int(lease_id))
 
     try:
         raw_text = read_pdf_text(pdf_path)

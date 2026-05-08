@@ -151,6 +151,23 @@ def _send_welcome_then_schedule_docuseal(owner_id: int, lease_id: int, detail: d
         _kickoff_docuseal_delayed(owner_id, lease_id, tenant_email)
 
 
+def trigger_post_submit_onboarding(owner_id: int, lease_id: int, detail: Optional[dict] = None) -> None:
+    """
+    Send tenant welcome email and optionally auto-start DocuSeal after a lease is created.
+
+    Safe no-op when lease detail or tenant email is missing.
+    """
+    row = detail or PropertyManager().get_lease_detail_for_owner(int(lease_id), int(owner_id))
+    if not row:
+        logger.warning(
+            "Post-submit onboarding skipped: lease detail missing owner_id=%s lease_id=%s",
+            owner_id,
+            lease_id,
+        )
+        return
+    _send_welcome_then_schedule_docuseal(int(owner_id), int(lease_id), row)
+
+
 def create_lease_manual_from_body(
     user_id: int,
     body: LeaseWriteBody,
@@ -202,7 +219,7 @@ def create_lease_manual_from_body(
     detail = pm.get_lease_detail_for_owner(int(lid), user_id)
     if not detail:
         raise ValueError("Lease created but could not load detail")
-    _send_welcome_then_schedule_docuseal(user_id, int(lid), detail)
+    trigger_post_submit_onboarding(user_id, int(lid), detail)
     return _serialize_lease_detail_row(detail)
 
 
@@ -284,7 +301,7 @@ def create_lease_from_generated_agreement(
     detail = pm.get_lease_detail_for_owner(int(lid), user_id)
     if not detail:
         raise ValueError("Lease created but could not load detail")
-    _send_welcome_then_schedule_docuseal(user_id, int(lid), detail)
+    trigger_post_submit_onboarding(user_id, int(lid), detail)
     return _serialize_lease_detail_row(detail)
 
 
