@@ -4,7 +4,7 @@
 # Runtime: Cloud Run (asia-south1)
 # Python: 3.12-slim
 
-FROM python:3.12-slim AS base
+FROM python:3.12-slim-bookworm AS base
 
 # System deps for psycopg2-binary, pdfkit, reportlab
 RUN apt-get update && apt-get install -y --no-install-recommends \
