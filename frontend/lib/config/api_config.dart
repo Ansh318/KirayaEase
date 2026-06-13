@@ -1,9 +1,8 @@
 /// API Configuration
 /// Change this to switch between localhost and production
 class ApiConfig {
-  // Local backend
   static const String baseUrl =
-      'https://kiraya-ease-50d651c2ed49.herokuapp.com';
+      'https://kirayaease-902326938544.asia-south1.run.app';
 
   // Helper methods for common endpoints
   static String get chatbotEndpoint => '$baseUrl/agent-chat';

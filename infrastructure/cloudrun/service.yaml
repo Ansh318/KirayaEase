@@ -1,0 +1,63 @@
+# Cloud Run Service Manifest
+# Deploy with: gcloud run services replace infrastructure/cloudrun/service.yaml
+#
+# Replace all <PLACEHOLDERS> with your actual values.
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: kiraya-ease-api
+  namespace: <PROJECT_NUMBER>
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      annotations:
+        # Cloud SQL connection
+        run.googleapis.com/cloudsql-instances: <PROJECT_ID>:asia-south1:<SQL_INSTANCE_NAME>
+        # Minimum instances (avoid cold starts)
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "10"
+    spec:
+      serviceAccountName: <SERVICE_ACCOUNT_EMAIL>
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+        - image: asia-south1-docker.pkg.dev/<PROJECT_ID>/kiraya-ease/kiraya-ease-api:latest
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              memory: 1Gi
+              cpu: "1"
+          env:
+            # Cloud SQL — connector uses unix socket via Cloud Run sidecar
+            - name: CLOUD_SQL_INSTANCE
+              value: <PROJECT_ID>:asia-south1:<SQL_INSTANCE_NAME>
+            - name: DB_NAME
+              value: kirayaease
+            - name: DB_USER
+              value: <DB_USER>
+            - name: PRIVATE_IP
+              value: "1"
+            # GCP project for Secret Manager
+            - name: GOOGLE_CLOUD_PROJECT
+              value: <PROJECT_ID>
+            # All other secrets loaded at runtime from Secret Manager
+            # via app.core.secrets.load_secrets_into_env()
+          livenessProbe:
+            httpGet:
+              path: /health
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+  traffic:
+    - percent: 100
+      latestRevision: true

@@ -1,0 +1,35 @@
+# Cloud Scheduler Jobs — replaces Heroku Scheduler
+# Service URL: https://kirayaease-902326938544.asia-south1.run.app
+
+jobs:
+  - name: kiraya-ease-landlord-push
+    description: "Daily push notifications: rent due (2-3 days), overdue, lease expiring"
+    schedule: "0 7 * * *"          # 07:00 IST = 01:30 UTC daily
+    timeZone: "Asia/Kolkata"
+    httpTarget:
+      uri: "https://kirayaease-902326938544.asia-south1.run.app/internal/jobs/landlord-push"
+      httpMethod: POST
+      oidcToken:
+        serviceAccountEmail: "<OIDC_SA_EMAIL>"
+        audience: "https://kirayaease-902326938544.asia-south1.run.app"
+    retryConfig:
+      retryCount: 3
+      minBackoffDuration: "5s"
+      maxBackoffDuration: "60s"
+    attemptDeadline: "300s"
+
+  - name: kiraya-ease-rent-email-reminders
+    description: "Daily rent email reminders to tenants"
+    schedule: "30 7 * * *"         # 07:30 IST = 02:00 UTC daily
+    timeZone: "Asia/Kolkata"
+    httpTarget:
+      uri: "https://kirayaease-902326938544.asia-south1.run.app/internal/jobs/rent-email-reminders"
+      httpMethod: POST
+      oidcToken:
+        serviceAccountEmail: "<OIDC_SA_EMAIL>"
+        audience: "https://kirayaease-902326938544.asia-south1.run.app"
+    retryConfig:
+      retryCount: 3
+      minBackoffDuration: "5s"
+      maxBackoffDuration: "60s"
+    attemptDeadline: "300s"
