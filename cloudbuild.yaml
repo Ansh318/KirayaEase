@@ -16,7 +16,7 @@
 substitutions:
   _REGION: asia-south1
   _SERVICE_NAME: kiraya-ease-api
-  _REPO: kiraya-ease
+  _REPO: kirayaease
   _DB_NAME: kirayaease
 
 steps:
