@@ -4,20 +4,15 @@
 # Builds, pushes to Artifact Registry, and deploys to Cloud Run.
 #
 # Required substitutions (set in Cloud Build trigger):
-#   _PROJECT_ID       — GCP project ID
-#   _REGION           — Cloud Run region (default: asia-south1)
-#   _SERVICE_NAME     — Cloud Run service name (default: kiraya-ease-api)
-#   _REPO             — Artifact Registry repo name (default: kiraya-ease)
-#   _SQL_INSTANCE     — Cloud SQL instance connection name
-#   _DB_NAME          — Cloud SQL database name
-#   _DB_USER          — Cloud SQL IAM user or DB user
-#   _SERVICE_ACCOUNT  — Cloud Run service account email
+#   _DB_PASSWORD      — Cloud SQL postgres user password
 
 substitutions:
   _REGION: asia-south1
   _SERVICE_NAME: kiraya-ease-api
   _REPO: kirayaease
   _DB_NAME: kirayaease
+  _DB_USER: postgres
+  _SQL_INSTANCE: free-trial-first-project
 
 steps:
   # ── 1. Build Docker image ──────────────────────────────────────────────────
@@ -53,13 +48,8 @@ steps:
       - '--region=${_REGION}'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      - '--service-account=${_SERVICE_ACCOUNT}'
       - '--add-cloudsql-instances=${PROJECT_ID}:${_REGION}:${_SQL_INSTANCE}'
-      - '--set-env-vars=CLOUD_SQL_INSTANCE=${PROJECT_ID}:${_REGION}:${_SQL_INSTANCE}'
-      - '--set-env-vars=DB_NAME=${_DB_NAME}'
-      - '--set-env-vars=DB_USER=${_DB_USER}'
-      - '--set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID}'
-      - '--set-env-vars=PRIVATE_IP=1'
+      - '--set-env-vars=CLOUD_SQL_INSTANCE=${PROJECT_ID}:${_REGION}:${_SQL_INSTANCE},DB_NAME=${_DB_NAME},DB_USER=${_DB_USER},DB_PASSWORD=${_DB_PASSWORD},GOOGLE_CLOUD_PROJECT=${PROJECT_ID}'
       - '--min-instances=1'
       - '--max-instances=10'
       - '--memory=1Gi'
