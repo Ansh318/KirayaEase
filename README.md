@@ -191,10 +191,10 @@ After a lease PDF is stored (`lease_files`), landlords can start signing via Doc
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DOCUSEAL_API_KEY` | Yes | DocuSeal API token (`X-Auth-Token`) |
-| `DOCUSEAL_API_BASE` | No | Default `https://api.docuseal.com` (EU: `https://api.docuseal.eu`) |
-| `DOCUSEAL_WEBHOOK_SECRET` | No | If set, webhooks must pass the same value as query `?secret=...` or header `X-KirayaEase-Webhook-Secret` |
-| `DOCUSEAL_WEBHOOK_KEY` + `DOCUSEAL_WEBHOOK_VALUE` | No | Alternate webhook auth mode: request must include query/header named by `DOCUSEAL_WEBHOOK_KEY` with value `DOCUSEAL_WEBHOOK_VALUE` |
-| `DOCUSEAL_SUBMISSION_SHARED_LINK` | No | Default `true` — request `shared_link` on `POST /submissions/pdf` so DocuSeal returns shareable `embed_src` links (e.g. WhatsApp) |
+| `DOCUSEAL_API_BASE` | YES | Default `https://api.docuseal.com` (EU: `https://api.docuseal.eu`) |
+| `DOCUSEAL_WEBHOOK_SECRET` | YES | If set, webhooks must pass the same value as query `?secret=...` or header `X-KirayaEase-Webhook-Secret` |
+| `DOCUSEAL_WEBHOOK_KEY` + `DOCUSEAL_WEBHOOK_VALUE` | YES | Alternate webhook auth mode: request must include query/header named by `DOCUSEAL_WEBHOOK_KEY` with value `DOCUSEAL_WEBHOOK_VALUE` |
+| `DOCUSEAL_SUBMISSION_SHARED_LINK` | YES | Default `true` — request `shared_link` on `POST /submissions/pdf` so DocuSeal returns shareable `embed_src` links (e.g. WhatsApp) |
 
 **HTTP**
 
